@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: kconnecta.admin.backend
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://dpg-d6rq0sh4tr6s73a8vsj0-a.singapore-postgres.render.com:5432/kconnecta_5f60}
+    username: ${DB_USERNAME:kconnecta_5f60_user}
+    password: ${DB_PASSWORD:s7uVbTDpVS7tw3id15qLDt2xtQVR7Vt0}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: public
+        jdbc:
+          time_zone: ${APP_TIMEZONE:Asia/Ho_Chi_Minh}
+    show-sql: true
+    open-in-view: false
+
+  jackson:
+    time-zone: ${APP_TIMEZONE:Asia/Ho_Chi_Minh}
+
+  main:
+    banner-mode: off
+
+server:
+  port: ${PORT:8082}
+
+jwt:
+  secret: ${JWT_SECRET:kconnecta-super-secret-key-that-is-at-least-256-bits-long-for-hs256}
+  expiration: ${JWT_EXPIRATION:86400000}
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,https://admin-k-connecta.vercel.app}
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:https://*.vercel.app}

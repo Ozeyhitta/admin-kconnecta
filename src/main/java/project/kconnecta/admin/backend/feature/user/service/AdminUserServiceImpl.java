@@ -1,0 +1,89 @@
+package project.kconnecta.admin.backend.feature.user.service;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.*;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import project.kconnecta.admin.backend.common.enums.AccountRole;
+import project.kconnecta.admin.backend.common.enums.AccountStatus;
+import project.kconnecta.admin.backend.entity.Account;
+import project.kconnecta.admin.backend.exception.ResourceNotFoundException;
+import project.kconnecta.admin.backend.feature.user.dto.response.AdminUserResponseDTO;
+import project.kconnecta.admin.backend.feature.user.repository.AccountRepository;
+
+import java.time.LocalDateTime;
+import java.util.Set;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class AdminUserServiceImpl implements AdminUserService {
+
+    private final AccountRepository accountRepository;
+    private final BCryptPasswordEncoder passwordEncoder;
+
+    @Override
+    public Page<AdminUserResponseDTO> getUsers(int page, int size, String sortBy, String sortDir,
+                                               String search, AccountStatus status, AccountRole role) {
+        Sort.Direction direction = Sort.Direction.fromString(sortDir.toUpperCase());
+        Set<String> validFields = Set.of("id", "email", "status", "role", "createdAt");
+        String safeField = validFields.contains(sortBy) ? sortBy : "createdAt";
+        Sort sort = Sort.by(direction, safeField);
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<Account> accounts;
+        if (search != null && !search.isBlank()) {
+            accounts = accountRepository.searchByEmailOrUsername(search.trim(), pageable);
+        } else if (status != null && role != null) {
+            accounts = accountRepository.findByStatusAndRole(status, role, pageable);
+        } else if (status != null) {
+            accounts = accountRepository.findByStatus(status, pageable);
+        } else if (role != null) {
+            accounts = accountRepository.findByRole(role, pageable);
+        } else {
+            accounts = accountRepository.findAll(pageable);
+        }
+
+        return accounts.map(AdminUserResponseDTO::from);
+    }
+
+    @Override
+    public AdminUserResponseDTO getUserById(UUID id) {
+        return AdminUserResponseDTO.from(findAccount(id));
+    }
+
+    @Override
+    @Transactional
+    public AdminUserResponseDTO updateStatus(UUID id, AccountStatus status) {
+        Account account = findAccount(id);
+        account.setStatus(status);
+        return AdminUserResponseDTO.from(accountRepository.saveAndFlush(account));
+    }
+
+    @Override
+    @Transactional
+    public AdminUserResponseDTO resetPassword(UUID id, String newPassword) {
+        Account account = findAccount(id);
+        account.setPasswordHash(passwordEncoder.encode(newPassword));
+        return AdminUserResponseDTO.from(accountRepository.save(account));
+    }
+
+    @Override
+    @Transactional
+    public AdminUserResponseDTO updateRole(UUID id, AccountRole role) {
+        Account account = findAccount(id);
+        account.setRole(role);
+        return AdminUserResponseDTO.from(accountRepository.save(account));
+    }
+
+    @Override
+    public long countUsersRegisteredBetween(LocalDateTime from, LocalDateTime to) {
+        return accountRepository.countByCreatedAtBetween(from, to);
+    }
+
+    private Account findAccount(UUID id) {
+        return accountRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+    }
+}
