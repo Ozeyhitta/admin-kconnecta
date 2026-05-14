@@ -3,7 +3,6 @@ package project.kconnecta.admin.backend.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.lang.NonNull;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -22,7 +21,7 @@ public class CorsConfig {
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
-            public void addCorsMappings(@NonNull CorsRegistry registry) {
+            public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**")
                         .allowedOrigins(splitCsv(allowedOrigins))
                         .allowedOriginPatterns(splitCsv(allowedOriginPatterns))
@@ -33,7 +32,7 @@ public class CorsConfig {
         };
     }
 
-    private @NonNull String[] splitCsv(String value) {
+    private String[] splitCsv(String value) {
         if (value == null || value.isBlank()) return new String[0];
         return Arrays.stream(value.split(","))
                 .map(String::trim)

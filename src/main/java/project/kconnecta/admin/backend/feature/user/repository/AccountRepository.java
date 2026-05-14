@@ -31,4 +31,6 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
     Page<Account> findByStatusAndRole(AccountStatus status, AccountRole role, Pageable pageable);
 
     long countByCreatedAtBetween(LocalDateTime from, LocalDateTime to);
+
+    long countByStatus(AccountStatus status);
 }
