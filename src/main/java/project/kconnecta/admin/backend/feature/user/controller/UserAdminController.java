@@ -8,13 +8,19 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import project.kconnecta.admin.backend.common.enums.AccountRole;
 import project.kconnecta.admin.backend.common.enums.AccountStatus;
+import project.kconnecta.admin.backend.feature.activitylog.dto.UserActivityLogResponse;
+import project.kconnecta.admin.backend.feature.activitylog.repository.UserActivityLogRepository;
+import project.kconnecta.admin.backend.feature.comment.repository.CommentAdminRepository;
+import project.kconnecta.admin.backend.feature.post.repository.PostAdminRepository;
 import project.kconnecta.admin.backend.feature.user.dto.request.ResetPasswordRequest;
 import project.kconnecta.admin.backend.feature.user.dto.request.UpdateRoleRequest;
 import project.kconnecta.admin.backend.feature.user.dto.request.UpdateStatusRequest;
 import project.kconnecta.admin.backend.feature.user.dto.response.AdminUserResponseDTO;
+import project.kconnecta.admin.backend.feature.user.dto.response.UserStatsResponse;
 import project.kconnecta.admin.backend.feature.user.service.AdminUserService;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -24,6 +30,9 @@ import java.util.UUID;
 public class UserAdminController {
 
     private final AdminUserService adminUserService;
+    private final UserActivityLogRepository activityLogRepository;
+    private final PostAdminRepository postAdminRepository;
+    private final CommentAdminRepository commentAdminRepository;
 
     @GetMapping
     public ResponseEntity<Page<AdminUserResponseDTO>> getUsers(
@@ -75,5 +84,29 @@ public class UserAdminController {
             @Valid @RequestBody UpdateRoleRequest request) {
 
         return ResponseEntity.ok(adminUserService.updateRole(id, request.getRole()));
+    }
+
+    @GetMapping("/{id}/stats")
+    public ResponseEntity<UserStatsResponse> getUserStats(@PathVariable UUID id) {
+        UserStatsResponse stats = UserStatsResponse.builder()
+                .totalPosts(postAdminRepository.countByAuthorId(id))
+                .totalComments(commentAdminRepository.countByUserId(id))
+                .totalReactions(activityLogRepository.countByUserIdAndActionType(id, "REACTION_ADDED"))
+                .totalShares(activityLogRepository.countByUserIdAndActionType(id, "POST_SHARED"))
+                .totalFriendRequests(activityLogRepository.countByUserIdAndActionType(id, "FRIEND_REQUEST_SENT"))
+                .totalLogins(activityLogRepository.countByUserIdAndActionType(id, "LOGIN"))
+                .totalActivity(activityLogRepository.countByUserId(id))
+                .build();
+        return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/{id}/activity")
+    public ResponseEntity<List<UserActivityLogResponse>> getUserActivity(@PathVariable UUID id) {
+        List<UserActivityLogResponse> logs = activityLogRepository
+                .findTop15ByUserIdOrderByCreatedAtDesc(id)
+                .stream()
+                .map(UserActivityLogResponse::from)
+                .toList();
+        return ResponseEntity.ok(logs);
     }
 }

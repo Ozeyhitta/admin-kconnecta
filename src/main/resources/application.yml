@@ -37,3 +37,25 @@ app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,https://admin-k-connecta.vercel.app}
     allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:https://*.vercel.app}
+
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: KConnecta Admin Backend API

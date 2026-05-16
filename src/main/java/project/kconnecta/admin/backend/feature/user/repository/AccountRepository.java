@@ -33,4 +33,25 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
     long countByCreatedAtBetween(LocalDateTime from, LocalDateTime to);
 
     long countByStatus(AccountStatus status);
+
+    @org.springframework.data.jpa.repository.Query(
+            value = "SELECT created_at::date AS period, COUNT(*)::bigint AS cnt " +
+                    "FROM accounts WHERE created_at >= CURRENT_DATE - INTERVAL '29 days' " +
+                    "GROUP BY created_at::date ORDER BY period",
+            nativeQuery = true)
+    java.util.List<Object[]> countNewUsersByDay();
+
+    @org.springframework.data.jpa.repository.Query(
+            value = "SELECT DATE_TRUNC('week', created_at)::date AS period, COUNT(*)::bigint AS cnt " +
+                    "FROM accounts WHERE created_at >= CURRENT_DATE - INTERVAL '11 weeks' " +
+                    "GROUP BY DATE_TRUNC('week', created_at) ORDER BY period",
+            nativeQuery = true)
+    java.util.List<Object[]> countNewUsersByWeek();
+
+    @org.springframework.data.jpa.repository.Query(
+            value = "SELECT DATE_TRUNC('month', created_at)::date AS period, COUNT(*)::bigint AS cnt " +
+                    "FROM accounts WHERE created_at >= CURRENT_DATE - INTERVAL '11 months' " +
+                    "GROUP BY DATE_TRUNC('month', created_at) ORDER BY period",
+            nativeQuery = true)
+    java.util.List<Object[]> countNewUsersByMonth();
 }
