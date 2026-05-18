@@ -19,7 +19,7 @@ function App() {
   return (
     <Admin
       title="HỆ THỐNG QUẢN TRỊ KCONNECTA"
-      basename={import.meta.env.VITE_BASENAME ?? "/"}
+      basename={import.meta.env.VITE_BASENAME ?? ""}
       dataProvider={dataProvider}
       authProvider={authProvider}
       i18nProvider={i18nProvider}
