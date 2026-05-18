@@ -13,6 +13,7 @@ import project.kconnecta.admin.backend.feature.user.dto.response.AdminUserRespon
 import project.kconnecta.admin.backend.feature.user.repository.AccountRepository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -51,6 +52,16 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     public AdminUserResponseDTO getUserById(UUID id) {
         return AdminUserResponseDTO.from(findAccount(id));
+    }
+
+    @Override
+    public List<AdminUserResponseDTO> getUsersByIds(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return accountRepository.findAllById(ids).stream()
+                .map(AdminUserResponseDTO::from)
+                .toList();
     }
 
     @Override

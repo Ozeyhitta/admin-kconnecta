@@ -48,11 +48,6 @@ public class UserAdminController {
                 adminUserService.getUsers(page, size, sortBy, sortDir, search, status, role));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<AdminUserResponseDTO> getUserById(@PathVariable UUID id) {
-        return ResponseEntity.ok(adminUserService.getUserById(id));
-    }
-
     @GetMapping("/count")
     public ResponseEntity<Map<String, Object>> countUsersInRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
@@ -60,6 +55,16 @@ public class UserAdminController {
 
         long count = adminUserService.countUsersRegisteredBetween(from, to);
         return ResponseEntity.ok(Map.of("count", count, "from", from.toString(), "to", to.toString()));
+    }
+
+    @GetMapping("/batch")
+    public ResponseEntity<List<AdminUserResponseDTO>> getUsersByIds(@RequestParam List<UUID> ids) {
+        return ResponseEntity.ok(adminUserService.getUsersByIds(ids));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<AdminUserResponseDTO> getUserById(@PathVariable UUID id) {
+        return ResponseEntity.ok(adminUserService.getUserById(id));
     }
 
     @PatchMapping("/{id}/status")

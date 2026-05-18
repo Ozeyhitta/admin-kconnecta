@@ -6,6 +6,7 @@ import project.kconnecta.admin.backend.common.enums.AccountStatus;
 import project.kconnecta.admin.backend.feature.user.dto.response.AdminUserResponseDTO;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public interface AdminUserService {
@@ -14,6 +15,8 @@ public interface AdminUserService {
                                         String search, AccountStatus status, AccountRole role);
 
     AdminUserResponseDTO getUserById(UUID id);
+
+    List<AdminUserResponseDTO> getUsersByIds(List<UUID> ids);
 
     AdminUserResponseDTO updateStatus(UUID id, AccountStatus status);
 
