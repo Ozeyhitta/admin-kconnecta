@@ -1,5 +1,6 @@
 import type { DataProvider } from "ra-core";
 import { apiClient } from "./axiosInstance";
+import { isUuid } from "./idUtils";
 
 type CustomerMethods = Pick<
   DataProvider,
@@ -28,6 +29,7 @@ export const customersDataProvider: CustomerMethods = {
   },
 
   getOne: async (_resource, params) => {
+    if (!isUuid(params.id)) return { data: { id: params.id } };
     const { data } = await apiClient.get(`/api/v1/admin/users/${params.id}`);
     return { data };
   },
@@ -54,9 +56,19 @@ export const customersDataProvider: CustomerMethods = {
   },
 
   getMany: async (_resource, params) => {
-    const results = await Promise.all(
-      params.ids.map((id) => apiClient.get(`/api/v1/admin/users/${id}`)),
-    );
-    return { data: results.map((r) => r.data) };
+    const uuidIds = params.ids.filter(isUuid);
+    if (uuidIds.length === 0) {
+      return { data: [] };
+    }
+
+    if (uuidIds.length === 1) {
+      const { data } = await apiClient.get(`/api/v1/admin/users/${uuidIds[0]}`);
+      return { data: [data] };
+    }
+
+    const { data } = await apiClient.get("/api/v1/admin/users/batch", {
+      params: { ids: uuidIds },
+    });
+    return { data };
   },
 };
