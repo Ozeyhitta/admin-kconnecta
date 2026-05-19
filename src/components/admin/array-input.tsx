@@ -10,7 +10,7 @@ import {
 
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "../ui/skeleton";
+import { Skeleton } from "../common/skeleton";
 import { InputHelperText } from "@/components/admin/input-helper-text";
 import { FormError, FormField } from "@/components/admin/form";
 

@@ -7,10 +7,11 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-      "react-router-dom": "react-router",
-    },
+    alias: [
+      { find: "@/components/ui", replacement: path.resolve(__dirname, "./src/components/common") },
+      { find: "@", replacement: path.resolve(__dirname, "./src") },
+      { find: "react-router-dom", replacement: "react-router" },
+    ],
   },
   base: "/",
 });

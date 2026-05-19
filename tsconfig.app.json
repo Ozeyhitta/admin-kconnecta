@@ -23,6 +23,7 @@
     "noUncheckedSideEffectImports": true,
     "baseUrl": ".",
     "paths": {
+      "@/components/ui/*": ["./src/components/common/*"],
       "@/*": ["./src/*"]
     },
     "removeComments": false

@@ -249,7 +249,7 @@ export const ColumnsSelectorItem = <
   );
   const columnFilter = useDataTableColumnFilterContext();
   const translateLabel = useTranslateLabel();
-  if (!source && !label) return null;
+  if (label === false || (!source && !label)) return null;
   const fieldLabel = translateLabel({
     label: typeof label === "string" ? label : undefined,
     resource,

@@ -7,7 +7,7 @@ import {
   useResourceTranslation,
 } from "ra-core";
 
-import { Button } from "../ui/button";
+import { Button } from "../common/button";
 
 /**
  * Export the selected rows
