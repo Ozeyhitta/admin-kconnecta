@@ -11,8 +11,9 @@ import java.util.UUID;
 
 public interface AdminUserService {
 
-    Page<AdminUserResponseDTO> getUsers(int page, int size, String sortBy, String sortDir,
-                                        String search, AccountStatus status, AccountRole role);
+    Page<AdminUserResponseDTO> getUsers(
+            int page, int size, String sortBy, String sortDir,
+            String search, AccountStatus status, AccountRole role);
 
     AdminUserResponseDTO getUserById(UUID id);
 
@@ -21,6 +22,8 @@ public interface AdminUserService {
     AdminUserResponseDTO updateStatus(UUID id, AccountStatus status);
 
     AdminUserResponseDTO resetPassword(UUID id, String newPassword);
+
+    AdminUserResponseDTO resetEmail(UUID id, String newEmail);
 
     AdminUserResponseDTO updateRole(UUID id, AccountRole role);
 

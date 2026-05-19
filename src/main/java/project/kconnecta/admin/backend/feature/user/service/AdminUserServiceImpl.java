@@ -2,11 +2,14 @@ package project.kconnecta.admin.backend.feature.user.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import project.kconnecta.admin.backend.common.enums.AccountRole;
 import project.kconnecta.admin.backend.common.enums.AccountStatus;
+import project.kconnecta.admin.backend.config.security.AdminPrincipal;
 import project.kconnecta.admin.backend.entity.Account;
 import project.kconnecta.admin.backend.exception.ResourceNotFoundException;
 import project.kconnecta.admin.backend.feature.user.dto.response.AdminUserResponseDTO;
@@ -64,10 +67,33 @@ public class AdminUserServiceImpl implements AdminUserService {
                 .toList();
     }
 
+    private UUID currentAdminId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof AdminPrincipal principal)) {
+            throw new IllegalStateException("Unauthorized");
+        }
+        return principal.getUserId();
+    }
+
+    private void assertCanModifyUser(Account target) {
+        if (currentAdminId().equals(target.getId())) {
+            throw new IllegalArgumentException("Không thể thay đổi tài khoản của chính bạn");
+        }
+    }
+
+    private void assertNotLastAdmin(Account target, AccountRole newRole) {
+        if (target.getRole() == AccountRole.ADMIN && newRole != AccountRole.ADMIN) {
+            if (accountRepository.countByRole(AccountRole.ADMIN) <= 1) {
+                throw new IllegalArgumentException("Không thể gỡ quyền Admin cuối cùng trong hệ thống");
+            }
+        }
+    }
+
     @Override
     @Transactional
     public AdminUserResponseDTO updateStatus(UUID id, AccountStatus status) {
         Account account = findAccount(id);
+        assertCanModifyUser(account);
         account.setStatus(status);
         return AdminUserResponseDTO.from(accountRepository.saveAndFlush(account));
     }
@@ -76,7 +102,25 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Transactional
     public AdminUserResponseDTO resetPassword(UUID id, String newPassword) {
         Account account = findAccount(id);
+        assertCanModifyUser(account);
         account.setPasswordHash(passwordEncoder.encode(newPassword));
+        return AdminUserResponseDTO.from(accountRepository.save(account));
+    }
+
+    @Override
+    @Transactional
+    public AdminUserResponseDTO resetEmail(UUID id, String newEmail) {
+        Account account = findAccount(id);
+        assertCanModifyUser(account);
+
+        String normalized = newEmail.trim().toLowerCase();
+        accountRepository.findByEmail(normalized)
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> {
+                    throw new IllegalArgumentException("Email đã được sử dụng");
+                });
+
+        account.setEmail(normalized);
         return AdminUserResponseDTO.from(accountRepository.save(account));
     }
 
@@ -84,6 +128,8 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Transactional
     public AdminUserResponseDTO updateRole(UUID id, AccountRole role) {
         Account account = findAccount(id);
+        assertCanModifyUser(account);
+        assertNotLastAdmin(account, role);
         account.setRole(role);
         return AdminUserResponseDTO.from(accountRepository.save(account));
     }

@@ -12,6 +12,7 @@ import project.kconnecta.admin.backend.feature.activitylog.dto.UserActivityLogRe
 import project.kconnecta.admin.backend.feature.activitylog.repository.UserActivityLogRepository;
 import project.kconnecta.admin.backend.feature.comment.repository.CommentAdminRepository;
 import project.kconnecta.admin.backend.feature.post.repository.PostAdminRepository;
+import project.kconnecta.admin.backend.feature.user.dto.request.ResetEmailRequest;
 import project.kconnecta.admin.backend.feature.user.dto.request.ResetPasswordRequest;
 import project.kconnecta.admin.backend.feature.user.dto.request.UpdateRoleRequest;
 import project.kconnecta.admin.backend.feature.user.dto.request.UpdateStatusRequest;
@@ -81,6 +82,14 @@ public class UserAdminController {
             @Valid @RequestBody ResetPasswordRequest request) {
 
         return ResponseEntity.ok(adminUserService.resetPassword(id, request.getNewPassword()));
+    }
+
+    @PutMapping("/{id}/email")
+    public ResponseEntity<AdminUserResponseDTO> resetEmail(
+            @PathVariable UUID id,
+            @Valid @RequestBody ResetEmailRequest request) {
+
+        return ResponseEntity.ok(adminUserService.resetEmail(id, request.getNewEmail()));
     }
 
     @PatchMapping("/{id}/role")

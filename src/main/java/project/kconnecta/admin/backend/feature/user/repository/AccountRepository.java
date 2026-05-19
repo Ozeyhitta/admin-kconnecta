@@ -34,6 +34,8 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
 
     long countByStatus(AccountStatus status);
 
+    long countByRole(AccountRole role);
+
     @org.springframework.data.jpa.repository.Query(
             value = "SELECT created_at::date AS period, COUNT(*)::bigint AS cnt " +
                     "FROM accounts WHERE created_at >= CURRENT_DATE - INTERVAL '29 days' " +

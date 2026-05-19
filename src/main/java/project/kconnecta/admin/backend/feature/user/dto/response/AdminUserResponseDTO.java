@@ -18,8 +18,6 @@ public class AdminUserResponseDTO {
     private AccountStatus status;
     private AccountRole role;
     private LocalDateTime createdAt;
-
-    // Profile fields from the users table — null if user profile not yet created
     private String username;
     private String fullName;
     private String avatarUrl;
