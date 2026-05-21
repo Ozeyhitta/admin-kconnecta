@@ -7,6 +7,8 @@ spring:
     username: ${DB_USERNAME:kconnecta_5f60_user}
     password: ${DB_PASSWORD:s7uVbTDpVS7tw3id15qLDt2xtQVR7Vt0}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 15000
 
   jpa:
     hibernate:
@@ -54,6 +56,10 @@ management:
       enabled: true
     readinessstate:
       enabled: true
+
+user-service:
+  url: ${USER_SERVICE_URL:http://localhost:8080}
+  internal-key: ${INTERNAL_API_KEY:kconnecta-internal-secret}
 
 info:
   app:
