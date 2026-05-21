@@ -3,9 +3,9 @@ spring:
     name: kconnecta.admin.backend
 
   datasource:
-    url: ${DB_URL:jdbc:postgresql://dpg-d6rq0sh4tr6s73a8vsj0-a.singapore-postgres.render.com:5432/kconnecta_5f60}
-    username: ${DB_USERNAME:kconnecta_5f60_user}
-    password: ${DB_PASSWORD:s7uVbTDpVS7tw3id15qLDt2xtQVR7Vt0}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       connection-timeout: 15000
