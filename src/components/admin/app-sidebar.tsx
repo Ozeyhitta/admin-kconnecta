@@ -16,12 +16,15 @@ import {
   SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { House, List, Shell, BarChart3 } from "lucide-react";
+import { House, List, BarChart3, Bell } from "lucide-react";
+import logoV1 from "@/assets/LogoKConnecta_V1.png";
+import logoV2 from "@/assets/LogoKConnecta_V2.png";
 
 /**
  * Navigation sidebar displaying menu items, allowing users to navigate between different sections of the application.
@@ -54,8 +57,8 @@ export function AppSidebar() {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <Link to="/">
-                <Shell className="!size-5" />
-                <span className="text-base font-semibold">Acme Inc.</span>
+                <img src={logoV2} alt="KConnecta" className="!size-7 shrink-0 object-contain group-data-[collapsible=icon]:block hidden" />
+                <img src={logoV1} alt="KConnecta" className="h-8 w-auto group-data-[collapsible=icon]:hidden" />
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -69,6 +72,7 @@ export function AppSidebar() {
                 <DashboardMenuItem onClick={handleClick} />
               ) : null}
               <StatsMenuItem onClick={handleClick} />
+              <NotificationsMenuItem onClick={handleClick} />
               {Object.keys(resources)
                 .filter((name) => resources[name].hasList)
                 .map((name) => (
@@ -132,6 +136,20 @@ export const StatsMenuItem = ({ onClick }: { onClick?: () => void }) => {
         <Link to="/stats" onClick={onClick}>
           <BarChart3 />
           Thống kê &amp; Báo cáo
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+};
+
+export const NotificationsMenuItem = ({ onClick }: { onClick?: () => void }) => {
+  const match = useMatch({ path: "/notifications", end: false });
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild isActive={!!match}>
+        <Link to="/notifications" onClick={onClick}>
+          <Bell />
+          Thông báo
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>

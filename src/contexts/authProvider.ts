@@ -8,6 +8,11 @@ export const authProvider: AuthProvider = {
         email,
         password,
       });
+      if (!data?.token || typeof data.token !== "string") {
+        return Promise.reject(
+          new HttpError("Đăng nhập không trả về token", 500, { message: "Đăng nhập không trả về token" }),
+        );
+      }
       localStorage.setItem(
         "auth",
         JSON.stringify({
@@ -42,8 +47,7 @@ export const authProvider: AuthProvider = {
 
   checkError: (error) => {
     if (error?.status === 401 || error?.status === 403) {
-      localStorage.removeItem("auth");
-      return Promise.reject();
+      return Promise.reject(error);
     }
     return Promise.resolve();
   },

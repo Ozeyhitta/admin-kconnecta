@@ -37,3 +37,15 @@ storybook-static
 **/__screenshots__/*
 
 .claude/settings.local.json
+
+# Project meta files
+CLAUDE.md
+LICENSE
+README.md
+*.md
+
+# Misc
+.env.production
+.env.local
+.env.*.local
+registry.json

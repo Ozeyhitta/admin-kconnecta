@@ -14,6 +14,7 @@ import { posts } from "./pages/posts";
 import { comments } from "./pages/comments";
 import { Dashboard } from "./pages/dashboard/Dashboard";
 import StatsPage from "./pages/stats/StatsPage";
+import NotificationsPage from "./pages/notifications/NotificationsPage";
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
     >
       <CustomRoutes>
         <Route path="/stats" element={<StatsPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
       </CustomRoutes>
       <Resource {...products} />
       <Resource {...categories} />

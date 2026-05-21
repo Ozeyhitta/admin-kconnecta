@@ -1,4 +1,5 @@
 export type LoggedInAdmin = {
+  token?: string;
   id?: string;
   email?: string;
   role?: string;
@@ -12,6 +13,16 @@ export const getLoggedInAdmin = (): LoggedInAdmin | null => {
   } catch {
     return null;
   }
+};
+
+export const getAdminToken = (): string | null => {
+  const token = getLoggedInAdmin()?.token;
+  return typeof token === "string" && token.length > 0 ? token : null;
+};
+
+export const getAdminAuthHeaders = (): Record<string, string> => {
+  const token = getAdminToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
 export const isCurrentAdminUser = (record?: { id?: string } | null) => {
