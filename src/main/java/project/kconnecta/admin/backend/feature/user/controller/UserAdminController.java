@@ -8,10 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import project.kconnecta.admin.backend.common.enums.AccountRole;
 import project.kconnecta.admin.backend.common.enums.AccountStatus;
-import project.kconnecta.admin.backend.feature.activitylog.dto.UserActivityLogResponse;
-import project.kconnecta.admin.backend.feature.activitylog.repository.UserActivityLogRepository;
-import project.kconnecta.admin.backend.feature.comment.repository.CommentAdminRepository;
-import project.kconnecta.admin.backend.feature.post.repository.PostAdminRepository;
+import project.kconnecta.admin.backend.feature.activitylog.dto.response.UserActivityLogResponse;
 import project.kconnecta.admin.backend.feature.user.dto.request.ResetEmailRequest;
 import project.kconnecta.admin.backend.feature.user.dto.request.ResetPasswordRequest;
 import project.kconnecta.admin.backend.feature.user.dto.request.UpdateRoleRequest;
@@ -31,9 +28,6 @@ import java.util.UUID;
 public class UserAdminController {
 
     private final AdminUserService adminUserService;
-    private final UserActivityLogRepository activityLogRepository;
-    private final PostAdminRepository postAdminRepository;
-    private final CommentAdminRepository commentAdminRepository;
 
     @GetMapping
     public ResponseEntity<Page<AdminUserResponseDTO>> getUsers(
@@ -102,25 +96,11 @@ public class UserAdminController {
 
     @GetMapping("/{id}/stats")
     public ResponseEntity<UserStatsResponse> getUserStats(@PathVariable UUID id) {
-        UserStatsResponse stats = UserStatsResponse.builder()
-                .totalPosts(postAdminRepository.countByAuthorId(id))
-                .totalComments(commentAdminRepository.countByUserId(id))
-                .totalReactions(activityLogRepository.countByUserIdAndActionType(id, "REACTION_ADDED"))
-                .totalShares(activityLogRepository.countByUserIdAndActionType(id, "POST_SHARED"))
-                .totalFriendRequests(activityLogRepository.countByUserIdAndActionType(id, "FRIEND_REQUEST_SENT"))
-                .totalLogins(activityLogRepository.countByUserIdAndActionType(id, "LOGIN"))
-                .totalActivity(activityLogRepository.countByUserId(id))
-                .build();
-        return ResponseEntity.ok(stats);
+        return ResponseEntity.ok(adminUserService.getUserStats(id));
     }
 
     @GetMapping("/{id}/activity")
     public ResponseEntity<List<UserActivityLogResponse>> getUserActivity(@PathVariable UUID id) {
-        List<UserActivityLogResponse> logs = activityLogRepository
-                .findTop15ByUserIdOrderByCreatedAtDesc(id)
-                .stream()
-                .map(UserActivityLogResponse::from)
-                .toList();
-        return ResponseEntity.ok(logs);
+        return ResponseEntity.ok(adminUserService.getUserActivity(id));
     }
 }

@@ -1,4 +1,4 @@
-package project.kconnecta.admin.backend.feature.post.dto;
+package project.kconnecta.admin.backend.feature.post.dto.request;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;

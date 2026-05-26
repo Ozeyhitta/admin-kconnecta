@@ -12,7 +12,12 @@ import project.kconnecta.admin.backend.common.enums.AccountStatus;
 import project.kconnecta.admin.backend.config.security.AdminPrincipal;
 import project.kconnecta.admin.backend.entity.Account;
 import project.kconnecta.admin.backend.exception.ResourceNotFoundException;
+import project.kconnecta.admin.backend.feature.activitylog.dto.response.UserActivityLogResponse;
+import project.kconnecta.admin.backend.feature.activitylog.repository.UserActivityLogRepository;
+import project.kconnecta.admin.backend.feature.comment.repository.CommentAdminRepository;
+import project.kconnecta.admin.backend.feature.post.repository.PostAdminRepository;
 import project.kconnecta.admin.backend.feature.user.dto.response.AdminUserResponseDTO;
+import project.kconnecta.admin.backend.feature.user.dto.response.UserStatsResponse;
 import project.kconnecta.admin.backend.feature.user.repository.AccountRepository;
 
 import java.time.LocalDateTime;
@@ -26,6 +31,9 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     private final AccountRepository accountRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final PostAdminRepository postAdminRepository;
+    private final CommentAdminRepository commentAdminRepository;
+    private final UserActivityLogRepository activityLogRepository;
 
     @Override
     public Page<AdminUserResponseDTO> getUsers(int page, int size, String sortBy, String sortDir,
@@ -137,6 +145,28 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     public long countUsersRegisteredBetween(LocalDateTime from, LocalDateTime to) {
         return accountRepository.countByCreatedAtBetween(from, to);
+    }
+
+    @Override
+    public UserStatsResponse getUserStats(UUID id) {
+        findAccount(id);
+        return UserStatsResponse.builder()
+                .totalPosts(postAdminRepository.countByAuthorId(id))
+                .totalComments(commentAdminRepository.countByUserId(id))
+                .totalReactions(activityLogRepository.countByUserIdAndActionType(id, "REACTION_ADDED"))
+                .totalShares(activityLogRepository.countByUserIdAndActionType(id, "POST_SHARED"))
+                .totalFriendRequests(activityLogRepository.countByUserIdAndActionType(id, "FRIEND_REQUEST_SENT"))
+                .totalLogins(activityLogRepository.countByUserIdAndActionType(id, "LOGIN"))
+                .totalActivity(activityLogRepository.countByUserId(id))
+                .build();
+    }
+
+    @Override
+    public List<UserActivityLogResponse> getUserActivity(UUID id) {
+        findAccount(id);
+        return activityLogRepository.findTop15ByUserIdOrderByCreatedAtDesc(id).stream()
+                .map(UserActivityLogResponse::from)
+                .toList();
     }
 
     private Account findAccount(UUID id) {

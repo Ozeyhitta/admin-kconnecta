@@ -6,12 +6,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import project.kconnecta.admin.backend.common.enums.PostStatus;
-import project.kconnecta.admin.backend.feature.post.dto.PostAdminResponse;
-import project.kconnecta.admin.backend.feature.post.dto.UpdatePostStatusRequest;
-import project.kconnecta.admin.backend.feature.post.repository.PostAdminRepository;
+import project.kconnecta.admin.backend.feature.post.dto.request.UpdatePostStatusRequest;
+import project.kconnecta.admin.backend.feature.post.dto.response.PostAdminResponse;
+import project.kconnecta.admin.backend.feature.post.dto.response.PostStatsResponse;
 import project.kconnecta.admin.backend.feature.post.service.PostAdminService;
 
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -20,7 +19,6 @@ import java.util.UUID;
 public class PostAdminController {
 
     private final PostAdminService postAdminService;
-    private final PostAdminRepository postAdminRepository;
 
     @GetMapping
     public ResponseEntity<Page<PostAdminResponse>> getPosts(
@@ -56,11 +54,7 @@ public class PostAdminController {
     }
 
     @GetMapping("/{id}/stats")
-    public ResponseEntity<Map<String, Object>> getPostStats(@PathVariable UUID id) {
-        return ResponseEntity.ok(Map.of(
-                "reactionCount", postAdminRepository.countReactionsByPostId(id),
-                "commentCount",  postAdminRepository.countCommentsByPostId(id),
-                "shareCount",    postAdminRepository.countSharesByPostId(id)
-        ));
+    public ResponseEntity<PostStatsResponse> getPostStats(@PathVariable UUID id) {
+        return ResponseEntity.ok(postAdminService.getPostStats(id));
     }
 }

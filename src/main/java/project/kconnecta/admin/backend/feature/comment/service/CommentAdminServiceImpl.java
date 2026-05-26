@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import project.kconnecta.admin.backend.entity.PostComment;
 import project.kconnecta.admin.backend.exception.ResourceNotFoundException;
-import project.kconnecta.admin.backend.feature.comment.dto.CommentAdminResponse;
+import project.kconnecta.admin.backend.feature.comment.dto.response.CommentAdminResponse;
 import project.kconnecta.admin.backend.feature.comment.repository.CommentAdminRepository;
 
 import java.util.Set;

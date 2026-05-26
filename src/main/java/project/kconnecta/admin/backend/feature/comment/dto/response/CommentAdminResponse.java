@@ -1,4 +1,4 @@
-package project.kconnecta.admin.backend.feature.comment.dto;
+package project.kconnecta.admin.backend.feature.comment.dto.response;
 
 import lombok.Builder;
 import lombok.Getter;

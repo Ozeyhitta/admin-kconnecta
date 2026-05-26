@@ -7,7 +7,8 @@ import org.springframework.transaction.annotation.Transactional;
 import project.kconnecta.admin.backend.common.enums.PostStatus;
 import project.kconnecta.admin.backend.entity.Post;
 import project.kconnecta.admin.backend.exception.ResourceNotFoundException;
-import project.kconnecta.admin.backend.feature.post.dto.PostAdminResponse;
+import project.kconnecta.admin.backend.feature.post.dto.response.PostAdminResponse;
+import project.kconnecta.admin.backend.feature.post.dto.response.PostStatsResponse;
 import project.kconnecta.admin.backend.feature.post.repository.PostAdminRepository;
 
 import java.util.Set;
@@ -54,6 +55,16 @@ public class PostAdminServiceImpl implements PostAdminService {
     public void deletePost(UUID id) {
         Post post = findPost(id);
         postAdminRepository.delete(post);
+    }
+
+    @Override
+    public PostStatsResponse getPostStats(UUID id) {
+        findPost(id);
+        return PostStatsResponse.builder()
+                .reactionCount(postAdminRepository.countReactionsByPostId(id))
+                .commentCount(postAdminRepository.countCommentsByPostId(id))
+                .shareCount(postAdminRepository.countSharesByPostId(id))
+                .build();
     }
 
     private Post findPost(UUID id) {

@@ -3,7 +3,9 @@ package project.kconnecta.admin.backend.feature.user.service;
 import org.springframework.data.domain.Page;
 import project.kconnecta.admin.backend.common.enums.AccountRole;
 import project.kconnecta.admin.backend.common.enums.AccountStatus;
+import project.kconnecta.admin.backend.feature.activitylog.dto.response.UserActivityLogResponse;
 import project.kconnecta.admin.backend.feature.user.dto.response.AdminUserResponseDTO;
+import project.kconnecta.admin.backend.feature.user.dto.response.UserStatsResponse;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,4 +30,8 @@ public interface AdminUserService {
     AdminUserResponseDTO updateRole(UUID id, AccountRole role);
 
     long countUsersRegisteredBetween(LocalDateTime from, LocalDateTime to);
+
+    UserStatsResponse getUserStats(UUID id);
+
+    List<UserActivityLogResponse> getUserActivity(UUID id);
 }

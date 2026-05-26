@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import project.kconnecta.admin.backend.feature.comment.dto.CommentAdminResponse;
+import project.kconnecta.admin.backend.feature.comment.dto.response.CommentAdminResponse;
 import project.kconnecta.admin.backend.feature.comment.service.CommentAdminService;
 
 import java.util.UUID;

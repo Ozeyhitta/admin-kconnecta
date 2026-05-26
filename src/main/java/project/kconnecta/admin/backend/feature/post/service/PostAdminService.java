@@ -2,7 +2,8 @@ package project.kconnecta.admin.backend.feature.post.service;
 
 import org.springframework.data.domain.Page;
 import project.kconnecta.admin.backend.common.enums.PostStatus;
-import project.kconnecta.admin.backend.feature.post.dto.PostAdminResponse;
+import project.kconnecta.admin.backend.feature.post.dto.response.PostAdminResponse;
+import project.kconnecta.admin.backend.feature.post.dto.response.PostStatsResponse;
 
 import java.util.UUID;
 
@@ -16,4 +17,6 @@ public interface PostAdminService {
     PostAdminResponse updateStatus(UUID id, PostStatus status);
 
     void deletePost(UUID id);
+
+    PostStatsResponse getPostStats(UUID id);
 }

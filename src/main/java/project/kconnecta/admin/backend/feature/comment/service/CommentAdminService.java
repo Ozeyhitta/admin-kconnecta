@@ -1,7 +1,7 @@
 package project.kconnecta.admin.backend.feature.comment.service;
 
 import org.springframework.data.domain.Page;
-import project.kconnecta.admin.backend.feature.comment.dto.CommentAdminResponse;
+import project.kconnecta.admin.backend.feature.comment.dto.response.CommentAdminResponse;
 
 import java.util.UUID;
 

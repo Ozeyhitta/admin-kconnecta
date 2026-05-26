@@ -1,4 +1,4 @@
-package project.kconnecta.admin.backend.feature.activitylog.dto;
+package project.kconnecta.admin.backend.feature.activitylog.dto.response;
 
 import lombok.Builder;
 import lombok.Value;
