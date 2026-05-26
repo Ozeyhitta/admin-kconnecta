@@ -5,7 +5,6 @@ import Welcome from "./Welcome";
 import StatsOverview from "./StatsOverview";
 import ActivityChart from "./OrderChart";
 import UserGrowthChart from "./UserGrowthChart";
-import PendingReviews from "./PendingReviews";
 import NewCustomers from "./NewCustomers";
 
 export const Dashboard = () => {
@@ -24,7 +23,6 @@ export const Dashboard = () => {
           <ActivityChart />
         </div>
         <div className="flex flex-col gap-4 md:basis-1/3">
-          <PendingReviews />
           <NewCustomers />
         </div>
       </div>

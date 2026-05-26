@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Confirm } from "@/components/admin/confirm";
 import { Trash } from "lucide-react";
 import type { RaRecord, UseBulkDeleteControllerParams } from "ra-core";
 import {
@@ -9,7 +11,6 @@ import {
   useResourceTranslation,
 } from "ra-core";
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
 
 /**
  * A button that deletes multiple selected records at once.
@@ -60,18 +61,36 @@ export const BulkDeleteButton = <
     userText: labelProp,
   });
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   return (
-    <Button
-      variant="destructive"
-      type="button"
-      onClick={handleDelete}
-      disabled={isPending}
-      aria-label={typeof label === "string" ? label : undefined}
-      className={cn("h-9", className)}
-    >
-      {icon}
-      {label}
-    </Button>
+    <>
+      <Button
+        variant="destructive"
+        type="button"
+        onClick={() => setConfirmOpen(true)}
+        disabled={isPending}
+        aria-label={typeof label === "string" ? label : undefined}
+        className={cn("h-9", className)}
+      >
+        {icon}
+        {label}
+      </Button>
+      <Confirm
+        isOpen={confirmOpen}
+        title="Xác nhận xóa?"
+        content="Bạn có chắc muốn xóa các mục đã chọn? Hành động này không thể hoàn tác."
+        cancel="Huỷ"
+        confirm="Xóa"
+        confirmColor="warning"
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={(e) => {
+          handleDelete(e);
+          setConfirmOpen(false);
+        }}
+        loading={isPending}
+      />
+    </>
   );
 };
 

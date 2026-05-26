@@ -1,5 +1,6 @@
 import type { RaRecord } from "ra-core";
 import { useRecordContext, FilterLiveForm } from "ra-core";
+import { Link } from "react-router";
 import {
   DataTable,
   ExportButton,
@@ -9,6 +10,8 @@ import {
   DeleteButton,
 } from "@/components/admin";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
 
 const shortDateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "short",
@@ -57,9 +60,12 @@ const PostIdCell = ({ record }: { record: RaRecord }) => {
   if (id == null || id === "") return <span className="text-muted-foreground">—</span>;
   const text = String(id);
   return (
-    <span className="block min-w-0 max-w-full truncate font-mono text-xs" title={text}>
-      {text}
-    </span>
+    <Button asChild variant="ghost" size="sm" className="h-8 px-2" title={text}>
+      <Link to={`/posts/${text}/show`}>
+        <ExternalLink className="h-4 w-4" />
+        Xem bài
+      </Link>
+    </Button>
   );
 };
 

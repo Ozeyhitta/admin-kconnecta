@@ -18,8 +18,8 @@ const customEnglishMessages: TranslationMessages = {
       new_orders: "New Orders",
       pending_reviews: "Pending Reviews",
       all_reviews: "See all reviews",
-      new_customers: "New Customers",
-      all_customers: "See all customers",
+      new_customers: "New Users",
+      all_customers: "See all users",
       pending_orders: "Pending Orders",
       order: {
         items:

@@ -1,32 +1,40 @@
-import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
 import { UserPlus } from "lucide-react";
 import { Link } from "react-router";
 import { ListBase, WithListContext, useTranslate } from "ra-core";
-import { subDays } from "date-fns";
 
 import CardWithIcon from "./CardWithIcon";
-import { Customer } from "@/types";
+
+type DashboardUser = {
+  id: string;
+  fullName?: string | null;
+  username?: string | null;
+  email?: string | null;
+  avatarUrl?: string | null;
+  createdAt?: string | null;
+};
+
+const dateFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+});
+
+const formatDate = (value?: string | null) => {
+  if (!value) return "No registration date";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "No registration date";
+  return dateFormatter.format(date);
+};
 
 const NewCustomers = () => {
   const translate = useTranslate();
 
-  const aMonthAgo = subDays(new Date(), 30);
-  aMonthAgo.setDate(aMonthAgo.getDate() - 30);
-  aMonthAgo.setHours(0);
-  aMonthAgo.setMinutes(0);
-  aMonthAgo.setSeconds(0);
-  aMonthAgo.setMilliseconds(0);
-
   return (
-    <ListBase<Customer>
+    <ListBase<DashboardUser>
       resource="customers"
-      filter={{
-        has_ordered: true,
-        first_seen_gte: aMonthAgo.toISOString(),
-      }}
-      sort={{ field: "first_seen", order: "DESC" }}
-      perPage={100}
+      filter={{ role: "USER" }}
+      sort={{ field: "createdAt", order: "DESC" }}
+      perPage={10}
       disableSyncWithLocation
       render={({ data }) => (
         <CardWithIcon
@@ -36,28 +44,32 @@ const NewCustomers = () => {
           subtitle={<WithListContext render={({ total }) => <>{total}</>} />}
         >
           <div className="px-4 flex flex-col gap-4">
-            {data?.map((record) => (
-              <Link
-                key={record.id}
-                className="flex-1 flex flex-row"
-                to={`/customers/${record.id}/show`}
-              >
-                <div className="w-12 mt-2">
-                  <Avatar>
-                    <AvatarImage
-                      src={`${record.avatar}?size=32x32`}
-                      alt={`${record.first_name} ${record.last_name}`}
-                    />
-                  </Avatar>
-                </div>
-                <div className="flex-1 flex flex-col items-start justify-center text-sm">
-                  <div>{`${record.first_name} ${record.last_name}`}</div>
-                  <div className="text-muted-foreground">
-                    {new Date(record.first_seen).toLocaleDateString()}
+            {data?.map((record) => {
+              const displayName =
+                record.fullName ?? record.username ?? record.email ?? "Unknown user";
+              const registeredDate = formatDate(record.createdAt);
+
+              return (
+                <Link
+                  key={record.id}
+                  className="flex-1 flex flex-row"
+                  to={`/customers/${record.id}/show`}
+                >
+                  <div className="w-12 mt-2">
+                    <Avatar>
+                      <AvatarImage src={record.avatarUrl ?? undefined} alt={displayName} />
+                      <AvatarFallback className="text-xs">
+                        {displayName.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
                   </div>
-                </div>
-              </Link>
-            ))}
+                  <div className="flex-1 flex flex-col items-start justify-center text-sm">
+                    <div>{displayName}</div>
+                    <div className="text-muted-foreground">{registeredDate}</div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
 
           <div className="flex-grow">&nbsp;</div>

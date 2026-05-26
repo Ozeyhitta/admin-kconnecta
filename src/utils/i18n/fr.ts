@@ -18,8 +18,8 @@ const customFrenchMessages: TranslationMessages = {
       new_orders: "Nouvelles commandes",
       pending_reviews: "Commentaires à modérer",
       all_reviews: "Voir tous les commentaires",
-      new_customers: "Nouveaux clients",
-      all_customers: "Voir tous les clients",
+      new_customers: "Nouveaux utilisateurs",
+      all_customers: "Voir tous les utilisateurs",
       pending_orders: "Commandes à traiter",
       order: {
         items:

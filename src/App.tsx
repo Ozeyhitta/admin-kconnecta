@@ -5,13 +5,12 @@ import { Admin } from "@/components/admin";
 import { dataProvider } from "./services/dataProvider";
 import { authProvider } from "./contexts/authProvider";
 import { i18nProvider } from "./services/i18nProvider";
-import { products } from "./pages/products";
-import { categories } from "./pages/categories";
 import { customers } from "./pages/customers";
-import { reviews } from "./pages/reviews";
 import { activityLogs } from "./pages/activityLogs";
 import { posts } from "./pages/posts";
 import { comments } from "./pages/comments";
+import { conversations } from "./pages/conversations";
+import { postReports } from "./pages/postReports";
 import { Dashboard } from "./pages/dashboard/Dashboard";
 import StatsPage from "./pages/stats/StatsPage";
 import NotificationsPage from "./pages/notifications/NotificationsPage";
@@ -31,12 +30,11 @@ function App() {
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
       </CustomRoutes>
-      <Resource {...products} />
-      <Resource {...categories} />
       <Resource {...customers} />
-      <Resource {...reviews} />
       <Resource {...activityLogs} />
+      <Resource {...conversations} />
       <Resource {...posts} />
+      <Resource {...postReports} />
       <Resource {...comments} />
     </Admin>
   );

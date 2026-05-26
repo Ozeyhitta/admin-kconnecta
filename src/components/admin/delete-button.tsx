@@ -1,6 +1,8 @@
 import * as React from "react";
+import { useState } from "react";
 import { Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Confirm } from "@/components/admin/confirm";
 import { humanize, singularize } from "inflection";
 import type { UseDeleteOptions, RedirectionSideEffect } from "ra-core";
 import {
@@ -96,18 +98,36 @@ export const DeleteButton = (props: DeleteButtonProps) => {
     userText: labelProp,
   });
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   return (
-    <Button
-      variant={variant}
-      type="button"
-      onClick={handleDelete}
-      disabled={isPending}
-      aria-label={typeof label === "string" ? label : undefined}
-      size={size}
-      className={className}
-    >
-      <Trash />
-      {label}
-    </Button>
+    <>
+      <Button
+        variant={variant}
+        type="button"
+        onClick={() => setConfirmOpen(true)}
+        disabled={isPending}
+        aria-label={typeof label === "string" ? label : undefined}
+        size={size}
+        className={className}
+      >
+        <Trash />
+        {label}
+      </Button>
+      <Confirm
+        isOpen={confirmOpen}
+        title="Xác nhận xóa?"
+        content="Hành động này không thể hoàn tác."
+        cancel="Huỷ"
+        confirm="Xóa"
+        confirmColor="warning"
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={(e) => {
+          handleDelete(e);
+          setConfirmOpen(false);
+        }}
+        loading={isPending}
+      />
+    </>
   );
 };
