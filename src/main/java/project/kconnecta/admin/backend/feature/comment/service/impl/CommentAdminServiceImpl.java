@@ -1,5 +1,6 @@
-package project.kconnecta.admin.backend.feature.comment.service;
+package project.kconnecta.admin.backend.feature.comment.service.impl;
 
+import project.kconnecta.admin.backend.feature.comment.service.CommentAdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;

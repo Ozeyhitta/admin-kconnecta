@@ -1,5 +1,6 @@
-package project.kconnecta.admin.backend.feature.user.service;
+package project.kconnecta.admin.backend.feature.user.service.impl;
 
+import project.kconnecta.admin.backend.feature.user.service.AdminUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.security.core.Authentication;

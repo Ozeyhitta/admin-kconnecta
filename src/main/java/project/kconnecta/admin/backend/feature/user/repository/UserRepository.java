@@ -15,4 +15,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     long countOnlineSince(@Param("since") LocalDateTime since);
 
     Optional<User> findByAccount_Id(UUID accountId);
+
+    Optional<User> findByUsername(String username);
 }

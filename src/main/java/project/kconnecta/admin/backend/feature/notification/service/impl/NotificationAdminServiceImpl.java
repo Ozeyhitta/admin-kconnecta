@@ -1,5 +1,6 @@
-package project.kconnecta.admin.backend.feature.notification.service;
+package project.kconnecta.admin.backend.feature.notification.service.impl;
 
+import project.kconnecta.admin.backend.feature.notification.service.NotificationAdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;

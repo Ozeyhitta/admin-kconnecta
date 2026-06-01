@@ -1,5 +1,6 @@
-package project.kconnecta.admin.backend.feature.conversation.service;
+package project.kconnecta.admin.backend.feature.conversation.service.impl;
 
+import project.kconnecta.admin.backend.feature.conversation.service.ConversationAdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import project.kconnecta.admin.backend.exception.ResourceNotFoundException;

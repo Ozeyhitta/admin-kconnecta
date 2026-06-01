@@ -1,5 +1,6 @@
-package project.kconnecta.admin.backend.feature.report.service;
+package project.kconnecta.admin.backend.feature.report.service.impl;
 
+import project.kconnecta.admin.backend.feature.report.service.PostReportAdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;

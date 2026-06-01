@@ -1,5 +1,6 @@
-package project.kconnecta.admin.backend.feature.auth.service;
+package project.kconnecta.admin.backend.feature.auth.service.impl;
 
+import project.kconnecta.admin.backend.feature.auth.service.AdminAuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;

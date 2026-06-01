@@ -1,5 +1,6 @@
-package project.kconnecta.admin.backend.feature.post.service;
+package project.kconnecta.admin.backend.feature.post.service.impl;
 
+import project.kconnecta.admin.backend.feature.post.service.PostAdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;

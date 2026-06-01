@@ -56,4 +56,31 @@ public interface AccountRepository extends JpaRepository<Account, UUID> {
                     "GROUP BY DATE_TRUNC('month', created_at) ORDER BY period",
             nativeQuery = true)
     java.util.List<Object[]> countNewUsersByMonth();
+
+    @org.springframework.data.jpa.repository.Query(
+            value = "SELECT created_at::date AS period, COUNT(*)::bigint AS cnt " +
+                    "FROM accounts WHERE created_at BETWEEN :from AND :to " +
+                    "GROUP BY created_at::date ORDER BY period",
+            nativeQuery = true)
+    java.util.List<Object[]> countNewUsersByDayBetween(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    @org.springframework.data.jpa.repository.Query(
+            value = "SELECT DATE_TRUNC('week', created_at)::date AS period, COUNT(*)::bigint AS cnt " +
+                    "FROM accounts WHERE created_at BETWEEN :from AND :to " +
+                    "GROUP BY DATE_TRUNC('week', created_at) ORDER BY period",
+            nativeQuery = true)
+    java.util.List<Object[]> countNewUsersByWeekBetween(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    @org.springframework.data.jpa.repository.Query(
+            value = "SELECT DATE_TRUNC('month', created_at)::date AS period, COUNT(*)::bigint AS cnt " +
+                    "FROM accounts WHERE created_at BETWEEN :from AND :to " +
+                    "GROUP BY DATE_TRUNC('month', created_at) ORDER BY period",
+            nativeQuery = true)
+    java.util.List<Object[]> countNewUsersByMonthBetween(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
 }
