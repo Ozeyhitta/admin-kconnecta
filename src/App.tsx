@@ -13,7 +13,9 @@ import { conversations } from "./pages/conversations";
 import { postReports } from "./pages/postReports";
 import { Dashboard } from "./pages/dashboard/Dashboard";
 import StatsPage from "./pages/stats/StatsPage";
+import PostTrendsPage from "./pages/postTrends/PostTrendsPage";
 import NotificationsPage from "./pages/notifications/NotificationsPage";
+import PoliciesPage from "./pages/policies/PoliciesPage";
 
 function App() {
   return (
@@ -28,7 +30,9 @@ function App() {
     >
       <CustomRoutes>
         <Route path="/stats" element={<StatsPage />} />
+        <Route path="/post-trends" element={<PostTrendsPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/policies" element={<PoliciesPage />} />
       </CustomRoutes>
       <Resource {...customers} />
       <Resource {...activityLogs} />

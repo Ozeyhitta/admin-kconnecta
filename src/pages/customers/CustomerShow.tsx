@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useShowController, useNotify } from "ra-core";
+import { useShowController, useNotify, useRefresh } from "ra-core";
 import { useNavigate } from "react-router";
 import {
   ShieldCheck, User, FileText, MessageSquare, Heart,
@@ -84,6 +84,118 @@ const StatItem = ({
   </div>
 );
 
+const ResetEmailDialog = ({
+  open, onClose, userId, onSuccess,
+}: { open: boolean; onClose: () => void; userId: string; onSuccess: () => void }) => {
+  const [email, setEmail] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+  const notify = useNotify();
+
+  const handleSubmit = async () => {
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+      notify("Email không hợp lệ", { type: "warning" });
+      return;
+    }
+    setSaving(true);
+    try {
+      await apiClient.put(`/api/v1/admin/users/${userId}/email`, { newEmail: email });
+      notify("Đã cập nhật email", { type: "success" });
+      setEmail("");
+      onSuccess();
+      onClose();
+    } catch {
+      notify("Cập nhật email thất bại", { type: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Đổi địa chỉ email</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <Label htmlFor="new-email">Email mới</Label>
+          <Input
+            id="new-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="example@email.com"
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Huỷ</Button>
+          <Button onClick={handleSubmit} disabled={saving}>
+            {saving ? "Đang lưu…" : "Xác nhận"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const ChangeRoleDialog = ({
+  open, onClose, userId, currentRole, onSuccess,
+}: { open: boolean; onClose: () => void; userId: string; currentRole: string; onSuccess: () => void }) => {
+  const [role, setRole] = React.useState(currentRole);
+  const [saving, setSaving] = React.useState(false);
+  const notify = useNotify();
+
+  React.useEffect(() => {
+    if (open) setRole(currentRole);
+  }, [open, currentRole]);
+
+  const handleSubmit = async () => {
+    if (role === currentRole) { onClose(); return; }
+    setSaving(true);
+    try {
+      await apiClient.patch(`/api/v1/admin/users/${userId}/role`, { role });
+      notify("Đã cập nhật vai trò", { type: "success" });
+      onSuccess();
+      onClose();
+    } catch {
+      notify("Cập nhật vai trò thất bại", { type: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Thay đổi vai trò</DialogTitle>
+        </DialogHeader>
+        <div className="flex gap-2 py-2">
+          {(["USER", "ADMIN"] as const).map((r) => (
+            <Button
+              key={r}
+              variant={role === r ? "default" : "outline"}
+              size="sm"
+              className="flex-1"
+              onClick={() => setRole(r)}
+            >
+              {r === "ADMIN"
+                ? <ShieldCheck className="h-4 w-4 mr-1.5" />
+                : <User className="h-4 w-4 mr-1.5" />}
+              {r}
+            </Button>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Huỷ</Button>
+          <Button onClick={handleSubmit} disabled={saving || role === currentRole}>
+            {saving ? "Đang lưu…" : "Xác nhận"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const ResetPasswordDialog = ({
   open, onClose, userId,
 }: { open: boolean; onClose: () => void; userId: string }) => {
@@ -139,12 +251,15 @@ const ResetPasswordDialog = ({
 export const CustomerShow = () => {
   const { record, isLoading } = useShowController();
   const navigate = useNavigate();
+  const refresh = useRefresh();
 
   const [stats, setStats] = React.useState<UserStats | undefined>();
   const [statsLoading, setStatsLoading] = React.useState(true);
   const [activity, setActivity] = React.useState<ActivityLog[]>([]);
   const [activityLoading, setActivityLoading] = React.useState(true);
   const [pwDialog, setPwDialog] = React.useState(false);
+  const [emailDialog, setEmailDialog] = React.useState(false);
+  const [roleDialog, setRoleDialog] = React.useState(false);
 
   React.useEffect(() => {
     if (!record?.id) return;
@@ -257,6 +372,14 @@ export const CustomerShow = () => {
                   <KeyRound className="h-4 w-4 mr-2" />
                   Đặt lại mật khẩu
                 </Button>
+                <Button variant="outline" size="sm" className="w-full" onClick={() => setEmailDialog(true)}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Đổi email
+                </Button>
+                <Button variant="outline" size="sm" className="w-full" onClick={() => setRoleDialog(true)}>
+                  <ShieldCheck className="h-4 w-4 mr-2" />
+                  Thay đổi vai trò
+                </Button>
               </CardContent>
             </Card>
           ) : (
@@ -337,11 +460,26 @@ export const CustomerShow = () => {
       </div>
 
       {!isSelfAccount && (
-        <ResetPasswordDialog
-          open={pwDialog}
-          onClose={() => setPwDialog(false)}
-          userId={record.id}
-        />
+        <>
+          <ResetPasswordDialog
+            open={pwDialog}
+            onClose={() => setPwDialog(false)}
+            userId={record.id}
+          />
+          <ResetEmailDialog
+            open={emailDialog}
+            onClose={() => setEmailDialog(false)}
+            userId={record.id}
+            onSuccess={refresh}
+          />
+          <ChangeRoleDialog
+            open={roleDialog}
+            onClose={() => setRoleDialog(false)}
+            userId={record.id}
+            currentRole={record.role ?? "USER"}
+            onSuccess={refresh}
+          />
+        </>
       )}
     </div>
   );

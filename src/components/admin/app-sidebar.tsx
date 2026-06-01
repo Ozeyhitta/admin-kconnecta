@@ -22,7 +22,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { House, List, BarChart3, Bell } from "lucide-react";
+import { House, List, BarChart3, Bell, ScrollText, TrendingUp } from "lucide-react";
 import logoV1 from "@/assets/LogoKConnecta_V1.png";
 import logoV2 from "@/assets/LogoKConnecta_V2.png";
 
@@ -68,6 +68,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {hasDashboard ? <DashboardMenuItem onClick={handleClick} /> : null}
               <StatsMenuItem onClick={handleClick} />
+              <PostTrendsMenuItem onClick={handleClick} />
               <NotificationsMenuItem onClick={handleClick} />
               {Object.keys(resources)
                 .filter((name) => resources[name].hasList)
@@ -82,7 +83,11 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter />
+      <SidebarFooter>
+        <SidebarMenu>
+          <PoliciesMenuItem onClick={handleClick} />
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }
@@ -119,6 +124,20 @@ export const StatsMenuItem = ({ onClick }: { onClick?: () => void }) => {
   );
 };
 
+export const PostTrendsMenuItem = ({ onClick }: { onClick?: () => void }) => {
+  const match = useMatch({ path: "/post-trends", end: false });
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild isActive={!!match}>
+        <Link to="/post-trends" onClick={onClick}>
+          <TrendingUp />
+          Phân tích xu hướng
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+};
+
 export const NotificationsMenuItem = ({ onClick }: { onClick?: () => void }) => {
   const match = useMatch({ path: "/notifications", end: false });
   return (
@@ -127,6 +146,20 @@ export const NotificationsMenuItem = ({ onClick }: { onClick?: () => void }) => 
         <Link to="/notifications" onClick={onClick}>
           <Bell />
           Thông báo
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+};
+
+export const PoliciesMenuItem = ({ onClick }: { onClick?: () => void }) => {
+  const match = useMatch({ path: "/policies", end: false });
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild isActive={!!match}>
+        <Link to="/policies" onClick={onClick}>
+          <ScrollText />
+          Chính sách
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>

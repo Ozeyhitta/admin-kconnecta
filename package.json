@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --open",
     "demo:build": "tsc -b && vite build",
     "registry:build": "node ./scripts/build_registry.mjs",
     "website:dev": "vite --config website/vite.config.ts --port 5174",

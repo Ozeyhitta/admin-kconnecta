@@ -1,7 +1,23 @@
 import { useEffect, useRef } from "react";
 
-export const ADMIN_STATS_POLL_MS = 5_000;
-export const ADMIN_CHARTS_POLL_MS = 15_000;
+// ── Polling intervals ──────────────────────────────────────────────────────────
+// Realtime: online users — fast because it changes every few seconds
+export const ADMIN_ONLINE_POLL_MS = 15_000;
+
+// Activity logs — moderate, user tolerates 60s staleness
+export const ADMIN_ACTIVITY_POLL_MS = 60_000;
+
+// Time-based metric cards (StatsOverview) — 2 minutes
+export const ADMIN_STATS_POLL_MS = 120_000;
+
+// Heavy charts (ActivityHourCard, ActivityDayCard, NewUsersAnalytics) — 5 minutes
+// Set to null to disable automatic polling; charts only refresh on filter change.
+export const ADMIN_CHARTS_POLL_MS = null as null;
+
+// System overview (total counts that rarely change) — 5 minutes
+export const ADMIN_SYSTEM_POLL_MS = 300_000;
+
+// ── useIntervalPoll ────────────────────────────────────────────────────────────
 
 export function useIntervalPoll(
   callback: () => void | Promise<void>,
@@ -12,17 +28,22 @@ export function useIntervalPoll(
   saved.current = callback;
 
   useEffect(() => {
-    if (delayMs === null) return;
-
     const run = () => {
       if (document.visibilityState === "visible") {
         void saved.current();
       }
     };
 
+    // Always fetch once on mount / when deps change (e.g. date filter).
+    // When delayMs is null, skip interval polling only.
     run();
+
+    if (delayMs === null) return;
+
     const timerId = window.setInterval(run, delayMs);
-    const onVisibility = () => run();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void saved.current();
+    };
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {

@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/services/axiosInstance";
 import { ADMIN_CHARTS_POLL_MS, useIntervalPoll } from "@/lib/adminStatsPoll";
+import { toStatsApiParams, type StatsDateRange } from "@/lib/statsDateRange";
 
 type Period = "day" | "week" | "month";
 
@@ -25,7 +26,7 @@ const formatPeriodLabel = (raw: string, period: Period): string => {
   return d.toLocaleDateString("vi-VN", { month: "short", year: "numeric" });
 };
 
-const UserGrowthChart = () => {
+const UserGrowthChart = ({ dateRange }: { dateRange: StatsDateRange }) => {
   const chartRef = React.useRef<HTMLDivElement>(null);
   const chartInst = React.useRef<echarts.ECharts | null>(null);
 
@@ -34,16 +35,18 @@ const UserGrowthChart = () => {
 
   const fetchData = React.useCallback(async () => {
     try {
-      const r = await apiClient.get<DataPoint[]>("/api/v1/admin/stats/new-users", { params: { period } });
+      const r = await apiClient.get<DataPoint[]>("/api/v1/admin/stats/new-users", {
+        params: { period, ...toStatsApiParams(dateRange) },
+      });
       setData(r.data);
     } catch {
       setData([]);
     }
-  }, [period]);
+  }, [period, dateRange]);
 
   React.useEffect(() => {
     setData(null);
-  }, [period]);
+  }, [period, dateRange]);
 
   useIntervalPoll(fetchData, ADMIN_CHARTS_POLL_MS, [fetchData]);
 

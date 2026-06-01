@@ -1,10 +1,8 @@
-import { useCallback, useState } from "react";
-import { useGetList } from "ra-core";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ADMIN_STATS_POLL_MS, useIntervalPoll } from "@/lib/adminStatsPoll";
+import { describeStatsRange, toStatsApiParams, type StatsDateRange } from "@/lib/statsDateRange";
 import {
-  Users,
   UserPlus,
-  UserCheck,
   LogIn,
   FileText,
   MessageSquare,
@@ -14,12 +12,11 @@ import {
   Share2,
   Heart,
   UserPlus2,
-  Wifi,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/services/axiosInstance";
+import { RecentActivityLogs } from "./components/activityLogs/RecentActivityLogs";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -108,29 +105,6 @@ const StatCard = ({
   </Card>
 );
 
-// ─── Action badge ─────────────────────────────────────────────────────────────
-
-const ACTION_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  LOGIN:               { label: "Đăng nhập",   variant: "default" },
-  LOGOUT:              { label: "Đăng xuất",   variant: "secondary" },
-  REGISTER:            { label: "Đăng ký",     variant: "default" },
-  GOOGLE_LOGIN:        { label: "Google",      variant: "outline" },
-  POST_CREATED:        { label: "Đăng bài",    variant: "default" },
-  POST_DELETED:        { label: "Xóa bài",     variant: "destructive" },
-  COMMENT_ADDED:       { label: "Bình luận",   variant: "secondary" },
-  REACTION_ADDED:      { label: "Cảm xúc",     variant: "secondary" },
-  POST_SHARED:         { label: "Chia sẻ",     variant: "outline" },
-  FRIEND_REQUEST_SENT: { label: "Kết bạn",     variant: "outline" },
-  FRIEND_ACCEPTED:     { label: "Chấp nhận",   variant: "default" },
-  PASSWORD_CHANGED:    { label: "Đổi MK",      variant: "outline" },
-  RESET_PASSWORD:      { label: "Reset MK",    variant: "outline" },
-};
-
-const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
-  dateStyle: "short",
-  timeStyle: "short",
-});
-
 // ─── Section Header ───────────────────────────────────────────────────────────
 
 const SectionHeader = ({ title }: { title: string }) => (
@@ -141,107 +115,70 @@ const SectionHeader = ({ title }: { title: string }) => (
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export const StatsOverview = () => {
+export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
   const [stats, setStats] = useState<OverviewStats | undefined>();
   const [loading, setLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
+  const rangeLabel = describeStatsRange(dateRange);
+  const isFirstLoad = useRef(true);
+
+  // Show skeleton only on filter change (not on background polls)
+  useEffect(() => {
+    if (isFirstLoad.current) return;
+    setLoading(true);
+    setStats(undefined);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange]);
 
   const fetchOverview = useCallback(async () => {
+    setIsFetching(true);
     try {
-      const res = await apiClient.get<OverviewStats>("/api/v1/admin/stats/overview");
+      const res = await apiClient.get<OverviewStats>("/api/v1/admin/stats/overview", {
+        params: toStatsApiParams(dateRange),
+      });
       setStats(res.data);
     } catch {
-      setStats(undefined);
+      /* keep previous values on background refresh failure */
     } finally {
       setLoading(false);
+      setIsFetching(false);
+      isFirstLoad.current = false;
     }
-  }, []);
+  }, [dateRange]);
 
   useIntervalPoll(fetchOverview, ADMIN_STATS_POLL_MS, [fetchOverview]);
 
-  const { data: recentLogs, isPending: logsLoading } = useGetList(
-    "activity-logs",
-    {
-      pagination: { page: 1, perPage: 10 },
-      sort: { field: "createdAt", order: "DESC" },
-    },
-    {
-      refetchInterval: ADMIN_STATS_POLL_MS,
-      refetchIntervalInBackground: false,
-    },
-  );
+  const showComparison = dateRange.compareMode !== "none";
 
   return (
     <div className="mb-4 space-y-5">
 
-      {/* ── Người dùng ─────────────────────────────────────────────── */}
+      {/* ── Trong khoảng ───────────────────────────────────────────── */}
       <section>
-        <SectionHeader title="Người dùng" />
+        <div className="flex items-center gap-2 mb-2">
+          <SectionHeader title={`Trong khoảng ${rangeLabel}`} />
+          {isFetching && !loading && (
+            <span className="text-xs text-muted-foreground animate-pulse">Đang cập nhật...</span>
+          )}
+        </div>
         <div className="flex flex-wrap gap-3">
           <StatCard
-            icon={Users}
-            title="Tổng người dùng"
-            value={stats?.totalUsers}
-            loading={loading}
-            iconColor="text-blue-500"
-          />
-          <StatCard
-            icon={UserCheck}
-            title="Đang hoạt động"
-            value={stats?.activeUsers}
-            loading={loading}
-            iconColor="text-green-500"
-          />
-          <StatCard
-            icon={Wifi}
-            title="Đang online"
-            value={stats?.onlineUsersNow}
-            sub="cập nhật realtime"
-            loading={loading}
-            iconColor="text-emerald-500"
-            pulse
-          />
-          <StatCard
             icon={UserPlus}
-            title="Mới 30 ngày qua"
+            title="Người dùng mới"
             value={stats?.newUsersLast30Days}
             loading={loading}
             iconColor="text-teal-500"
           />
           <StatCard
             icon={LogIn}
-            title="Đăng nhập hôm nay"
+            title="Đăng nhập"
             value={stats?.loginsToday}
             loading={loading}
             iconColor="text-indigo-500"
           />
-        </div>
-      </section>
-
-      {/* ── Tăng trưởng tuần ───────────────────────────────────────── */}
-      <section>
-        <SectionHeader title="Tăng trưởng (tuần này so với tuần trước)" />
-        <div className="flex flex-wrap gap-3">
-          <StatCard
-            icon={UserPlus2}
-            title="Người dùng mới"
-            value={stats?.newUsersThisWeek}
-            sub={`Tuần trước: ${stats?.newUsersLastWeek ?? "—"}`}
-            loading={loading}
-            iconColor="text-violet-500"
-            growth={stats?.userGrowthPercent}
-          />
-          <StatCard
-            icon={FileText}
-            title="Bài đăng mới"
-            value={stats?.postsThisWeek}
-            sub={`Tuần trước: ${stats?.postsLastWeek ?? "—"}`}
-            loading={loading}
-            iconColor="text-sky-500"
-            growth={stats?.postsGrowthPercent}
-          />
           <StatCard
             icon={Activity}
-            title="Hoạt động 7 ngày"
+            title="Hoạt động"
             value={stats?.activityLast7Days}
             loading={loading}
             iconColor="text-purple-500"
@@ -249,9 +186,36 @@ export const StatsOverview = () => {
         </div>
       </section>
 
+      {/* ── Tăng trưởng ────────────────────────────────────────────── */}
+      {showComparison && (
+        <section>
+          <SectionHeader title="Tăng trưởng so với kỳ trước" />
+          <div className="flex flex-wrap gap-3">
+            <StatCard
+              icon={UserPlus2}
+              title="Người dùng mới"
+              value={stats?.newUsersThisWeek}
+              sub={`Kỳ trước: ${stats?.newUsersLastWeek ?? "—"}`}
+              loading={loading}
+              iconColor="text-violet-500"
+              growth={stats?.userGrowthPercent}
+            />
+            <StatCard
+              icon={FileText}
+              title="Bài đăng mới"
+              value={stats?.postsThisWeek}
+              sub={`Kỳ trước: ${stats?.postsLastWeek ?? "—"}`}
+              loading={loading}
+              iconColor="text-sky-500"
+              growth={stats?.postsGrowthPercent}
+            />
+          </div>
+        </section>
+      )}
+
       {/* ── Hoạt động hôm nay ──────────────────────────────────────── */}
       <section>
-        <SectionHeader title="Hoạt động hôm nay" />
+        <SectionHeader title={`Hoạt động trong khoảng ${rangeLabel}`} />
         <div className="flex flex-wrap gap-3">
           <StatCard
             icon={Activity}
@@ -300,49 +264,7 @@ export const StatsOverview = () => {
 
       {/* ── Hoạt động gần đây ──────────────────────────────────────── */}
       <section>
-        <SectionHeader title="Hoạt động gần đây" />
-        <Card className="overflow-hidden">
-          {logsLoading ? (
-            <div className="divide-y">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 px-4 py-2.5">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-5 w-16 rounded-full" />
-                  <Skeleton className="h-4 w-32 ml-auto" />
-                </div>
-              ))}
-            </div>
-          ) : !recentLogs || recentLogs.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">Chưa có dữ liệu hoạt động</p>
-          ) : (
-            <div className="divide-y">
-              {recentLogs.map((log) => {
-                const cfg = ACTION_LABELS[log.actionType] ?? {
-                  label: log.actionType,
-                  variant: "outline" as const,
-                };
-                return (
-                  <div key={log.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                    <span className="font-medium w-28 truncate shrink-0 text-foreground">
-                      {log.username ?? "—"}
-                    </span>
-                    <Badge variant={cfg.variant} className="shrink-0 text-xs px-2 py-0">
-                      {cfg.label}
-                    </Badge>
-                    {log.metadata && (
-                      <span className="text-muted-foreground text-xs truncate hidden lg:block flex-1">
-                        {log.metadata}
-                      </span>
-                    )}
-                    <span className="text-muted-foreground text-xs shrink-0 ml-auto">
-                      {log.createdAt ? dateFormatter.format(new Date(log.createdAt)) : "—"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
+        <RecentActivityLogs dateRange={dateRange} compact />
       </section>
     </div>
   );

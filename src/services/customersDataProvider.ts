@@ -45,17 +45,19 @@ export const customersDataProvider: CustomerMethods = {
       );
     }
 
-    const { status, newPassword } = params.data;
+    const { status, newPassword, role, newEmail } = params.data;
 
     if (newPassword) {
-      await apiClient.put(`/api/v1/admin/users/${params.id}/password`, {
-        newPassword,
-      });
+      await apiClient.put(`/api/v1/admin/users/${params.id}/password`, { newPassword });
     }
     if (status && status !== params.previousData?.status) {
-      await apiClient.patch(`/api/v1/admin/users/${params.id}/status`, {
-        status,
-      });
+      await apiClient.patch(`/api/v1/admin/users/${params.id}/status`, { status });
+    }
+    if (role && role !== params.previousData?.role) {
+      await apiClient.patch(`/api/v1/admin/users/${params.id}/role`, { role });
+    }
+    if (newEmail) {
+      await apiClient.put(`/api/v1/admin/users/${params.id}/email`, { newEmail });
     }
 
     const { data } = await apiClient.get(`/api/v1/admin/users/${params.id}`);

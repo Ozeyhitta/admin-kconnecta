@@ -56,6 +56,15 @@ function AuthSessionGuard() {
   return null;
 }
 
+const redirectToLoginBeforeRender = () => {
+  if (isAuthenticated() || isLoginPath(window.location.pathname)) {
+    return;
+  }
+  window.history.replaceState(null, "", getLoginPath());
+};
+
+redirectToLoginBeforeRender();
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>

@@ -1,0 +1,158 @@
+import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { Severity } from "./types";
+
+export const PolicyCard = ({
+  title,
+  description,
+  children,
+  className,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+  className?: string;
+}) => (
+  <div className={cn("rounded-lg border border-border bg-card p-5 space-y-4", className)}>
+    <div>
+      <h3 className="text-sm font-semibold">{title}</h3>
+      {description ? (
+        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+      ) : null}
+    </div>
+    {children}
+  </div>
+);
+
+export const SettingRow = ({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: ReactNode;
+}) => (
+  <div className="flex items-center justify-between gap-4 py-2 border-b border-border/60 last:border-0">
+    <div className="min-w-0 flex-1">
+      <p className="text-sm font-medium">{label}</p>
+      {hint ? <p className="text-xs text-muted-foreground mt-0.5">{hint}</p> : null}
+    </div>
+    <div className="shrink-0">{children}</div>
+  </div>
+);
+
+export const ToggleRow = ({
+  label,
+  hint,
+  checked,
+  onCheckedChange,
+}: {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+}) => (
+  <SettingRow label={label} hint={hint}>
+    <Switch checked={checked} onCheckedChange={onCheckedChange} />
+  </SettingRow>
+);
+
+export const SeveritySelect = ({
+  value,
+  onChange,
+}: {
+  value: Severity;
+  onChange: (v: Severity) => void;
+}) => (
+  <Select value={value} onValueChange={(v) => onChange(v as Severity)}>
+    <SelectTrigger size="sm" className="w-[120px]">
+      <SelectValue />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="low">Thấp</SelectItem>
+      <SelectItem value="medium">Trung bình</SelectItem>
+      <SelectItem value="high">Cao</SelectItem>
+      <SelectItem value="critical">Nghiêm trọng</SelectItem>
+    </SelectContent>
+  </Select>
+);
+
+export const SeverityBadge = ({ severity }: { severity: Severity }) => {
+  const variant =
+    severity === "critical"
+      ? "destructive"
+      : severity === "high"
+        ? "destructive"
+        : severity === "medium"
+          ? "secondary"
+          : "outline";
+  const label =
+    severity === "critical"
+      ? "Nghiêm trọng"
+      : severity === "high"
+        ? "Cao"
+        : severity === "medium"
+          ? "TB"
+          : "Thấp";
+  return <Badge variant={variant}>{label}</Badge>;
+};
+
+export const RangeField = ({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  unit,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  unit?: string;
+  onChange: (v: number) => void;
+}) => (
+  <div className="space-y-2">
+    <div className="flex justify-between text-sm">
+      <Label>{label}</Label>
+      <span className="tabular-nums font-medium text-primary">
+        {value}
+        {unit ?? ""}
+      </span>
+    </div>
+    <input
+      type="range"
+      min={min}
+      max={max}
+      step={step}
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      className="w-full h-2 accent-primary cursor-pointer"
+    />
+  </div>
+);
+
+export const WeightSlider = ({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) => (
+  <RangeField label={label} value={value} min={0} max={100} step={5} unit="%" onChange={onChange} />
+);

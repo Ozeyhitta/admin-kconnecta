@@ -1,194 +1,111 @@
-import type { ReactNode } from "react";
-import { useRecordContext, FilterLiveForm } from "ra-core";
-import {
-  DataTable,
-  ExportButton,
-  List,
-  ToggleFilterButton,
-  TextInput,
-  ListPagination,
-} from "@/components/admin";
-import { Badge } from "@/components/ui/badge";
+import * as React from "react";
+import { List } from "@/components/admin";
+import { ActivityLogSummaryCards } from "@/pages/dashboard/components/activityLogs/ActivityLogSummaryCards";
+import { ActivityLogFilterBar } from "@/pages/dashboard/components/activityLogs/ActivityLogFilters";
+import { ActivityLogList } from "@/pages/dashboard/components/activityLogs/ActivityLogList";
+import { ActivityLogDetailDrawer } from "@/pages/dashboard/components/activityLogs/ActivityLogDetailDrawer";
+import { apiClient } from "@/services/axiosInstance";
+import { getAdminToken } from "@/lib/currentAdminUser";
+import type { ActivityLogFilters as Filters, ActivityLogItem, ActivityLogPageResponse } from "@/pages/dashboard/components/activityLogs/types";
 
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+export const ActivityLogListPage = () => {
+  const [filters, setFilters] = React.useState<Filters>({});
+  const [page, setPage] = React.useState(0);
+  const [data, setData] = React.useState<ActivityLogPageResponse | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [selected, setSelected] = React.useState<ActivityLogItem | null>(null);
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
 
-type ActivityLogRecord = {
-  [key: string]: unknown;
-  actionType?: string | null;
-  metadata?: string | null;
-  createdAt?: string | null;
-};
+  const fetchPage = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await apiClient.get<ActivityLogPageResponse>("/api/v1/admin/activity-logs", {
+        params: {
+          page,
+          size: 20,
+          sortBy: "createdAt",
+          sortDir: "desc",
+          ...(filters.username ? { username: filters.username } : {}),
+          ...(filters.actionType ? { actionType: filters.actionType } : {}),
+          ...(filters.status ? { status: filters.status } : {}),
+          ...(filters.severity ? { severity: filters.severity } : {}),
+          ...(filters.from ? { from: filters.from } : {}),
+          ...(filters.to ? { to: filters.to } : {}),
+          ...(filters.abnormalOnly ? { abnormalOnly: true } : {}),
+        },
+      });
+      setData(r.data);
+    } catch {
+      setError("Không tải được nhật ký hoạt động.");
+    } finally {
+      setLoading(false);
+    }
+  }, [page, filters]);
 
-const ACTION_TYPE_LABELS: Record<
-  string,
-  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
-> = {
-  LOGIN: { label: "Đăng nhập", variant: "default" },
-  LOGOUT: { label: "Đăng xuất", variant: "secondary" },
-  REGISTER: { label: "Đăng ký", variant: "default" },
-  GOOGLE_LOGIN: { label: "Google Login", variant: "outline" },
-  PASSWORD_CHANGED: { label: "Đổi mật khẩu", variant: "outline" },
-  RESET_PASSWORD: { label: "Reset mật khẩu", variant: "outline" },
-  POST_CREATED: { label: "Đăng bài", variant: "default" },
-  POST_DELETED: { label: "Xóa bài", variant: "destructive" },
-  COMMENT_ADDED: { label: "Bình luận", variant: "secondary" },
-  REACTION_ADDED: { label: "Thả cảm xúc", variant: "secondary" },
-  POST_SHARED: { label: "Chia sẻ bài", variant: "outline" },
-  FRIEND_REQUEST_SENT: { label: "Kết bạn", variant: "outline" },
-  FRIEND_ACCEPTED: { label: "Chấp nhận kết bạn", variant: "default" },
-};
+  React.useEffect(() => {
+    void fetchPage();
+  }, [fetchPage]);
 
-const REACTION_LABELS: Record<string, string> = {
-  LIKE: "thích",
-  LOVE: "yêu thích",
-  HAHA: "haha",
-  WOW: "wow",
-  SAD: "buồn",
-  ANGRY: "giận dữ",
-};
+  React.useEffect(() => {
+    setPage(0);
+  }, [filters]);
 
-const parseMetadata = (metadata?: string | null): Record<string, unknown> => {
-  if (!metadata) return {};
-  try {
-    const parsed = JSON.parse(metadata);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-};
+  const items = data?.items ?? data?.content ?? [];
+  const totalPages = data?.pagination?.totalPages ?? data?.totalPages ?? 1;
 
-const formatActivityDetail = (record: ActivityLogRecord) => {
-  const metadata = parseMetadata(record.metadata);
-  const reactionType = typeof metadata.type === "string" ? metadata.type : undefined;
-
-  switch (record.actionType) {
-    case "LOGIN":
-      return "Đăng nhập vào hệ thống";
-    case "LOGOUT":
-      return "Đăng xuất khỏi hệ thống";
-    case "REGISTER":
-      return "Tạo tài khoản mới";
-    case "GOOGLE_LOGIN":
-      return "Đăng nhập bằng Google";
-    case "PASSWORD_CHANGED":
-      return "Đổi mật khẩu tài khoản";
-    case "RESET_PASSWORD":
-      return "Đặt lại mật khẩu";
-    case "POST_CREATED":
-      return "Đăng bài viết mới";
-    case "POST_DELETED":
-      return "Xóa bài viết";
-    case "COMMENT_ADDED":
-      return "Bình luận vào một bài viết";
-    case "REACTION_ADDED":
-      return reactionType
-        ? `Thả cảm xúc ${REACTION_LABELS[reactionType] ?? reactionType.toLowerCase()} vào bài viết`
-        : "Thả cảm xúc vào bài viết";
-    case "POST_SHARED":
-      return "Chia sẻ bài viết";
-    case "FRIEND_REQUEST_SENT":
-      return "Gửi lời mời kết bạn";
-    case "FRIEND_ACCEPTED":
-      return "Chấp nhận lời mời kết bạn";
-    default:
-      return "—";
-  }
-};
-
-const ActionTypeBadge = () => {
-  const record = useRecordContext();
-  if (!record) return null;
-  const config = ACTION_TYPE_LABELS[record.actionType] ?? {
-    label: record.actionType,
-    variant: "outline" as const,
+  const handleExport = async () => {
+    const token = getAdminToken();
+    const base = (import.meta.env.VITE_API_URL ?? "http://localhost:8082").replace(/\/$/, "");
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v !== undefined && v !== "") params.set(k, String(v));
+    });
+    const res = await fetch(`${base}/api/v1/admin/activity-logs/export?${params}`, {
+      headers: token ? { Authorization: `Bearer ${token}`, "X-Admin-Token": token } : {},
+    });
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "activity-logs.csv";
+    a.click();
+    URL.revokeObjectURL(url);
   };
-  return <Badge variant={config.variant}>{config.label}</Badge>;
-};
 
-export const ActivityLogList = () => {
   return (
     <List
+      title="Nhật ký hoạt động"
       perPage={20}
-      sort={{ field: "createdAt", order: "DESC" }}
       pagination={false}
-      actions={
-        <div className="flex items-center gap-2">
-          <ExportButton />
-        </div>
-      }
+      actions={false}
     >
-      <div className="flex flex-row gap-4 mb-4">
-        <SidebarFilters />
-        <div className="flex-1">
-          <DataTable>
-            <DataTable.Col source="username" label="Username" />
-            <DataTable.Col source="actionType" label="Hành động">
-              <ActionTypeBadge />
-            </DataTable.Col>
-            <DataTable.Col
-              source="metadata"
-              label="Chi tiết"
-              render={(record) => formatActivityDetail(record)}
-              className="hidden lg:table-cell text-muted-foreground text-xs max-w-xs truncate"
-            />
-            <DataTable.Col
-              source="createdAt"
-              label="Thời gian"
-              render={(record) =>
-                record.createdAt
-                  ? dateFormatter.format(new Date(record.createdAt))
-                  : "—"
-              }
-            />
-          </DataTable>
-          <ListPagination className="justify-start mt-2" />
+      <div className="space-y-4 mb-6">
+        <ActivityLogSummaryCards summary={data?.summary} loading={loading} />
+        <ActivityLogFilterBar filters={filters} onChange={setFilters} />
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={() => void handleExport()} className="text-sm underline text-muted-foreground hover:text-foreground">
+            Xuất CSV
+          </button>
         </div>
+        <ActivityLogList
+          items={items}
+          loading={loading}
+          error={error}
+          onItemClick={item => { setSelected(item); setDrawerOpen(true); }}
+        />
+        {totalPages > 1 && (
+          <div className="flex justify-center gap-2 pt-2">
+            <button type="button" disabled={page <= 0} onClick={() => setPage(p => p - 1)} className="text-sm px-3 py-1 border rounded disabled:opacity-40">Trước</button>
+            <span className="text-sm text-muted-foreground self-center">Trang {page + 1} / {totalPages}</span>
+            <button type="button" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="text-sm px-3 py-1 border rounded disabled:opacity-40">Sau</button>
+          </div>
+        )}
+        <ActivityLogDetailDrawer item={selected} open={drawerOpen} onOpenChange={setDrawerOpen} />
       </div>
     </List>
   );
 };
 
-const SidebarFilters = () => {
-  return (
-    <div className="min-w-48 hidden md:block">
-      <FilterLiveForm>
-        <TextInput
-          source="q"
-          placeholder="Tìm theo username..."
-          label={false}
-          className="mb-6"
-        />
-      </FilterLiveForm>
-
-      <FilterCategory label="Hành động">
-        <ToggleFilterButton label="Đăng nhập" value={{ actionType: "LOGIN" }} />
-        <ToggleFilterButton label="Đăng xuất" value={{ actionType: "LOGOUT" }} />
-        <ToggleFilterButton label="Đăng ký" value={{ actionType: "REGISTER" }} />
-        <ToggleFilterButton label="Google Login" value={{ actionType: "GOOGLE_LOGIN" }} />
-        <ToggleFilterButton label="Đăng bài" value={{ actionType: "POST_CREATED" }} />
-        <ToggleFilterButton label="Xóa bài" value={{ actionType: "POST_DELETED" }} />
-        <ToggleFilterButton label="Bình luận" value={{ actionType: "COMMENT_ADDED" }} />
-        <ToggleFilterButton label="Cảm xúc" value={{ actionType: "REACTION_ADDED" }} />
-        <ToggleFilterButton label="Chia sẻ bài" value={{ actionType: "POST_SHARED" }} />
-        <ToggleFilterButton label="Kết bạn" value={{ actionType: "FRIEND_REQUEST_SENT" }} />
-        <ToggleFilterButton label="Đổi mật khẩu" value={{ actionType: "PASSWORD_CHANGED" }} />
-      </FilterCategory>
-    </div>
-  );
-};
-
-const FilterCategory = ({
-  label,
-  children,
-}: {
-  label: string;
-  children?: ReactNode;
-}) => (
-  <>
-    <h3 className="mb-1 font-bold text-sm">{label}</h3>
-    <div className="flex flex-col items-start ml-3 mb-4">{children}</div>
-  </>
-);
+export default ActivityLogListPage;
