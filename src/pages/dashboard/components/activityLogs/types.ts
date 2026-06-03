@@ -57,4 +57,6 @@ export interface ActivityLogFilters {
   from?: string;
   to?: string;
   abnormalOnly?: boolean;
+  /** UI-only: which time preset button is active ("today" | "7days" | "30days" | "thisMonth" | "custom") */
+  timePreset?: string;
 }

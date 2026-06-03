@@ -1,6 +1,7 @@
 import type { DataProvider } from "ra-core";
 import { apiClient } from "./axiosInstance";
 import type { ActivityLogPageResponse } from "@/pages/dashboard/components/activityLogs/types";
+import { getPageContent, getPageTotal } from "./pagination";
 
 type ActivityLogMethods = Pick<DataProvider, "getList">;
 
@@ -26,10 +27,10 @@ export const activityLogsDataProvider: ActivityLogMethods = {
       },
     });
 
-    const items = data.items ?? data.content ?? [];
+    const items = getPageContent(data);
     return {
       data: items as never[],
-      total: data.pagination?.totalElements ?? data.totalElements ?? items.length,
+      total: getPageTotal(data, items.length),
     };
   },
 };

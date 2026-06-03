@@ -11,6 +11,7 @@ import {
   CalendarDays,
   BarChart2,
   Zap,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -356,9 +357,10 @@ const NewUsersInsightsBox = ({ insights, loading }: { insights: Insight[] | null
 // ─── NewUsersAnalytics ────────────────────────────────────────────────────────
 
 export const NewUsersAnalytics = ({ dateRange }: { dateRange: StatsDateRange }) => {
-  const [groupBy, setGroupBy] = React.useState<GroupBy>("day");
-  const [data, setData]       = React.useState<AnalyticsResponse | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [groupBy, setGroupBy]     = React.useState<GroupBy>("day");
+  const [data, setData]           = React.useState<AnalyticsResponse | null>(null);
+  const [loading, setLoading]     = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
 
   // Reset to skeleton only when filter/groupBy changes (not on background polls)
   React.useEffect(() => {
@@ -376,10 +378,15 @@ export const NewUsersAnalytics = ({ dateRange }: { dateRange: StatsDateRange }) 
       /* keep previous data on background refresh failure */
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [groupBy, dateRange]);
 
-  // ADMIN_CHARTS_POLL_MS = null → no automatic polling; only refetches when filter changes
+  const handleManualRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await fetchData();
+  }, [fetchData]);
+
   useIntervalPoll(fetchData, ADMIN_CHARTS_POLL_MS, [fetchData]);
 
   const rangeLabel = describeStatsRange(dateRange);
@@ -397,7 +404,15 @@ export const NewUsersAnalytics = ({ dateRange }: { dateRange: StatsDateRange }) 
               {rangeLabel} · Tính từ ngày tạo tài khoản
             </p>
           </div>
-          <div className="flex gap-1 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={handleManualRefresh}
+              disabled={loading || refreshing}
+              title="Làm mới dữ liệu"
+              className="cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            </button>
             {(["day", "week", "month"] as GroupBy[]).map(g => (
               <button
                 key={g}

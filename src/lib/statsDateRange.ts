@@ -77,3 +77,33 @@ export const describeStatsRange = (range: StatsDateRange) => {
   const to = formatter.format(new Date(range.to));
   return from === to ? from : `${from} - ${to}`;
 };
+
+/** Returns the {from, to} date strings for the comparison period, or null if compareMode is "none". */
+export const getComparisonRange = (range: StatsDateRange): { from: string; to: string } | null => {
+  if (range.compareMode === "none") return null;
+
+  const fromDate = new Date(range.from + "T00:00:00");
+  const toDate   = new Date(range.to   + "T00:00:00");
+
+  if (range.compareMode === "previous_period") {
+    const durationDays =
+      Math.round((toDate.getTime() - fromDate.getTime()) / 86_400_000) + 1;
+    const prevTo   = new Date(fromDate); prevTo.setDate(prevTo.getDate() - 1);
+    const prevFrom = new Date(fromDate); prevFrom.setDate(prevFrom.getDate() - durationDays);
+    return { from: formatDateInput(prevFrom), to: formatDateInput(prevTo) };
+  }
+
+  if (range.compareMode === "previous_month") {
+    const prevFrom = new Date(fromDate); prevFrom.setMonth(prevFrom.getMonth() - 1);
+    const prevTo   = new Date(toDate);   prevTo.setMonth(prevTo.getMonth()   - 1);
+    return { from: formatDateInput(prevFrom), to: formatDateInput(prevTo) };
+  }
+
+  return null;
+};
+
+export const describeCompareLabel = (compareMode: StatsCompareMode): string => {
+  if (compareMode === "previous_period") return "kỳ trước";
+  if (compareMode === "previous_month")  return "cùng kỳ tháng trước";
+  return "";
+};

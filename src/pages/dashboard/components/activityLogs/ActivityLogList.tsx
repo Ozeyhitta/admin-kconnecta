@@ -46,7 +46,7 @@ export const ActivityLogList = ({
   if (items.length === 0) {
     return (
       <Card className="p-8 text-center text-sm text-muted-foreground">
-        {emptyMessage}
+        {emptyMessage ?? "Không có hoạt động nào trong khoảng thời gian đã chọn."}
       </Card>
     );
   }

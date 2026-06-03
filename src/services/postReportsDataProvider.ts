@@ -1,5 +1,6 @@
 import type { DataProvider } from "ra-core";
 import { apiClient } from "./axiosInstance";
+import { getPageContent, getPageTotal } from "./pagination";
 
 type PostReportMethods = Pick<DataProvider, "getList" | "getOne">;
 
@@ -20,7 +21,8 @@ export const postReportsDataProvider: PostReportMethods = {
       },
     });
 
-    return { data: data.content, total: data.totalElements };
+    const items = getPageContent(data);
+    return { data: items, total: getPageTotal(data, items.length) };
   },
 
   getOne: async (_resource, params) => {

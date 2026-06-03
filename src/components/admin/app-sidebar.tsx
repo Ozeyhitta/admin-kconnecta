@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { createElement, useEffect, useState } from "react";
 import {
   useCanAccess,
   useCreatePath,
@@ -22,9 +22,10 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { House, List, BarChart3, Bell, ScrollText, TrendingUp } from "lucide-react";
+import { House, List, BarChart3, Bell, ScrollText, TrendingUp, ShieldAlert } from "lucide-react";
 import logoV1 from "@/assets/LogoKConnecta_V1.png";
 import logoV2 from "@/assets/LogoKConnecta_V2.png";
+import { apiClient } from "@/services/axiosInstance";
 
 export function AppSidebar() {
   const hasDashboard = useHasDashboard();
@@ -85,6 +86,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+          <ModerationConfigMenuItem onClick={handleClick} />
           <PoliciesMenuItem onClick={handleClick} />
         </SidebarMenu>
       </SidebarFooter>
@@ -140,12 +142,53 @@ export const PostTrendsMenuItem = ({ onClick }: { onClick?: () => void }) => {
 
 export const NotificationsMenuItem = ({ onClick }: { onClick?: () => void }) => {
   const match = useMatch({ path: "/notifications", end: false });
+  const [reviewCount, setReviewCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const { data } = await apiClient.get<{ count: number }>(
+          "/api/v1/admin/notifications/account-review-requests/count",
+        );
+        if (!cancelled) setReviewCount(data?.count ?? 0);
+      } catch {
+        if (!cancelled) setReviewCount(0);
+      }
+    };
+    void load();
+    const timer = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={!!match}>
-        <Link to="/notifications" onClick={onClick}>
+        <Link to="/notifications" onClick={onClick} className="relative">
           <Bell />
           Thông báo
+          {reviewCount > 0 && (
+            <span className="absolute right-1 top-1/2 flex h-4 min-w-4 -translate-y-1/2 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-semibold text-white shadow-sm">
+              {reviewCount > 9 ? "9+" : reviewCount}
+            </span>
+          )}
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+};
+
+export const ModerationConfigMenuItem = ({ onClick }: { onClick?: () => void }) => {
+  const match = useMatch({ path: "/moderation-config", end: false });
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild isActive={!!match}>
+        <Link to="/moderation-config" onClick={onClick}>
+          <ShieldAlert />
+          Cấu hình kiểm duyệt
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>

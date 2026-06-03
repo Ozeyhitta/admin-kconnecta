@@ -16,6 +16,7 @@ import StatsPage from "./pages/stats/StatsPage";
 import PostTrendsPage from "./pages/postTrends/PostTrendsPage";
 import NotificationsPage from "./pages/notifications/NotificationsPage";
 import PoliciesPage from "./pages/policies/PoliciesPage";
+import ModerationConfigPage from "./pages/moderation/ModerationConfigPage";
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
         <Route path="/post-trends" element={<PostTrendsPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/policies" element={<PoliciesPage />} />
+        <Route path="/moderation-config" element={<ModerationConfigPage />} />
       </CustomRoutes>
       <Resource {...customers} />
       <Resource {...activityLogs} />

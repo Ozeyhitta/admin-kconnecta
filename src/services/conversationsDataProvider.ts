@@ -1,5 +1,6 @@
 import type { DataProvider } from "ra-core";
 import { apiClient } from "./axiosInstance";
+import { getPageContent, getPageTotal } from "./pagination";
 
 type ConversationMethods = Pick<DataProvider, "getList" | "getOne">;
 
@@ -19,7 +20,8 @@ export const conversationsDataProvider: ConversationMethods = {
       },
     });
 
-    return { data: data.content, total: data.totalElements };
+    const items = getPageContent(data);
+    return { data: items, total: getPageTotal(data, items.length) };
   },
 
   getOne: async (_resource, params) => {

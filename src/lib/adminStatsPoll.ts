@@ -10,9 +10,8 @@ export const ADMIN_ACTIVITY_POLL_MS = 60_000;
 // Time-based metric cards (StatsOverview) — 2 minutes
 export const ADMIN_STATS_POLL_MS = 120_000;
 
-// Heavy charts (ActivityHourCard, ActivityDayCard, NewUsersAnalytics) — 5 minutes
-// Set to null to disable automatic polling; charts only refresh on filter change.
-export const ADMIN_CHARTS_POLL_MS = null as null;
+// Heavy charts (ActivityHourCard, ActivityDayCard, NewUsersAnalytics) — 1 minute
+export const ADMIN_CHARTS_POLL_MS = 60_000;
 
 // System overview (total counts that rarely change) — 5 minutes
 export const ADMIN_SYSTEM_POLL_MS = 300_000;

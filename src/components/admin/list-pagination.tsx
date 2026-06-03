@@ -14,7 +14,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { useListPaginationContext, Translate, useTranslate } from "ra-core";
+import {
+  useListPaginationContext,
+  Translate,
+  useTranslate,
+} from "ra-core";
 
 /**
  * A pagination component with page numbers and rows per page selector.
@@ -55,12 +59,18 @@ export const ListPagination = ({
     setPage,
   } = useListPaginationContext();
 
-  const pageStart = (page - 1) * perPage + 1;
-  const pageEnd = hasNextPage ? page * perPage : total;
+  const hasKnownTotal = typeof total === "number" && total >= 0;
+  const canGoToPreviousPage = hasPreviousPage ?? page > 1;
+  const canGoToNextPage =
+    hasNextPage ?? (hasKnownTotal ? page * perPage < total : false);
+  const pageStart = hasKnownTotal && total > 0 ? (page - 1) * perPage + 1 : 0;
+  const pageEnd = hasKnownTotal ? Math.min(page * perPage, total) : 0;
 
   const boundaryCount = 1;
   const siblingCount = 1;
-  const count = total ? Math.ceil(total / perPage) : 1;
+  const count = hasKnownTotal
+    ? Math.max(1, Math.ceil(total / perPage))
+    : Math.max(1, page);
 
   const range = (start: number, end: number) => {
     const length = end - start + 1;
@@ -98,7 +108,7 @@ export const ListPagination = ({
   const siblingPages = range(siblingsStart, siblingsEnd);
 
   const pageChangeHandler = (newPage: number) => {
-    return (event: React.MouseEvent<HTMLAnchorElement>) => {
+    return (event: React.MouseEvent) => {
       event.preventDefault();
       setPage(newPage);
     };
@@ -106,7 +116,7 @@ export const ListPagination = ({
 
   return (
     <div
-      className={`flex items-center justify-end space-x-2 gap-4 ${className}`}
+      className={cn("flex items-center justify-end space-x-2 gap-4", className)}
     >
       <div className="hidden md:flex items-center space-x-2">
         <p className="text-sm font-medium">
@@ -133,25 +143,26 @@ export const ListPagination = ({
         </Select>
       </div>
       <div className="text-sm text-muted-foreground">
-        {total != null && (
+        {hasKnownTotal && (
           <Translate
             i18nKey="ra.navigation.page_range_info"
             options={{
               offsetBegin: pageStart,
               offsetEnd: pageEnd,
-              total: total === -1 ? pageEnd : total,
+              total,
             }}
           >
-            {`${pageStart}-${pageEnd} of ${total === -1 ? pageEnd : total}`}
+            {`${pageStart}-${pageEnd} of ${total}`}
           </Translate>
         )}
       </div>
       <Pagination className="-w-full -mx-auto">
         <PaginationContent>
           <PaginationItem>
-            {hasPreviousPage ? (
+            {canGoToPreviousPage ? (
               <PaginationLink
-                href="#"
+                role="button"
+                tabIndex={0}
                 onClick={pageChangeHandler(page - 1)}
                 aria-label={translate("ra.navigation.previous", {
                   _: "Previous",
@@ -174,7 +185,8 @@ export const ListPagination = ({
           {startPages.map((pageNumber) => (
             <PaginationItem key={pageNumber}>
               <PaginationLink
-                href="#"
+                role="button"
+                tabIndex={0}
                 onClick={pageChangeHandler(pageNumber)}
                 isActive={pageNumber === page}
               >
@@ -189,7 +201,8 @@ export const ListPagination = ({
           ) : boundaryCount + 1 < count - boundaryCount ? (
             <PaginationItem>
               <PaginationLink
-                href="#"
+                role="button"
+                tabIndex={0}
                 onClick={pageChangeHandler(boundaryCount + 1)}
                 isActive={boundaryCount + 1 === page}
               >
@@ -200,7 +213,8 @@ export const ListPagination = ({
           {siblingPages.map((pageNumber) => (
             <PaginationItem key={pageNumber}>
               <PaginationLink
-                href="#"
+                role="button"
+                tabIndex={0}
                 onClick={pageChangeHandler(pageNumber)}
                 isActive={pageNumber === page}
               >
@@ -215,7 +229,8 @@ export const ListPagination = ({
           ) : count - boundaryCount > boundaryCount ? (
             <PaginationItem>
               <PaginationLink
-                href="#"
+                role="button"
+                tabIndex={0}
                 onClick={pageChangeHandler(count - boundaryCount)}
                 isActive={count - boundaryCount === page}
               >
@@ -226,7 +241,8 @@ export const ListPagination = ({
           {endPages.map((pageNumber) => (
             <PaginationItem key={pageNumber}>
               <PaginationLink
-                href="#"
+                role="button"
+                tabIndex={0}
                 onClick={pageChangeHandler(pageNumber)}
                 isActive={pageNumber === page}
               >
@@ -235,14 +251,15 @@ export const ListPagination = ({
             </PaginationItem>
           ))}
           <PaginationItem>
-            {hasNextPage ? (
+            {canGoToNextPage ? (
               <PaginationLink
-                href="#"
+                role="button"
+                tabIndex={0}
                 onClick={pageChangeHandler(page + 1)}
                 size="default"
                 className={cn(
                   "gap-1 px-2.5 sm:pr-2.5",
-                  !hasNextPage ? "opacity-50 cursor-not-allowed" : "",
+                  !canGoToNextPage ? "opacity-50 cursor-not-allowed" : "",
                 )}
                 aria-label={translate("ra.navigation.next", { _: "Next" })}
               >

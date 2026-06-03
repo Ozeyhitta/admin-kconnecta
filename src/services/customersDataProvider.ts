@@ -3,6 +3,7 @@ import { HttpError } from "ra-core";
 import { apiClient } from "./axiosInstance";
 import { isUuid } from "./idUtils";
 import { isCurrentAdminUser } from "@/lib/currentAdminUser";
+import { getPageContent, getPageTotal } from "./pagination";
 
 type CustomerMethods = Pick<
   DataProvider,
@@ -11,8 +12,8 @@ type CustomerMethods = Pick<
 
 export const customersDataProvider: CustomerMethods = {
   getList: async (_resource, params) => {
-    const { page, perPage } = params.pagination;
-    const { field, order } = params.sort;
+    const { page = 1, perPage = 20 } = params.pagination ?? {};
+    const { field = "createdAt", order = "DESC" } = params.sort ?? {};
     const { q, status, role } = params.filter ?? {};
 
     const { data } = await apiClient.get("/api/v1/admin/users", {
@@ -27,7 +28,8 @@ export const customersDataProvider: CustomerMethods = {
       },
     });
 
-    return { data: data.content, total: data.totalElements };
+    const items = getPageContent(data);
+    return { data: items, total: getPageTotal(data, items.length) };
   },
 
   getOne: async (_resource, params) => {
@@ -45,16 +47,13 @@ export const customersDataProvider: CustomerMethods = {
       );
     }
 
-    const { status, newPassword, role, newEmail } = params.data;
+    const { status, newPassword, newEmail } = params.data;
 
     if (newPassword) {
       await apiClient.put(`/api/v1/admin/users/${params.id}/password`, { newPassword });
     }
     if (status && status !== params.previousData?.status) {
       await apiClient.patch(`/api/v1/admin/users/${params.id}/status`, { status });
-    }
-    if (role && role !== params.previousData?.role) {
-      await apiClient.patch(`/api/v1/admin/users/${params.id}/role`, { role });
     }
     if (newEmail) {
       await apiClient.put(`/api/v1/admin/users/${params.id}/email`, { newEmail });

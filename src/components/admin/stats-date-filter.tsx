@@ -3,7 +3,10 @@ import {
   type StatsCompareMode,
   type StatsDateRange,
   type StatsRangePreset,
+  describeCompareLabel,
+  describeStatsRange,
   formatDateInput,
+  getComparisonRange,
   getPresetRange,
 } from "@/lib/statsDateRange";
 
@@ -35,7 +38,10 @@ export const StatsDateFilter = ({ value, onChange }: StatsDateFilterProps) => {
     onChange({ ...value, preset, ...getPresetRange(preset as Exclude<StatsRangePreset, "custom" | "specificDate">) });
   };
 
-  const today = formatDateInput(new Date());
+  const today         = formatDateInput(new Date());
+  const currentLabel  = describeStatsRange(value);
+  const compareRange  = getComparisonRange(value);
+  const compareLabel  = describeCompareLabel(value.compareMode);
 
   return (
     <div className="mb-4 rounded-lg border bg-card p-3 space-y-3">
@@ -57,7 +63,7 @@ export const StatsDateFilter = ({ value, onChange }: StatsDateFilterProps) => {
         ))}
       </div>
 
-      {/* Custom date range — only when preset = "custom" */}
+      {/* Custom date range */}
       {value.preset === "custom" && (
         <div className="flex flex-wrap items-center gap-3 pt-1">
           <div className="flex flex-col gap-1">
@@ -100,6 +106,22 @@ export const StatsDateFilter = ({ value, onChange }: StatsDateFilterProps) => {
             {opt.label}
           </button>
         ))}
+      </div>
+
+      {/* Active range info */}
+      <div className="border-t pt-2 space-y-0.5">
+        <p className="text-xs text-muted-foreground">
+          Dữ liệu đang hiển thị cho khoảng:{" "}
+          <span className="font-medium text-foreground">{currentLabel}</span>
+        </p>
+        {compareRange && compareLabel && (
+          <p className="text-xs text-muted-foreground">
+            So sánh với {compareLabel}:{" "}
+            <span className="font-medium text-foreground">
+              {describeStatsRange({ ...value, from: compareRange.from, to: compareRange.to })}
+            </span>
+          </p>
+        )}
       </div>
     </div>
   );

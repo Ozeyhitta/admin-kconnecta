@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Send, Users, User, X, Search } from "lucide-react";
+import { useNavigate } from "react-router";
+import { AlertTriangle, Clock, RefreshCw, Send, Users, User, X, Search } from "lucide-react";
 import { useNotify } from "ra-core";
 import { Breadcrumb, BreadcrumbPage } from "@/components/admin";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
 import { apiClient } from "@/services/axiosInstance";
 import { getAdminToken } from "@/lib/currentAdminUser";
 import { adminPost, AdminApiError } from "@/services/adminApi";
+import { getPageContent, getPageTotal } from "@/services/pagination";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +33,24 @@ interface PickedUser {
 }
 
 const displayName = (u: PickedUser) => u.fullName ?? u.username ?? "?";
+const notificationTimeFormatter = new Intl.DateTimeFormat("vi-VN", {
+  dateStyle: "short",
+  timeStyle: "short",
+});
+
+interface AccountReviewRequest {
+  id: string;
+  userId: string;
+  username?: string | null;
+  fullName?: string | null;
+  avatarUrl?: string | null;
+  description?: string | null;
+  metadata?: string | null;
+  createdAt?: string | null;
+}
+
+const reviewDisplayName = (item: AccountReviewRequest) =>
+  item.fullName || item.username || "Người dùng";
 
 // ─── User Picker Dialog ───────────────────────────────────────────────────────
 
@@ -68,9 +88,9 @@ const UserPickerDialog = ({ open, onClose, initial, onConfirm }: UserPickerDialo
         const { data } = await apiClient.get("/api/v1/admin/users", {
           params: { search: search || undefined, size: PAGE_SIZE, page },
         });
-        const content: PickedUser[] = data.content ?? [];
+        const content = getPageContent<PickedUser>(data);
         setUsers((prev) => (page === 0 ? content : [...prev, ...content]));
-        setTotal(data.totalElements ?? 0);
+        setTotal(getPageTotal(data, content.length));
       } catch {
         setUsers([]);
       } finally {
@@ -222,11 +242,33 @@ const UserPickerDialog = ({ open, onClose, initial, onConfirm }: UserPickerDialo
 
 export default function NotificationsPage() {
   const notify = useNotify();
+  const navigate = useNavigate();
   const [targetType, setTargetType] = useState<"all" | "specific">("all");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<PickedUser[]>([]);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [reviewRequests, setReviewRequests] = useState<AccountReviewRequest[]>([]);
+  const [reviewLoading, setReviewLoading] = useState(false);
+
+  const loadReviewRequests = async () => {
+    setReviewLoading(true);
+    try {
+      const { data } = await apiClient.get<AccountReviewRequest[]>(
+        "/api/v1/admin/notifications/account-review-requests",
+        { params: { size: 8 } },
+      );
+      setReviewRequests(Array.isArray(data) ? data : []);
+    } catch {
+      setReviewRequests([]);
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadReviewRequests();
+  }, []);
 
   const handleSend = async () => {
     if (!message.trim()) return;
@@ -297,6 +339,72 @@ export default function NotificationsPage() {
       <Breadcrumb>
         <BreadcrumbPage>Thông báo</BreadcrumbPage>
       </Breadcrumb>
+
+      <div className="mb-5 rounded-lg border border-border bg-card p-5">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold flex items-center gap-2">
+            <AlertTriangle className="size-4 text-amber-500" />
+            Yêu cầu xem xét từ người dùng
+          </h2>
+          <Button variant="outline" size="sm" onClick={() => void loadReviewRequests()} disabled={reviewLoading}>
+            <RefreshCw className={`size-4 mr-1.5 ${reviewLoading ? "animate-spin" : ""}`} />
+            Làm mới
+          </Button>
+        </div>
+
+        {reviewLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-lg border border-border p-3">
+                <Skeleton className="size-10 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : reviewRequests.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            Chưa có yêu cầu xem xét mở khóa nào từ người dùng.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {reviewRequests.map((item) => (
+              <div key={item.id} className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3">
+                <Avatar className="size-10 shrink-0">
+                  <AvatarImage src={item.avatarUrl ?? undefined} />
+                  <AvatarFallback className="text-xs">
+                    {reviewDisplayName(item).charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium">{reviewDisplayName(item)}</p>
+                    {item.username && <span className="text-xs text-muted-foreground">@{item.username}</span>}
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {item.description || "Người dùng yêu cầu admin xem xét mở khóa tài khoản."}
+                  </p>
+                  {item.createdAt && (
+                    <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="size-3" />
+                      {notificationTimeFormatter.format(new Date(item.createdAt))}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/customers/${item.userId}/show`)}
+                >
+                  Xem tài khoản
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-base font-semibold mb-4 flex items-center gap-2">

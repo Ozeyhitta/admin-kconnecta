@@ -22,8 +22,14 @@ const shortDateFormatter = new Intl.DateTimeFormat(undefined, {
 
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   ACTIVE: "default",
-  INACTIVE: "secondary",
-  LOCKED: "destructive",
+  BLOCKED: "destructive",
+  DELETED: "secondary",
+};
+
+const statusLabel: Record<string, string> = {
+  ACTIVE: "Active",
+  BLOCKED: "Blocked",
+  DELETED: "Deleted",
 };
 
 const StatusBadge = () => {
@@ -31,7 +37,7 @@ const StatusBadge = () => {
   if (!record) return null;
   return (
     <Badge variant={statusVariant[record.status] ?? "outline"}>
-      {record.status}
+      {statusLabel[record.status] ?? record.status}
     </Badge>
   );
 };
@@ -41,9 +47,9 @@ const UserRowActions = () => {
   if (!record) return null;
   return (
     <div className="flex justify-end gap-1">
-      <ShowButton label="" size="sm" variant="ghost" />
-      {!isCurrentAdminUser(record) && (
-        <LockUserButton size="sm" variant="ghost" showLabel={false} />
+      <ShowButton label="" />
+      {!isCurrentAdminUser({ id: String(record.id) }) && (
+        <LockUserButton record={{ ...record, id: String(record.id) }} size="sm" variant="ghost" showLabel={false} />
       )}
     </div>
   );
@@ -155,8 +161,8 @@ const SidebarFilters = () => {
 
       <FilterCategory icon={<CheckCircle size={16} />} label="Status">
         <ToggleFilterButton label="Active" value={{ status: "ACTIVE" }} />
-        <ToggleFilterButton label="Inactive" value={{ status: "INACTIVE" }} />
-        <ToggleFilterButton label="Locked" value={{ status: "LOCKED" }} />
+        <ToggleFilterButton label="Blocked" value={{ status: "BLOCKED" }} />
+        <ToggleFilterButton label="Deleted" value={{ status: "DELETED" }} />
       </FilterCategory>
 
       <FilterCategory icon={<ShieldCheck size={16} />} label="Role">

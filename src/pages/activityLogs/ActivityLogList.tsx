@@ -6,7 +6,10 @@ import { ActivityLogList } from "@/pages/dashboard/components/activityLogs/Activ
 import { ActivityLogDetailDrawer } from "@/pages/dashboard/components/activityLogs/ActivityLogDetailDrawer";
 import { apiClient } from "@/services/axiosInstance";
 import { getAdminToken } from "@/lib/currentAdminUser";
+import { getPageContent, getPageTotalPages } from "@/services/pagination";
 import type { ActivityLogFilters as Filters, ActivityLogItem, ActivityLogPageResponse } from "@/pages/dashboard/components/activityLogs/types";
+
+const PAGE_SIZE = 20;
 
 export const ActivityLogListPage = () => {
   const [filters, setFilters] = React.useState<Filters>({});
@@ -24,7 +27,7 @@ export const ActivityLogListPage = () => {
       const r = await apiClient.get<ActivityLogPageResponse>("/api/v1/admin/activity-logs", {
         params: {
           page,
-          size: 20,
+          size: PAGE_SIZE,
           sortBy: "createdAt",
           sortDir: "desc",
           ...(filters.username ? { username: filters.username } : {}),
@@ -52,8 +55,8 @@ export const ActivityLogListPage = () => {
     setPage(0);
   }, [filters]);
 
-  const items = data?.items ?? data?.content ?? [];
-  const totalPages = data?.pagination?.totalPages ?? data?.totalPages ?? 1;
+  const items = data ? getPageContent<ActivityLogItem>(data) : [];
+  const totalPages = data ? getPageTotalPages(data, PAGE_SIZE) : 1;
 
   const handleExport = async () => {
     const token = getAdminToken();

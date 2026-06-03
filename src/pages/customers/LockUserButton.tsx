@@ -26,12 +26,13 @@ export const LockUserButton = ({
   const refresh = useRefresh();
   const [loading, setLoading] = useState(false);
 
-  if (!record || isCurrentAdminUser(record)) {
+  if (!record || isCurrentAdminUser({ id: String(record.id) })) {
     return null;
   }
 
-  const isLocked = record.status === "LOCKED";
-  const nextStatus = isLocked ? "ACTIVE" : "LOCKED";
+  const isBlocked = record.status === "BLOCKED";
+  const isDeleted = record.status === "DELETED";
+  const nextStatus = isBlocked || isDeleted ? "ACTIVE" : "BLOCKED";
 
   const handleClick = async (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -40,10 +41,10 @@ export const LockUserButton = ({
     try {
       await update(
         "customers",
-        { id: record.id, data: { status: nextStatus }, previousData: record },
+        { id: String(record.id), data: { status: nextStatus }, previousData: record },
         { returnPromise: true },
       );
-      notify(isLocked ? "Đã mở khóa tài khoản" : "Đã khóa tài khoản", { type: "success" });
+      notify(isBlocked || isDeleted ? "Đã mở lại tài khoản" : "Đã khóa tài khoản", { type: "success" });
       refresh();
     } catch {
       notify("Thao tác thất bại", { type: "error" });
@@ -52,9 +53,9 @@ export const LockUserButton = ({
     }
   };
 
-  const buttonVariant = variant ?? (isLocked ? "outline" : "destructive");
-  const Icon = isLocked ? Unlock : Lock;
-  const label = isLocked ? "Mở khóa" : "Khóa tài khoản";
+  const buttonVariant = variant ?? (isBlocked || isDeleted ? "outline" : "destructive");
+  const Icon = isBlocked || isDeleted ? Unlock : Lock;
+  const label = isDeleted ? "Khôi phục tài khoản" : isBlocked ? "Mở khóa" : "Khóa tài khoản";
 
   return (
     <Button
