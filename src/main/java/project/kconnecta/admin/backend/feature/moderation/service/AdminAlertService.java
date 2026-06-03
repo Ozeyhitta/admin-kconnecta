@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import project.kconnecta.admin.backend.common.enums.AlertSeverity;
 import project.kconnecta.admin.backend.common.enums.AlertStatus;
 import project.kconnecta.admin.backend.common.enums.AlertType;
 import project.kconnecta.admin.backend.exception.ResourceNotFoundException;
@@ -43,6 +44,35 @@ public class AdminAlertService {
                 .description(violation.getAlertDescription())
                 .build();
         return adminAlertRepository.save(alert);
+    }
+
+    @Transactional
+    public AdminAlert createAccountReviewIfNotExists(UUID userId, String username, String reason) {
+        LocalDateTime dedupSince = LocalDateTime.now().minusMinutes(DEDUP_WINDOW_MINUTES);
+        boolean exists = adminAlertRepository.existsByUserIdAndTypeAndCreatedAtAfter(
+                userId, AlertType.ACCOUNT_REVIEW_REQUESTED, dedupSince);
+        if (exists) {
+            return null;
+        }
+        String safeReason = reason == null || reason.isBlank()
+                ? "Người dùng yêu cầu admin xem xét mở khóa"
+                : reason.trim();
+        String title = username != null && !username.isBlank()
+                ? "Yêu cầu mở khóa: @" + username
+                : "Yêu cầu mở khóa tài khoản";
+        AdminAlert alert = AdminAlert.builder()
+                .userId(userId)
+                .type(AlertType.ACCOUNT_REVIEW_REQUESTED)
+                .severity(AlertSeverity.HIGH)
+                .title(title)
+                .description(safeReason)
+                .build();
+        return adminAlertRepository.save(alert);
+    }
+
+    @Transactional(readOnly = true)
+    public long countNewAccountReviewRequests() {
+        return adminAlertRepository.countByStatusAndType(AlertStatus.NEW, AlertType.ACCOUNT_REVIEW_REQUESTED);
     }
 
     @Transactional(readOnly = true)

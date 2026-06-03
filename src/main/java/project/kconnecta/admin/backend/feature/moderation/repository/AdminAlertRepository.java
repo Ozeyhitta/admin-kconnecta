@@ -21,4 +21,6 @@ public interface AdminAlertRepository extends JpaRepository<AdminAlert, UUID> {
     Page<AdminAlert> findByType(AlertType type, Pageable pageable);
 
     boolean existsByUserIdAndTypeAndCreatedAtAfter(UUID userId, AlertType type, LocalDateTime createdAt);
+
+    long countByStatusAndType(AlertStatus status, AlertType type);
 }

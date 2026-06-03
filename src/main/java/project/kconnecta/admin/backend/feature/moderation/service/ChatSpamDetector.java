@@ -1,5 +1,6 @@
 package project.kconnecta.admin.backend.feature.moderation.service;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import project.kconnecta.admin.backend.common.enums.AlertSeverity;
 import project.kconnecta.admin.backend.common.enums.AlertType;
@@ -20,12 +21,14 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Component
+@RequiredArgsConstructor
 public class ChatSpamDetector {
 
-    private static final int RATE_LIMIT_WINDOW_SECONDS = 60;
-    private static final int RATE_LIMIT_MAX_MESSAGES = 20;
-    private static final int DUPLICATE_WINDOW_SECONDS = 120;
-    private static final int DUPLICATE_THRESHOLD = 3;
+    // Default fallback values (used when DB has no row for a key)
+    private static final int DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60;
+    private static final int DEFAULT_RATE_LIMIT_MAX_MESSAGES   = 10;
+    private static final int DEFAULT_DUPLICATE_WINDOW_SECONDS  = 120;
+    private static final int DEFAULT_DUPLICATE_THRESHOLD       = 3;
 
     private static final Pattern MALICIOUS_LINK_PATTERN = Pattern.compile(
             "(https?://[^\\s]+(?:\\.xyz|\\.tk|\\.ml|\\.ga|bit\\.ly|tinyurl)[^\\s]*)",
@@ -36,20 +39,27 @@ public class ChatSpamDetector {
             "dm me", "follow me", "click here", "free money", "win prize"
     );
 
+    private final ModerationConfigService configService;
+
     public record MessageData(UUID id, UUID senderId, String content, LocalDateTime createdAt) {}
 
     public List<ViolationResult> detect(UUID userId, List<MessageData> recentMessages) {
+        int rateLimitWindowSeconds = configService.getInt("rate_limit_window_seconds", DEFAULT_RATE_LIMIT_WINDOW_SECONDS);
+        int rateLimitMaxMessages   = configService.getInt("rate_limit_max_messages",   DEFAULT_RATE_LIMIT_MAX_MESSAGES);
+        int duplicateWindowSeconds = configService.getInt("duplicate_window_seconds",  DEFAULT_DUPLICATE_WINDOW_SECONDS);
+        int duplicateThreshold     = configService.getInt("duplicate_threshold",       DEFAULT_DUPLICATE_THRESHOLD);
+
         List<ViolationResult> violations = new ArrayList<>();
         Set<AlertType> seenTypes = EnumSet.noneOf(AlertType.class);
         LocalDateTime now = LocalDateTime.now();
 
-        // Rate limit check: messages in the last 60 seconds
+        // Rate limit check
         if (!seenTypes.contains(AlertType.RATE_LIMIT)) {
-            LocalDateTime rateLimitWindow = now.minusSeconds(RATE_LIMIT_WINDOW_SECONDS);
+            LocalDateTime rateLimitWindow = now.minusSeconds(rateLimitWindowSeconds);
             long countInWindow = recentMessages.stream()
                     .filter(m -> m.createdAt().isAfter(rateLimitWindow))
                     .count();
-            if (countInWindow > RATE_LIMIT_MAX_MESSAGES) {
+            if (countInWindow > rateLimitMaxMessages) {
                 violations.add(ViolationResult.builder()
                         .userId(userId)
                         .messageId(recentMessages.isEmpty() ? null : recentMessages.get(recentMessages.size() - 1).id())
@@ -59,17 +69,17 @@ public class ChatSpamDetector {
                         .messagePreview(null)
                         .messageHash(null)
                         .actionTaken("rate_limited")
-                        .retryAfterSeconds(RATE_LIMIT_WINDOW_SECONDS)
+                        .retryAfterSeconds(rateLimitWindowSeconds)
                         .alertTitle("Rate Limit Exceeded")
-                        .alertDescription("User sent " + countInWindow + " messages in the last " + RATE_LIMIT_WINDOW_SECONDS + " seconds.")
+                        .alertDescription("User sent " + countInWindow + " messages in the last " + rateLimitWindowSeconds + " seconds.")
                         .build());
                 seenTypes.add(AlertType.RATE_LIMIT);
             }
         }
 
-        // Duplicate message check: same content hash >= 3 times in last 120 seconds
+        // Duplicate message check
         if (!seenTypes.contains(AlertType.DUPLICATE_MESSAGE)) {
-            LocalDateTime dupWindow = now.minusSeconds(DUPLICATE_WINDOW_SECONDS);
+            LocalDateTime dupWindow = now.minusSeconds(duplicateWindowSeconds);
             Map<String, Long> hashCounts = recentMessages.stream()
                     .filter(m -> m.createdAt().isAfter(dupWindow))
                     .collect(Collectors.groupingBy(
@@ -77,7 +87,7 @@ public class ChatSpamDetector {
                             Collectors.counting()
                     ));
             hashCounts.entrySet().stream()
-                    .filter(e -> e.getValue() >= DUPLICATE_THRESHOLD)
+                    .filter(e -> e.getValue() >= duplicateThreshold)
                     .findFirst()
                     .ifPresent(entry -> {
                         String dupHash = entry.getKey();
@@ -96,7 +106,7 @@ public class ChatSpamDetector {
                                 .actionTaken("duplicate_suppressed")
                                 .retryAfterSeconds(null)
                                 .alertTitle("Duplicate Message Detected")
-                                .alertDescription("User sent the same message " + entry.getValue() + " times in the last " + DUPLICATE_WINDOW_SECONDS + " seconds.")
+                                .alertDescription("User sent the same message " + entry.getValue() + " times in the last " + duplicateWindowSeconds + " seconds.")
                                 .build());
                         seenTypes.add(AlertType.DUPLICATE_MESSAGE);
                     });

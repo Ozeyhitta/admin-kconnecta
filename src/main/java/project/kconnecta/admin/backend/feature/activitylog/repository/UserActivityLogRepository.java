@@ -14,6 +14,12 @@ public interface UserActivityLogRepository
 
     long countByActionTypeAndCreatedAtBetween(String actionType, LocalDateTime from, LocalDateTime to);
 
+    long countByActionType(String actionType);
+
+    java.util.List<UserActivityLog> findByActionTypeOrderByCreatedAtDesc(
+            String actionType,
+            org.springframework.data.domain.Pageable pageable);
+
     // Per-user queries
     long countByUserId(java.util.UUID userId);
 

@@ -34,6 +34,7 @@ public final class ActivityLogMapper {
             Map.entry("MESSAGE_BLOCKED_KEYWORD", "Tin nhắn bị chặn (từ khóa)"),
             Map.entry("REPORT_CREATED", "Tạo báo cáo"),
             Map.entry("ACCOUNT_LOCKED", "Khóa tài khoản"),
+            Map.entry("ACCOUNT_REVIEW_REQUESTED", "Yêu cầu mở khóa tài khoản"),
             Map.entry("CHAT_RESTRICTED", "Hạn chế chat")
     );
 
@@ -42,6 +43,7 @@ public final class ActivityLogMapper {
             "MESSAGE_BLOCKED_SPAM",
             "MESSAGE_BLOCKED_KEYWORD",
             "ACCOUNT_LOCKED",
+            "ACCOUNT_REVIEW_REQUESTED",
             "CHAT_RESTRICTED"
     );
 
@@ -71,7 +73,7 @@ public final class ActivityLogMapper {
             return log.getSeverity();
         }
         return switch (log.getActionType()) {
-            case "LOGIN_FAILED", "MESSAGE_BLOCKED_SPAM", "MESSAGE_BLOCKED_KEYWORD" ->
+            case "LOGIN_FAILED", "MESSAGE_BLOCKED_SPAM", "MESSAGE_BLOCKED_KEYWORD", "ACCOUNT_REVIEW_REQUESTED" ->
                     ActivityLogSeverity.WARNING.name();
             case "ACCOUNT_LOCKED", "CHAT_RESTRICTED" -> ActivityLogSeverity.HIGH.name();
             default -> ActivityLogSeverity.INFO.name();
@@ -127,6 +129,7 @@ public final class ActivityLogMapper {
             case "MESSAGE_BLOCKED_SPAM" -> "Tin nhắn bị chặn do spam";
             case "MESSAGE_BLOCKED_KEYWORD" -> "Tin nhắn bị chặn do từ khóa nhạy cảm";
             case "ACCOUNT_LOCKED" -> "Tài khoản bị khóa";
+            case "ACCOUNT_REVIEW_REQUESTED" -> "Người dùng yêu cầu admin xem xét mở khóa";
             case "CHAT_RESTRICTED" -> "Người dùng bị hạn chế chat";
             default -> "Hoạt động bất thường";
         };
@@ -144,6 +147,7 @@ public final class ActivityLogMapper {
             case "MESSAGE_BLOCKED_KEYWORD" -> "Tin nhắn bị chặn do từ khóa";
             case "REPORT_CREATED" -> "Tạo báo cáo vi phạm";
             case "ACCOUNT_LOCKED" -> "Tài khoản bị khóa bởi hệ thống/admin";
+            case "ACCOUNT_REVIEW_REQUESTED" -> "Người dùng gửi yêu cầu xem xét mở khóa";
             case "CHAT_RESTRICTED" -> "Quyền chat bị hạn chế";
             default -> ACTION_LABELS.getOrDefault(actionType, "Hoạt động hệ thống");
         };
