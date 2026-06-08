@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import project.kconnecta.admin.backend.common.enums.AlertType;
 import project.kconnecta.admin.backend.feature.moderation.dto.ViolationResult;
 import project.kconnecta.admin.backend.feature.moderation.service.ChatSpamDetector;
+import project.kconnecta.admin.backend.feature.moderation.service.ModerationConfigService;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -12,6 +13,10 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ChatSpamDetectorTest {
 
@@ -20,7 +25,12 @@ class ChatSpamDetectorTest {
 
     @BeforeEach
     void setUp() {
-        detector = new ChatSpamDetector();
+        ModerationConfigService configService = mock(ModerationConfigService.class);
+        when(configService.getInt(eq("rate_limit_window_seconds"), anyInt())).thenReturn(60);
+        when(configService.getInt(eq("rate_limit_max_messages"), anyInt())).thenReturn(20);
+        when(configService.getInt(eq("duplicate_window_seconds"), anyInt())).thenReturn(120);
+        when(configService.getInt(eq("duplicate_threshold"), anyInt())).thenReturn(3);
+        detector = new ChatSpamDetector(configService);
         userId = UUID.randomUUID();
     }
 

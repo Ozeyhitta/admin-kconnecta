@@ -22,5 +22,12 @@ public interface AdminAlertRepository extends JpaRepository<AdminAlert, UUID> {
 
     boolean existsByUserIdAndTypeAndCreatedAtAfter(UUID userId, AlertType type, LocalDateTime createdAt);
 
+    boolean existsByUserIdAndTypeAndDescriptionContainingAndCreatedAtAfter(
+            UUID userId,
+            AlertType type,
+            String description,
+            LocalDateTime createdAt
+    );
+
     long countByStatusAndType(AlertStatus status, AlertType type);
 }

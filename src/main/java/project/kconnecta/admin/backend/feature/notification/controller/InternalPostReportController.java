@@ -19,20 +19,25 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/internal")
 @RequiredArgsConstructor
-public class InternalAccountReviewController {
+public class InternalPostReportController {
 
     private final AdminAlertService adminAlertService;
 
     @Value("${user-service.internal-key}")
     private String internalKey;
 
-    @PostMapping("/account-review-requests")
-    public ResponseEntity<Void> createAccountReviewAlert(
+    @PostMapping("/post-report-requests")
+    public ResponseEntity<Void> createPostReportAlert(
             @RequestHeader(value = "X-Internal-Key", required = false) String key,
-            @Valid @RequestBody AccountReviewRequestBody body
+            @Valid @RequestBody PostReportRequestBody body
     ) {
         assertInternalKey(key);
-        adminAlertService.createAccountReviewIfNotExists(body.userId(), body.username(), body.reason());
+        adminAlertService.createPostReportIfNotExists(
+                body.reporterId(),
+                body.postId(),
+                body.reporterUsername(),
+                body.reason()
+        );
         return ResponseEntity.ok().build();
     }
 
@@ -42,9 +47,10 @@ public class InternalAccountReviewController {
         }
     }
 
-    public record AccountReviewRequestBody(
-            @NotNull UUID userId,
-            String username,
+    public record PostReportRequestBody(
+            @NotNull UUID reporterId,
+            @NotNull UUID postId,
+            String reporterUsername,
             String reason
     ) {
     }

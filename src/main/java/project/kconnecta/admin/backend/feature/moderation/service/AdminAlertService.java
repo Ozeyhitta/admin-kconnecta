@@ -75,6 +75,36 @@ public class AdminAlertService {
         return adminAlertRepository.countByStatusAndType(AlertStatus.NEW, AlertType.ACCOUNT_REVIEW_REQUESTED);
     }
 
+    @Transactional
+    public AdminAlert createPostReportIfNotExists(
+            UUID reporterId,
+            UUID postId,
+            String reporterUsername,
+            String reason
+    ) {
+        LocalDateTime dedupSince = LocalDateTime.now().minusMinutes(DEDUP_WINDOW_MINUTES);
+        String dedupKey = postId != null ? postId.toString() : "unknown";
+        boolean exists = adminAlertRepository.existsByUserIdAndTypeAndDescriptionContainingAndCreatedAtAfter(
+                reporterId, AlertType.POST_REPORTED, dedupKey, dedupSince);
+        if (exists) {
+            return null;
+        }
+        String safeReason = reason == null || reason.isBlank() ? "reported-from-watch-menu" : reason.trim();
+        boolean fromWatch = safeReason.contains("watch");
+        String title = fromWatch
+                ? "Báo cáo video" + (reporterUsername != null && !reporterUsername.isBlank() ? ": @" + reporterUsername : "")
+                : "Báo cáo bài viết" + (reporterUsername != null && !reporterUsername.isBlank() ? ": @" + reporterUsername : "");
+        String description = "postId=" + dedupKey + "; " + safeReason;
+        AdminAlert alert = AdminAlert.builder()
+                .userId(reporterId)
+                .type(AlertType.POST_REPORTED)
+                .severity(AlertSeverity.HIGH)
+                .title(title)
+                .description(description)
+                .build();
+        return adminAlertRepository.save(alert);
+    }
+
     @Transactional(readOnly = true)
     public Page<AdminAlert> findAlerts(AlertStatus status, AlertType type, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));

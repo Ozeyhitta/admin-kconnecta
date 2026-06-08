@@ -1,5 +1,6 @@
 package project.kconnecta.admin.backend.exception;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -13,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -72,6 +74,18 @@ public class GlobalExceptionHandler {
                 "status", status,
                 "error", HttpStatus.valueOf(status).getReasonPhrase(),
                 "message", reason
+        ));
+    }
+
+    // Fallback 500 — never expose internal exception messages to clients
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleUnexpected(Exception ex) {
+        log.error("Unhandled exception", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "timestamp", LocalDateTime.now().toString(),
+                "status", 500,
+                "error", "Internal Server Error",
+                "message", "An internal server error occurred"
         ));
     }
 }

@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import project.kconnecta.admin.backend.feature.notification.dto.response.AccountReviewRequestResponse;
+import project.kconnecta.admin.backend.feature.notification.dto.response.PostReportNotificationResponse;
 import project.kconnecta.admin.backend.feature.notification.service.AccountReviewNotificationService;
+import project.kconnecta.admin.backend.feature.notification.service.PostReportNotificationService;
 import project.kconnecta.admin.backend.feature.notification.dto.request.BroadcastNotificationRequest;
 import project.kconnecta.admin.backend.feature.notification.dto.request.SendBatchNotificationRequest;
 import project.kconnecta.admin.backend.feature.notification.dto.request.SendNotificationRequest;
@@ -22,6 +24,7 @@ public class NotificationAdminController {
 
     private final NotificationAdminService notificationAdminService;
     private final AccountReviewNotificationService accountReviewNotificationService;
+    private final PostReportNotificationService postReportNotificationService;
 
     @GetMapping("/account-review-requests")
     public ResponseEntity<java.util.List<AccountReviewRequestResponse>> listAccountReviewRequests(
@@ -34,6 +37,25 @@ public class NotificationAdminController {
     public ResponseEntity<java.util.Map<String, Long>> countAccountReviewRequests() {
         long count = accountReviewNotificationService.countNewRequests();
         return ResponseEntity.ok(java.util.Map.of("count", count));
+    }
+
+    @GetMapping("/post-report-requests")
+    public ResponseEntity<java.util.List<PostReportNotificationResponse>> listPostReportRequests(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "8") int size
+    ) {
+        return ResponseEntity.ok(postReportNotificationService.listRecent(size));
+    }
+
+    @GetMapping("/post-report-requests/count")
+    public ResponseEntity<java.util.Map<String, Long>> countPostReportRequests() {
+        return ResponseEntity.ok(java.util.Map.of("count", postReportNotificationService.countAll()));
+    }
+
+    @GetMapping("/inbox-count")
+    public ResponseEntity<java.util.Map<String, Long>> countInbox() {
+        long total = accountReviewNotificationService.countNewRequests()
+                + postReportNotificationService.countAll();
+        return ResponseEntity.ok(java.util.Map.of("count", total));
     }
 
     @PostMapping("/send")

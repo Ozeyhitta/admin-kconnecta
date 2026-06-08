@@ -15,15 +15,19 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate  # DEPLOY NOTE: schema must match entities. Run `ddl-auto: update` once in dev to align, then switch back.
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         default_schema: public
         jdbc:
           time_zone: ${APP_TIMEZONE:Asia/Ho_Chi_Minh}
-    show-sql: true
+    show-sql: false
     open-in-view: false
+
+  h2:
+    console:
+      enabled: false
 
   jackson:
     time-zone: ${APP_TIMEZONE:Asia/Ho_Chi_Minh}
@@ -35,13 +39,18 @@ server:
   port: ${PORT:8082}
 
 jwt:
-  secret: ${JWT_SECRET:kconnecta-super-secret-key-that-is-at-least-256-bits-long-for-hs256}
+  secret: ${ADMIN_JWT_SECRET}  # Required — separate secret from User backend; app fails to start if missing
   expiration: ${JWT_EXPIRATION:86400000}
 
 app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,https://admin-kconnecta.vercel.app,https://admin-k-connecta.vercel.app}
-    allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:https://*.vercel.app}
+
+logging:
+  level:
+    org.springframework: warn
+    org.hibernate.SQL: warn
+    org.hibernate.orm.jdbc.bind: warn
 
 management:
   endpoints:
@@ -62,7 +71,11 @@ management:
 
 user-service:
   url: ${USER_SERVICE_URL:http://localhost:8080}
-  internal-key: ${INTERNAL_API_KEY:kconnecta-internal-secret}
+  internal-key: ${INTERNAL_API_KEY}  # Required — no default allowed
+
+admin:
+  bootstrap:
+    key: ${ADMIN_BOOTSTRAP_KEY:}  # Set to a strong secret before first /init call; leave blank to disable endpoint
 
 info:
   app:

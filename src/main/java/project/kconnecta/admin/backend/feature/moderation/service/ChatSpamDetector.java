@@ -31,7 +31,7 @@ public class ChatSpamDetector {
     private static final int DEFAULT_DUPLICATE_THRESHOLD       = 3;
 
     private static final Pattern MALICIOUS_LINK_PATTERN = Pattern.compile(
-            "(https?://[^\\s]+(?:\\.xyz|\\.tk|\\.ml|\\.ga|bit\\.ly|tinyurl)[^\\s]*)",
+            "\\bhttps?://[^\\s]*(?:\\.(?:xyz|tk|ml|ga)\\b|(?:bit\\.ly|tinyurl)\\b)[^\\s]*",
             Pattern.CASE_INSENSITIVE
     );
 
