@@ -60,8 +60,8 @@ type GroupBy = "day" | "week" | "month";
 const fmt = new Intl.NumberFormat("vi-VN");
 
 const TREND_CONFIG: Record<string, { icon: React.FC<{ className?: string }>; color: string; bg: string }> = {
-  "Tăng mạnh":           { icon: TrendingUp,   color: "text-emerald-700", bg: "bg-emerald-50 dark:bg-emerald-950" },
-  "Tăng":                { icon: TrendingUp,   color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950" },
+  "Tăng mạnh":           { icon: TrendingUp,   color: "text-success",     bg: "bg-success-bg" },
+  "Tăng":                { icon: TrendingUp,   color: "text-success",     bg: "bg-success-bg" },
   "Ổn định":             { icon: Minus,        color: "text-slate-500",   bg: "bg-slate-50 dark:bg-slate-900" },
   "Giảm":                { icon: TrendingDown, color: "text-orange-600",  bg: "bg-orange-50 dark:bg-orange-950" },
   "Giảm mạnh":           { icon: TrendingDown, color: "text-red-600",     bg: "bg-red-50 dark:bg-red-950" },
@@ -81,9 +81,9 @@ const LEVEL_CONFIG = {
     iconColor: "text-blue-500",
   },
   success: {
-    bg: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950 dark:border-emerald-800",
+    bg: "bg-success-bg border-success-border",
     icon: CheckCircle2,
-    iconColor: "text-emerald-500",
+    iconColor: "text-success",
   },
 };
 
@@ -106,7 +106,7 @@ const NewUsersSummaryCards = ({ summary, loading }: { summary: Summary | null; l
               </p>
             )}
           </div>
-          <Users className="h-6 w-6 text-emerald-500 opacity-60 mt-0.5 shrink-0" />
+          <Users className="h-6 w-6 text-primary opacity-60 mt-0.5 shrink-0" />
         </div>
         {!loading && summary && summary.previousPeriodCount > 0 && (
           <p className="text-xs text-muted-foreground mt-1">
@@ -137,7 +137,7 @@ const NewUsersSummaryCards = ({ summary, loading }: { summary: Summary | null; l
             <p className="text-xs text-muted-foreground">Ngày cao nhất</p>
             {loading ? <Skeleton className="h-8 w-20 mt-1" /> : (
               <>
-                <p className="text-2xl font-bold tabular-nums mt-1 text-emerald-600">
+                <p className="text-2xl font-bold tabular-nums mt-1 text-success">
                   {summary?.peakCount ?? "—"}
                 </p>
                 {summary?.peakDay && (
@@ -418,7 +418,7 @@ export const NewUsersAnalytics = ({ dateRange }: { dateRange: StatsDateRange }) 
                 key={g}
                 onClick={() => setGroupBy(g)}
                 className={`cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                  groupBy === g ? "bg-emerald-500 text-white" : "text-muted-foreground hover:bg-muted"
+                  groupBy === g ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
                 }`}
               >
                 {g === "day" ? "Ngày" : g === "week" ? "Tuần" : "Tháng"}

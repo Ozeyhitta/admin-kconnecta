@@ -1,5 +1,10 @@
 import { AuthProvider, HttpError } from "ra-core";
 import { apiClient } from "../services/axiosInstance";
+import {
+  clearAuthSession,
+  hasStoredAuth,
+  redirectToLogin,
+} from "@/lib/authSession";
 
 export const authProvider: AuthProvider = {
   login: async ({ email, password }) => {
@@ -34,26 +39,22 @@ export const authProvider: AuthProvider = {
   },
 
   logout: () => {
-    localStorage.removeItem("auth");
-    localStorage.setItem("not_authenticated", "true");
-
-    const basename = (import.meta.env.VITE_BASENAME ?? "").replace(/\/$/, "");
-    const loginPath = `${basename}/login`.replace(/\/+/g, "/") || "/login";
-    window.location.replace(loginPath);
-
-    // Skip client-side navigate so history is not kept for protected pages.
+    redirectToLogin();
     return Promise.resolve(false);
   },
 
   checkError: (error) => {
-    if (error?.status === 401 || error?.status === 403) {
+    const status = error?.status ?? error?.response?.status;
+    if (status === 401 || status === 403) {
+      clearAuthSession();
+      redirectToLogin("session");
       return Promise.reject(error);
     }
     return Promise.resolve();
   },
 
   checkAuth: () => {
-    return localStorage.getItem("auth") ? Promise.resolve() : Promise.reject();
+    return hasStoredAuth() ? Promise.resolve() : Promise.reject();
   },
 
   getPermissions: () => {

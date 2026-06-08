@@ -1,6 +1,7 @@
-﻿import { useState, type FormEvent } from "react";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+﻿import { useMemo, useState, type FormEvent } from "react";
+import { Eye, EyeOff, Lock, Mail, ServerCrash } from "lucide-react";
 import { useLogin, useNotify } from "ra-core";
+import { useSearchParams } from "react-router";
 import { Notification } from "@/components/admin/notification";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,25 @@ export const LoginPage = (props: { redirectTo?: string }) => {
   const { redirectTo } = props;
   const login = useLogin();
   const notify = useNotify();
+  const [searchParams] = useSearchParams();
+
+  const statusBanner = useMemo(() => {
+    const reason = searchParams.get("reason");
+    if (reason === "backend") {
+      return {
+        title: "Không kết nối được máy chủ",
+        description:
+          "Backend admin chưa chạy hoặc không phản hồi. Khởi động backend rồi đăng nhập lại.",
+      };
+    }
+    if (reason === "session") {
+      return {
+        title: "Phiên đăng nhập đã hết hạn",
+        description: "Vui lòng đăng nhập lại để tiếp tục.",
+      };
+    }
+    return null;
+  }, [searchParams]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,7 +43,7 @@ export const LoginPage = (props: { redirectTo?: string }) => {
 
     setLoading(true);
     try {
-      await login({ email, password }, redirectTo);
+      await login({ email, password }, redirectTo ?? "/");
     } catch (error: unknown) {
       notify(
         typeof error === "string"
@@ -55,6 +75,19 @@ export const LoginPage = (props: { redirectTo?: string }) => {
         </div>
 
         <div className="rounded-2xl border border-border/70 bg-card p-6 shadow-sm">
+          {statusBanner && (
+            <div
+              role="alert"
+              className="mb-5 flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-left text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100"
+            >
+              <ServerCrash className="mt-0.5 size-5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold">{statusBanner.title}</p>
+                <p className="mt-1 text-xs opacity-90">{statusBanner.description}</p>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium">Email</Label>

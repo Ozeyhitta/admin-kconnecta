@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/services/axiosInstance";
 import { ADMIN_CHARTS_POLL_MS, useIntervalPoll } from "@/lib/adminStatsPoll";
 import { toStatsApiParams, describeStatsRange, type StatsDateRange } from "@/lib/statsDateRange";
+import { getChartTheme } from "@/lib/chartColors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -119,7 +120,7 @@ export const ActivityHourCard = ({ dateRange }: { dateRange: StatsDateRange }) =
       yAxis: {
         type: "value",
         minInterval: 1,
-        splitLine: { lineStyle: { type: "dashed", color: "#e5e7eb" } },
+        splitLine: { lineStyle: { type: "dashed", color: getChartTheme().gridLineColor } },
       },
       series: [{
         type: "bar",
@@ -275,12 +276,12 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
           const prev  = idx > 0 ? counts[idx - 1] : null;
           const delta = prev !== null ? val - prev : null;
           const deltaHtml = delta === null ? ""
-            : `<br/><span style="color:${delta >= 0 ? "#10b981" : "#ef4444"}">`
+            : `<br/><span style="color:${delta >= 0 ? getChartTheme().primary : getChartTheme().destructive}">`
               + `${delta >= 0 ? "▲" : "▼"} ${fmt.format(Math.abs(delta))} so trước</span>`;
           const cumul = counts.slice(0, idx + 1).reduce((a, b) => a + b, 0);
           return `<b>${params[0].name}</b>${weekday ? ` (${weekday})` : ""}<br/>`
             + `${fmt.format(val)} hoạt động${deltaHtml}<br/>`
-            + `<span style="color:#9ca3af">Tích lũy: ${fmt.format(cumul)}</span>`;
+            + `<span style="color:${getChartTheme().mutedText}">Tích lũy: ${fmt.format(cumul)}</span>`;
         },
       },
       grid: { left: "2%", right: "2%", bottom: "3%", top: "8%", containLabel: true },
@@ -297,7 +298,7 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
       yAxis: {
         type: "value",
         minInterval: 1,
-        splitLine: { lineStyle: { type: "dashed", color: "#e5e7eb" } },
+        splitLine: { lineStyle: { type: "dashed", color: getChartTheme().gridLineColor } },
       },
       series: [{
         type: "line",
@@ -389,7 +390,7 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
             {trendBadge && (
               <span className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
                 trendBadge.up
-                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+                  ? "bg-success-bg text-success"
                   : "bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400"
               }`}>
                 {trendBadge.up ? "↑" : "↓"} {trendBadge.text}

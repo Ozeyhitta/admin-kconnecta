@@ -149,7 +149,7 @@ export const NotificationsMenuItem = ({ onClick }: { onClick?: () => void }) => 
     const load = async () => {
       try {
         const { data } = await apiClient.get<{ count: number }>(
-          "/api/v1/admin/notifications/account-review-requests/count",
+          "/api/v1/admin/notifications/inbox-count",
         );
         if (!cancelled) setReviewCount(data?.count ?? 0);
       } catch {
@@ -171,7 +171,10 @@ export const NotificationsMenuItem = ({ onClick }: { onClick?: () => void }) => 
           <Bell />
           Thông báo
           {reviewCount > 0 && (
-            <span className="absolute right-1 top-1/2 flex h-4 min-w-4 -translate-y-1/2 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-semibold text-white shadow-sm">
+            <span
+              className="absolute right-1 top-1/2 flex h-4 min-w-4 -translate-y-1/2 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground shadow-sm"
+              aria-label={`${reviewCount > 9 ? "hơn 9" : reviewCount} thông báo chờ xử lý`}
+            >
               {reviewCount > 9 ? "9+" : reviewCount}
             </span>
           )}

@@ -118,7 +118,7 @@ const UserGrowthChart = ({ dateRange }: { dateRange: StatsDateRange }) => {
                 onClick={() => setPeriod(p)}
                 className={`cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                   period === p
-                    ? "bg-emerald-500 text-white"
+                    ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted"
                 }`}
               >

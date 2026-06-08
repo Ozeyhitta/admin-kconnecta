@@ -77,7 +77,7 @@ const GrowthTag = ({ percent }: { percent: number }) => {
     );
   const Icon = up ? TrendingUp : TrendingDown;
   return (
-    <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${up ? "text-emerald-600" : "text-red-500"}`}>
+    <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${up ? "text-success" : "text-red-500"}`}>
       <Icon className="h-3 w-3" /> {text}
     </span>
   );
@@ -339,7 +339,7 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
                 title="Kết bạn"
                 value={stats?.friendRequestsToday}
                 loading={loading}
-                iconColor="text-emerald-500"
+                iconColor="text-primary"
               />
             </div>
 

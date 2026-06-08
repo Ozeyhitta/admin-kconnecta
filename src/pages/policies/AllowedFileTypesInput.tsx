@@ -126,7 +126,7 @@ export function AllowedFileTypesInput({
 
   const statusIcon =
     validation.tone === "success" ? (
-      <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+      <CheckCircle2 className="size-3.5 shrink-0 text-success" />
     ) : validation.tone === "error" ? (
       <AlertCircle className="size-3.5 shrink-0 text-destructive" />
     ) : (
@@ -319,7 +319,7 @@ export function AllowedFileTypesInput({
           className={cn(
             "flex items-start gap-2 rounded-lg border px-3 py-2 text-xs",
             validation.tone === "success" &&
-              "border-emerald-200/80 bg-emerald-50/80 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
+              "border-success-border/80 bg-success-bg/80 text-success-on-bg",
             validation.tone === "warning" &&
               "border-amber-200/80 bg-amber-50/80 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100",
             validation.tone === "error" &&

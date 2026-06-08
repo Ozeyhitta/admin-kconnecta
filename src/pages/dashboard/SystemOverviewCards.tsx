@@ -55,8 +55,8 @@ const MetricRow = ({ icon: Icon, iconColor, label, value, loading, pulse, badge,
     <div className="relative shrink-0 mt-0.5">
       <Icon className={`h-5 w-5 opacity-60 ${iconColor}`} />
       {pulse && (
-        <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400">
-          <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75" />
+        <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary">
+          <span className="absolute inset-0 rounded-full bg-primary motion-safe:animate-ping opacity-75" />
         </span>
       )}
     </div>
@@ -131,7 +131,7 @@ export const SystemOverviewCards = () => {
             />
             <MetricRow
               icon={UserCheck}
-              iconColor="text-emerald-500"
+              iconColor="text-primary"
               label="Tài khoản hoạt động"
               value={data?.activeUsers}
               loading={loading}
@@ -139,7 +139,7 @@ export const SystemOverviewCards = () => {
             />
             <MetricRow
               icon={Wifi}
-              iconColor="text-green-500"
+              iconColor="text-primary"
               label="Đang online"
               value={onlineNow}
               loading={loading}

@@ -20,6 +20,7 @@ import {
   SidebarHeader,
   SidebarProvider,
 } from "@/components/ui/sidebar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -207,30 +208,9 @@ const ReviewListDesktop = ({ selectedRow }: { selectedRow?: number }) => {
         // Disable the default rowClick behavior
         return false;
       }}
-      rowClassName={(record: Review) => {
-        let className = "";
-        if (selectedRow != undefined && record.id === selectedRow) {
-          className = "bg-input";
-        }
-        switch (record.status) {
-          case "accepted":
-            className +=
-              " border-l-green-400 dark:border-l-green-800 border-l-5";
-            break;
-          case "pending":
-            className +=
-              " border-l-yellow-400 dark:border-l-yellow-800 border-l-5";
-            break;
-          case "rejected":
-            className += " border-l-red-400 dark:border-l-red-800 border-l-5";
-            break;
-          default:
-            throw new Error(
-              `Unknown status: ${record.status}. Please check your data.`,
-            );
-        }
-        return className;
-      }}
+      rowClassName={(record: Review) =>
+        selectedRow != undefined && record.id === selectedRow ? "bg-input" : ""
+      }
       bulkActionButtons={
         <>
           <BulkApproveButton />
@@ -238,7 +218,6 @@ const ReviewListDesktop = ({ selectedRow }: { selectedRow?: number }) => {
           <BulkDeleteButton />
         </>
       }
-      className="[&_thead_tr]:border-l-transparent [&_thead_tr]:border-l-5"
     >
       <DataTable.Col
         source="date"
@@ -268,13 +247,15 @@ const ReviewListDesktop = ({ selectedRow }: { selectedRow?: number }) => {
       />
       <DataTable.Col<Review>
         source="status"
-        render={(record) =>
-          ({
-            accepted: "Approved",
-            rejected: "Rejected",
-            pending: "Pending",
-          })[record.status]
-        }
+        render={(record) => {
+          const statusMap: Record<string, { label: string; variant: "default" | "destructive" | "secondary" | "outline" }> = {
+            accepted: { label: "Approved", variant: "default" },
+            rejected: { label: "Rejected", variant: "destructive" },
+            pending: { label: "Pending", variant: "secondary" },
+          };
+          const { label, variant } = statusMap[record.status] ?? { label: record.status, variant: "outline" };
+          return <Badge variant={variant}>{label}</Badge>;
+        }}
       />
     </DataTable>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { AlertTriangle, Clock, RefreshCw, Send, Users, User, X, Search } from "lucide-react";
+import { AlertTriangle, Clock, RefreshCw, Send, Users, User, X, Search, Flag, Video } from "lucide-react";
 import { useNotify } from "ra-core";
 import { Breadcrumb, BreadcrumbPage } from "@/components/admin";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,25 @@ interface AccountReviewRequest {
 
 const reviewDisplayName = (item: AccountReviewRequest) =>
   item.fullName || item.username || "Người dùng";
+
+interface PostReportNotification {
+  id: string;
+  postId?: string | null;
+  reporterId?: string | null;
+  reporterUsername?: string | null;
+  reporterFullName?: string | null;
+  reporterAvatarUrl?: string | null;
+  postAuthorFullName?: string | null;
+  reason?: string | null;
+  summary?: string | null;
+  createdAt?: string | null;
+}
+
+const reportDisplayName = (item: PostReportNotification) =>
+  item.reporterFullName || item.reporterUsername || "Người dùng";
+
+const isWatchVideoReport = (item: PostReportNotification) =>
+  (item.reason ?? "").includes("watch") || (item.summary ?? "").includes("video");
 
 // ─── User Picker Dialog ───────────────────────────────────────────────────────
 
@@ -250,6 +269,8 @@ export default function NotificationsPage() {
   const [sending, setSending] = useState(false);
   const [reviewRequests, setReviewRequests] = useState<AccountReviewRequest[]>([]);
   const [reviewLoading, setReviewLoading] = useState(false);
+  const [postReports, setPostReports] = useState<PostReportNotification[]>([]);
+  const [postReportsLoading, setPostReportsLoading] = useState(false);
 
   const loadReviewRequests = async () => {
     setReviewLoading(true);
@@ -266,8 +287,27 @@ export default function NotificationsPage() {
     }
   };
 
+  const loadPostReports = async () => {
+    setPostReportsLoading(true);
+    try {
+      const { data } = await apiClient.get<PostReportNotification[]>(
+        "/api/v1/admin/notifications/post-report-requests",
+        { params: { size: 8 } },
+      );
+      setPostReports(Array.isArray(data) ? data : []);
+    } catch {
+      setPostReports([]);
+    } finally {
+      setPostReportsLoading(false);
+    }
+  };
+
+  const loadInbox = async () => {
+    await Promise.all([loadReviewRequests(), loadPostReports()]);
+  };
+
   useEffect(() => {
-    void loadReviewRequests();
+    void loadInbox();
   }, []);
 
   const handleSend = async () => {
@@ -346,8 +386,8 @@ export default function NotificationsPage() {
             <AlertTriangle className="size-4 text-amber-500" />
             Yêu cầu xem xét từ người dùng
           </h2>
-          <Button variant="outline" size="sm" onClick={() => void loadReviewRequests()} disabled={reviewLoading}>
-            <RefreshCw className={`size-4 mr-1.5 ${reviewLoading ? "animate-spin" : ""}`} />
+          <Button variant="outline" size="sm" onClick={() => void loadInbox()} disabled={reviewLoading || postReportsLoading}>
+            <RefreshCw className={`size-4 mr-1.5 ${reviewLoading || postReportsLoading ? "animate-spin" : ""}`} />
             Làm mới
           </Button>
         </div>
@@ -400,6 +440,92 @@ export default function NotificationsPage() {
                 >
                   Xem tài khoản
                 </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mb-5 rounded-lg border border-border bg-card p-5">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold flex items-center gap-2">
+            <Flag className="size-4 text-red-500" />
+            Báo cáo bài viết / video (Watch)
+          </h2>
+          <Button variant="outline" size="sm" onClick={() => void loadPostReports()} disabled={postReportsLoading}>
+            <RefreshCw className={`size-4 mr-1.5 ${postReportsLoading ? "animate-spin" : ""}`} />
+            Làm mới
+          </Button>
+        </div>
+
+        {postReportsLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-lg border border-border p-3">
+                <Skeleton className="size-10 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : postReports.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            Chưa có báo cáo video hoặc bài viết nào từ người dùng.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {postReports.map((item) => (
+              <div key={item.id} className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3">
+                <Avatar className="size-10 shrink-0">
+                  <AvatarImage src={item.reporterAvatarUrl ?? undefined} />
+                  <AvatarFallback className="text-xs">
+                    {reportDisplayName(item).charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium">{reportDisplayName(item)}</p>
+                    {item.reporterUsername && (
+                      <span className="text-xs text-muted-foreground">@{item.reporterUsername}</span>
+                    )}
+                    {isWatchVideoReport(item) && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-950/50 dark:text-red-300">
+                        <Video className="size-3" />
+                        Video Watch
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {item.summary || item.reason || "Người dùng báo cáo nội dung."}
+                  </p>
+                  {item.postAuthorFullName && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Tác giả bài viết: {item.postAuthorFullName}
+                    </p>
+                  )}
+                  {item.createdAt && (
+                    <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="size-3" />
+                      {notificationTimeFormatter.format(new Date(item.createdAt))}
+                    </p>
+                  )}
+                </div>
+                <div className="flex shrink-0 flex-col gap-2">
+                  {item.postId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/posts/${item.postId}/show`)}
+                    >
+                      Xem bài
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => navigate("/post-reports")}>
+                    Tất cả báo cáo
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

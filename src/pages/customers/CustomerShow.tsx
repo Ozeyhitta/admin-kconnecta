@@ -340,7 +340,7 @@ export const CustomerShow = () => {
                 <StatItem icon={MessageSquare} iconColor="text-pink-500" label="Bình luận" value={stats?.totalComments} loading={statsLoading} />
                 <StatItem icon={Heart} iconColor="text-red-400" label="Cảm xúc" value={stats?.totalReactions} loading={statsLoading} />
                 <StatItem icon={Share2} iconColor="text-yellow-500" label="Chia sẻ" value={stats?.totalShares} loading={statsLoading} />
-                <StatItem icon={UserPlus2} iconColor="text-emerald-500" label="Kết bạn" value={stats?.totalFriendRequests} loading={statsLoading} />
+                <StatItem icon={UserPlus2} iconColor="text-primary" label="Kết bạn" value={stats?.totalFriendRequests} loading={statsLoading} />
                 <StatItem icon={LogIn} iconColor="text-indigo-500" label="Đăng nhập" value={stats?.totalLogins} loading={statsLoading} />
                 <StatItem icon={Activity} iconColor="text-orange-500" label="Tổng HĐ" value={stats?.totalActivity} loading={statsLoading} />
                 <StatItem

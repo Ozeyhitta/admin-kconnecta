@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNotify } from "ra-core";
 import { Save, RotateCcw, ScrollText } from "lucide-react";
 import { Breadcrumb, BreadcrumbPage } from "@/components/admin";
+import { Confirm } from "@/components/admin/confirm";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ const PoliciesPage = () => {
   const { config, update, save, resetToDefaults, dirty, lastSaved, weightTotal, loading, apiReady } =
     usePolicyConfig();
   const [tab, setTab] = useState<PolicySectionKey>("community");
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const handleSave = async () => {
     const sectionLabel =
@@ -99,7 +101,7 @@ const PoliciesPage = () => {
             <Badge variant="outline">Đang tải…</Badge>
           ) : null}
           {!loading && apiReady ? (
-            <Badge variant="outline" className="text-emerald-700 border-emerald-400">
+            <Badge variant="outline" className="text-success border-success-border">
               Đồng bộ User API
             </Badge>
           ) : null}
@@ -112,7 +114,7 @@ const PoliciesPage = () => {
               Lưu lúc {lastSaved.toLocaleString("vi-VN")}
             </span>
           ) : null}
-          <Button variant="outline" size="sm" onClick={resetToDefaults}>
+          <Button variant="outline" size="sm" onClick={() => setConfirmReset(true)}>
             <RotateCcw className="size-4 mr-1" />
             Mặc định
           </Button>
@@ -148,6 +150,17 @@ const PoliciesPage = () => {
         ). User app đọc tại{" "}
         <code className="text-[11px]">/api/v1/policies/public</code>.
       </p>
+
+      <Confirm
+        isOpen={confirmReset}
+        title="Đặt lại về mặc định?"
+        content="Toàn bộ cấu hình chính sách sẽ bị ghi đè bằng giá trị mặc định. Thao tác này không thể hoàn tác."
+        confirm="Đặt lại"
+        cancel="Huỷ"
+        confirmColor="warning"
+        onConfirm={() => { resetToDefaults(); setConfirmReset(false); }}
+        onClose={() => setConfirmReset(false)}
+      />
     </>
   );
 };

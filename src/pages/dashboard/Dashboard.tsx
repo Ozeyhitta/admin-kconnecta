@@ -11,17 +11,6 @@ import { ActivityHourCard, ActivityDayCard } from "./OrderChart";
 import { NewUsersAnalytics } from "./NewUsersAnalytics";
 import NewCustomers from "./NewCustomers";
 
-// ─── Section wrapper ──────────────────────────────────────────────────────────
-
-const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section className="mb-6">
-    <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-      {title}
-    </h2>
-    {children}
-  </section>
-);
-
 // ─── useDebouncedValue ────────────────────────────────────────────────────────
 // Returns the value after `delay` ms of no changes.
 // The filter UI updates immediately (instant feel); API calls fire after debounce.
@@ -59,21 +48,18 @@ export const Dashboard = () => {
 
       <Welcome />
 
-      {/* ── Section 1: Tổng quan hệ thống ────────────────────────────── */}
-      <Section title="Tổng quan hệ thống">
+      <div className="mb-8">
         <SystemOverviewCards />
-      </Section>
+      </div>
 
-      {/* ── Section 2: Phân tích theo thời gian ──────────────────────── */}
-      <Section title="Phân tích theo thời gian">
+      <div className="mb-8">
         {/* Filter gets immediate value — instant UI feedback */}
         <StatsDateFilter value={dateRange} onChange={setDateRange} />
         {/* Analytics components get debounced value — fewer API calls */}
         <StatsOverview dateRange={debouncedDateRange} />
-      </Section>
+      </div>
 
-      {/* ── Section 3 + 4: Biểu đồ ───────────────────────────────────── */}
-      <Section title="Biểu đồ">
+      <div className="mb-8">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex flex-col gap-4 md:basis-2/3">
             <NewUsersAnalytics dateRange={debouncedDateRange} />
@@ -84,7 +70,7 @@ export const Dashboard = () => {
             <NewCustomers />
           </div>
         </div>
-      </Section>
+      </div>
     </>
   );
 };

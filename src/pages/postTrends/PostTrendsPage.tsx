@@ -107,9 +107,9 @@ const fmt = new Intl.NumberFormat("vi-VN");
 const trendLabelClass = (label: string): string => {
   switch (label) {
     case "Tăng mạnh":
-      return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      return "bg-success-bg text-success border-success-border font-semibold";
     case "Tăng":
-      return "bg-green-100 text-green-700 border-green-200";
+      return "bg-success-bg text-success border-success-border";
     case "Giảm":
       return "bg-red-100 text-red-700 border-red-200";
     default:
@@ -291,7 +291,7 @@ const AlertsBox = ({ alerts, loading }: { alerts: TrendAlert[]; loading: boolean
   }
   if (alerts.length === 0) {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+      <div className="flex items-center gap-2 rounded-lg border border-success-border bg-success-bg p-4 text-sm text-success-on-bg">
         <Activity className="h-4 w-4" /> Không có cảnh báo nào trong kỳ này.
       </div>
     );
@@ -379,7 +379,7 @@ const PostTrendsPage = () => {
           <KpiCard icon={FileText} iconColor="text-indigo-500" title="Bài viết phân tích" value={summary?.totalPosts} loading={loading} />
           <KpiCard icon={Activity} iconColor="text-amber-500" title="Tổng tương tác" value={summary?.totalInteractions} loading={loading} />
           <KpiCard icon={Flag} iconColor="text-red-500" title="Tổng báo cáo" value={summary?.totalReports} loading={loading} />
-          <KpiCard icon={Hash} iconColor="text-emerald-500" title="Số chủ đề" value={summary?.totalTopics} loading={loading} />
+          <KpiCard icon={Hash} iconColor="text-primary" title="Số chủ đề" value={summary?.totalTopics} loading={loading} />
           <KpiCard
             icon={TrendingUp}
             iconColor="text-blue-500"
@@ -470,7 +470,7 @@ const TopicTrendTable = ({ topics, loading }: { topics: TopicTrend[]; loading: b
               <TableCell className="font-medium">#{t.topic}</TableCell>
               <TableCell className="text-right tabular-nums">{fmt.format(t.postCount)}</TableCell>
               <TableCell className="text-right tabular-nums font-semibold">{fmt.format(t.topicScore)}</TableCell>
-              <TableCell className={`text-right tabular-nums font-medium ${t.growthRate >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+              <TableCell className={`text-right tabular-nums font-medium ${t.growthRate >= 0 ? "text-success" : "text-red-500"}`}>
                 <span className="inline-flex items-center gap-0.5 justify-end">
                   {t.growthRate >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                   {t.growthRate >= 0 ? "+" : ""}{t.growthRate.toFixed(1)}%
@@ -523,7 +523,7 @@ const TopPostsTable = ({ posts, loading }: { posts: TopPost[]; loading: boolean 
               </TableCell>
               <TableCell className="text-sm whitespace-nowrap">{p.authorName ?? p.authorUsername ?? "—"}</TableCell>
               <TableCell className="text-right tabular-nums font-semibold">{fmt.format(p.trendScore)}</TableCell>
-              <TableCell className={`text-right tabular-nums font-medium ${p.growthRate >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+              <TableCell className={`text-right tabular-nums font-medium ${p.growthRate >= 0 ? "text-success" : "text-red-500"}`}>
                 {p.growthRate >= 0 ? "+" : ""}{p.growthRate.toFixed(1)}%
               </TableCell>
               <TableCell className="text-right tabular-nums">{fmt.format(p.likeCount)}</TableCell>

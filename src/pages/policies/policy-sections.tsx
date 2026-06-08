@@ -262,11 +262,11 @@ export const CommunitySection = ({
           {(["critical", "high", "medium", "low"] as const).map((s) => {
             const m = getSeverityMeta(s);
             return (
-              <div key={s} className={`rounded-md border-l-4 ${m.borderClass} border border-border bg-muted/30 px-3 py-2`}>
-                <div className={`flex items-center gap-1 text-xs font-semibold mb-0.5 ${m.badgeClass.split(" ")[1]}`}>
+              <div key={s} className={`rounded-md border border-border/50 ${m.badgeClass} px-3 py-2`}>
+                <div className="flex items-center gap-1 text-xs font-semibold mb-0.5">
                   {m.icon} {m.label}
                 </div>
-                <p className="text-xs text-muted-foreground leading-tight">{m.consequence}</p>
+                <p className="text-xs opacity-70 leading-tight">{m.consequence}</p>
               </div>
             );
           })}
@@ -279,7 +279,7 @@ export const CommunitySection = ({
             return (
               <div
                 key={rule.id}
-                className={`flex flex-wrap items-center gap-3 rounded-md border border-border border-l-4 ${meta.borderClass} px-3 py-3 ${!rule.enabled ? "opacity-50" : ""}`}
+                className={`flex flex-wrap items-center gap-3 rounded-md border border-border px-3 py-3 ${!rule.enabled ? "opacity-50" : ""}`}
               >
                 <div className="flex-1 min-w-[160px]">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -731,7 +731,7 @@ export const RecommendationSection = ({
         <WeightSlider label="Trending" value={r.weights.trending} onChange={(v) => setWeight("trending", v)} />
         <WeightSlider label="New content" value={r.weights.newContent} onChange={(v) => setWeight("newContent", v)} />
         <p
-          className={`text-xs font-medium ${weightTotal === 100 ? "text-emerald-600" : "text-amber-600"}`}
+          className={`text-xs font-medium ${weightTotal === 100 ? "text-success" : "text-amber-600"}`}
         >
           Tổng trọng số: {weightTotal}% {weightTotal !== 100 ? "(nên chỉnh về 100%)" : ""}
         </p>

@@ -3,24 +3,16 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import "./index.css";
 import App from "./App.tsx";
-
-const getLoginPath = () => {
-  const basename = (import.meta.env.VITE_BASENAME ?? "").replace(/\/$/, "");
-  const path = `${basename}/login`.replace(/\/+/g, "/");
-  return path.startsWith("/") ? path : `/${path}`;
-};
-
-const isAuthenticated = () => Boolean(localStorage.getItem("auth"));
-
-const isLoginPath = (pathname: string) => {
-  const loginPath = getLoginPath();
-  return pathname === loginPath || pathname.endsWith("/login");
-};
+import {
+  getLoginPath,
+  hasStoredAuth,
+  isLoginPath,
+} from "@/lib/authSession";
 
 function AuthSessionGuard() {
   useEffect(() => {
     const redirectToLoginIfNeeded = () => {
-      if (isAuthenticated() || isLoginPath(window.location.pathname)) {
+      if (hasStoredAuth() || isLoginPath(window.location.pathname)) {
         return;
       }
       window.location.replace(getLoginPath());
@@ -56,12 +48,12 @@ function AuthSessionGuard() {
   return null;
 }
 
-const redirectToLoginBeforeRender = () => {
-  if (isAuthenticated() || isLoginPath(window.location.pathname)) {
+function redirectToLoginBeforeRender() {
+  if (hasStoredAuth() || isLoginPath(window.location.pathname)) {
     return;
   }
   window.history.replaceState(null, "", getLoginPath());
-};
+}
 
 redirectToLoginBeforeRender();
 

@@ -68,7 +68,7 @@ export const ActivityLogFilterBar = ({ filters, onChange, compact }: Props) => {
             <label className="text-xs text-muted-foreground">Từ ngày</label>
             <Input
               type="date"
-              className="h-8 w-[140px]"
+              className="h-8 min-w-[130px] flex-1"
               value={filters.from ?? ""}
               max={filters.to || today}
               onChange={e => set({ from: e.target.value || undefined })}
@@ -78,7 +78,7 @@ export const ActivityLogFilterBar = ({ filters, onChange, compact }: Props) => {
             <label className="text-xs text-muted-foreground">Đến ngày</label>
             <Input
               type="date"
-              className="h-8 w-[140px]"
+              className="h-8 min-w-[130px] flex-1"
               value={filters.to ?? ""}
               min={filters.from}
               max={today}
@@ -96,7 +96,7 @@ export const ActivityLogFilterBar = ({ filters, onChange, compact }: Props) => {
             value={filters.actionType ?? "all"}
             onValueChange={v => set({ actionType: v === "all" ? undefined : v })}
           >
-            <SelectTrigger className="w-[170px] h-9">
+            <SelectTrigger className="min-w-[150px] h-9">
               <SelectValue placeholder="Tất cả loại" />
             </SelectTrigger>
             <SelectContent>
@@ -114,7 +114,7 @@ export const ActivityLogFilterBar = ({ filters, onChange, compact }: Props) => {
             value={filters.status ?? "all"}
             onValueChange={v => set({ status: v === "all" ? undefined : v })}
           >
-            <SelectTrigger className="w-[150px] h-9">
+            <SelectTrigger className="min-w-[130px] h-9">
               <SelectValue placeholder="Mọi trạng thái" />
             </SelectTrigger>
             <SelectContent>
@@ -133,7 +133,7 @@ export const ActivityLogFilterBar = ({ filters, onChange, compact }: Props) => {
             value={filters.severity ?? "all"}
             onValueChange={v => set({ severity: v === "all" ? undefined : v })}
           >
-            <SelectTrigger className="w-[140px] h-9">
+            <SelectTrigger className="min-w-[120px] h-9">
               <SelectValue placeholder="Mọi mức độ" />
             </SelectTrigger>
             <SelectContent>

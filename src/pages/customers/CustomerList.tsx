@@ -47,7 +47,7 @@ const UserRowActions = () => {
   if (!record) return null;
   return (
     <div className="flex justify-end gap-1">
-      <ShowButton label="" />
+      <ShowButton label="" aria-label="Xem chi tiết" />
       {!isCurrentAdminUser({ id: String(record.id) }) && (
         <LockUserButton record={{ ...record, id: String(record.id) }} size="sm" variant="ghost" showLabel={false} />
       )}

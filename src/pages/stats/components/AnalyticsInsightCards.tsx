@@ -19,9 +19,9 @@ const LEVEL_CONFIG = {
     iconColor: "text-amber-500",
   },
   success: {
-    bg: "bg-emerald-50 border-emerald-200 dark:bg-emerald-950 dark:border-emerald-800",
+    bg: "bg-success-bg border-success-border",
     icon: CheckCircle2,
-    iconColor: "text-emerald-500",
+    iconColor: "text-success",
   },
   info: {
     bg: "bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800",
@@ -56,7 +56,7 @@ export const AnalyticsInsightCards = ({
 
   if (items.length === 0) {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+      <div className="flex items-center gap-2 rounded-lg border border-success-border bg-success-bg p-4 text-sm text-success-on-bg">
         <CheckCircle2 className="h-4 w-4 shrink-0" />
         {emptyMessage}
       </div>
