@@ -65,11 +65,18 @@ export async function validateAuthSession(): Promise<AuthSessionStatus> {
     const isLocalBackend = !apiBase || apiBase.includes("localhost");
     const timeout = isLocalBackend ? 8_000 : 60_000;
     authDebug("validate_session_start", { apiBase: apiBase || "(vite proxy)", timeout });
-    await apiClient.get("/api/v1/admin/stats/online", {
+    const res = await apiClient.get("/api/v1/admin/stats/online", {
       timeout,
       headers: { "Cache-Control": "no-cache" },
+      validateStatus: () => true,
     });
-    authDebug("validate_session_ok");
+    if (res.status === 401 || res.status === 403) {
+      return "invalid";
+    }
+    if (res.status >= 400) {
+      authDebug("validate_session_ok", { note: "stats_non_ok_but_authenticated", status: res.status });
+    }
+    authDebug("validate_session_ok", { status: res.status });
     return "ok";
   } catch (error: unknown) {
     const err = error as { response?: { status?: number }; code?: string; message?: string };

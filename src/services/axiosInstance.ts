@@ -1,7 +1,7 @@
 import axios, { AxiosHeaders } from "axios";
 import { getAdminToken } from "@/lib/currentAdminUser";
 import { clearAuthSession, getLoginPath, isLoginPath } from "@/lib/authSession";
-import { authDebug, setLoginNotice } from "@/lib/authDebug";
+import { authDebug } from "@/lib/authDebug";
 
 const PRODUCTION_API_URL = "https://admin-kconnecta.onrender.com";
 
@@ -50,16 +50,11 @@ apiClient.interceptors.response.use(
       message: error?.message,
       url: error?.config?.url,
     });
+    // Only force re-login on auth errors — network/timeouts are handled per screen.
     if (status === 401 || status === 403) {
       clearAuthSession();
       if (!isLoginPath(window.location.pathname)) {
-        window.location.replace(getLoginPath());
-      }
-    } else if (!error?.response) {
-      clearAuthSession();
-      if (!isLoginPath(window.location.pathname)) {
-        setLoginNotice("api_unreachable");
-        window.location.replace(getLoginPath());
+        window.location.replace(`${getLoginPath()}?reason=session`);
       }
     }
     return Promise.reject(error);
