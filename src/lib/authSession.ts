@@ -67,7 +67,6 @@ export async function validateAuthSession(): Promise<AuthSessionStatus> {
     authDebug("validate_session_start", { apiBase: apiBase || "(vite proxy)", timeout });
     const res = await apiClient.get("/api/v1/admin/stats/online", {
       timeout,
-      headers: { "Cache-Control": "no-cache" },
       validateStatus: () => true,
     });
     if (res.status === 401 || res.status === 403) {
