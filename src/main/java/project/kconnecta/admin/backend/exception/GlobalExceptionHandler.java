@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -80,6 +81,11 @@ public class GlobalExceptionHandler {
     // Fallback 500 — never expose internal exception messages to clients
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnexpected(Exception ex) {
+        if (isClientDisconnect(ex)) {
+            log.debug("Client disconnected before the response was completed: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+        }
+
         log.error("Unhandled exception", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "timestamp", LocalDateTime.now().toString(),
@@ -87,5 +93,22 @@ public class GlobalExceptionHandler {
                 "error", "Internal Server Error",
                 "message", "An internal server error occurred"
         ));
+    }
+
+    private boolean isClientDisconnect(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            if (current instanceof IOException) {
+                String message = String.valueOf(current.getMessage()).toLowerCase(java.util.Locale.ROOT);
+                if (message.contains("aborted")
+                        || message.contains("broken pipe")
+                        || message.contains("connection reset")
+                        || message.contains("forcibly closed")) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }

@@ -77,6 +77,9 @@ admin:
   bootstrap:
     key: ${ADMIN_BOOTSTRAP_KEY:}  # Set to a strong secret before first /init call; leave blank to disable endpoint
 
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+
 info:
   app:
     name: ${spring.application.name}

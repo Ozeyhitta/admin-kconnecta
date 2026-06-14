@@ -55,6 +55,10 @@ public class PostAdminServiceImpl implements PostAdminService {
     @Transactional
     public void deletePost(UUID id) {
         Post post = findPost(id);
+        postAdminRepository.deleteReportsByPostId(id);
+        postAdminRepository.deleteReactionsByPostId(id);
+        postAdminRepository.deleteSharesByPostId(id);
+        postAdminRepository.deleteCommentsByPostId(id);
         postAdminRepository.delete(post);
     }
 

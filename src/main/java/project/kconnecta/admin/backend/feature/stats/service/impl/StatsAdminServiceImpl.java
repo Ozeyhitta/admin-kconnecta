@@ -68,17 +68,18 @@ public class StatsAdminServiceImpl implements StatsAdminService {
     private static final double INTERACTION_DROP_PCT     = -30.0;
     private static final int    MAX_INSIGHTS             = 5;
     private static final int    MAU_MIN_SAMPLE           = 20;
+    private static final int    ONLINE_WINDOW_MINUTES    = 15;
 
     // ── SystemOverview (no date filter) ───────────────────────────────────────
 
     @Override
     public SystemOverviewResponse getSystemOverview() {
-        LocalDateTime fiveMinAgo = LocalDateTime.now().minusMinutes(5);
+        LocalDateTime onlineSince = onlineSince();
         return SystemOverviewResponse.builder()
                 .totalUsers(accountRepository.count())
                 .activeUsers(accountRepository.countByStatus(AccountStatus.ACTIVE))
                 .lockedUsers(accountRepository.countByStatus(AccountStatus.BLOCKED))
-                .onlineUsersNow(userRepository.countOnlineSince(fiveMinAgo))
+                .onlineUsersNow(userRepository.countOnlineSince(onlineSince))
                 .totalPosts(postRepository.count())
                 .totalComments(commentRepository.count())
                 .totalReports(reportRepository.count())
@@ -92,7 +93,7 @@ public class StatsAdminServiceImpl implements StatsAdminService {
         DateRange current  = resolveRange(from, to);
         DateRange previous = resolveCompareRange(current, compareMode);
         LocalDateTime thirtyAgo  = current.to().minusDays(30);
-        LocalDateTime fiveMinAgo = LocalDateTime.now().minusMinutes(5);
+        LocalDateTime onlineSince = onlineSince();
 
         long newUsersThisWeek = accountRepository.countByCreatedAtBetween(current.from(), current.to());
         long newUsersLastWeek = accountRepository.countByCreatedAtBetween(previous.from(), previous.to());
@@ -119,7 +120,7 @@ public class StatsAdminServiceImpl implements StatsAdminService {
                 .dau(dau)
                 .mau(mau)
                 .dauMauRatio(dauMauRatio)
-                .onlineUsersNow(userRepository.countOnlineSince(fiveMinAgo))
+                .onlineUsersNow(userRepository.countOnlineSince(onlineSince))
                 .activityToday(activityLogRepository.countByCreatedAtBetween(current.from(), current.to()))
                 .activityLast7Days(activityLogRepository.countByCreatedAtBetween(current.from(), current.to()))
                 .loginsToday(activityLogRepository.countByActionTypeAndCreatedAtBetween(
@@ -143,9 +144,13 @@ public class StatsAdminServiceImpl implements StatsAdminService {
     @Override
     public OnlineUsersResponse getOnlineUsers() {
         return OnlineUsersResponse.builder()
-                .online(userRepository.countOnlineSince(LocalDateTime.now().minusMinutes(5)))
+                .online(userRepository.countOnlineSince(onlineSince()))
                 .updatedAt(LocalDateTime.now())
                 .build();
+    }
+
+    private LocalDateTime onlineSince() {
+        return LocalDateTime.now().minusMinutes(ONLINE_WINDOW_MINUTES);
     }
 
     // ── New users chart ────────────────────────────────────────────────────────
