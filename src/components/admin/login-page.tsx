@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { consumeLoginNotice, authDebug } from "@/lib/authDebug";
+import { checkAdminApiHealth } from "@/lib/adminApiHealth";
 import { resolveApiBaseUrl } from "@/services/axiosInstance";
 import logoV1 from "@/assets/LogoKConnecta_V1.png";
 
@@ -17,15 +18,30 @@ export const LoginPage = (props: { redirectTo?: string }) => {
   const [searchParams] = useSearchParams();
 
   const [apiNotice, setApiNotice] = useState(false);
+  const [checkingApi, setCheckingApi] = useState(false);
+
+  const verifyApiAndMaybeWarn = async (fromStaleNotice: boolean) => {
+    setCheckingApi(true);
+    const up = await checkAdminApiHealth();
+    setCheckingApi(false);
+    if (!up) {
+      setApiNotice(true);
+      authDebug("login_api_banner_show", { fromStaleNotice });
+    } else {
+      setApiNotice(false);
+      if (fromStaleNotice) {
+        authDebug("login_api_banner_skip", { reason: "health_up_after_stale_notice" });
+      }
+    }
+  };
 
   useEffect(() => {
     authDebug("login_page_mount", {
       apiBase: resolveApiBaseUrl() || "(vite proxy)",
       search: window.location.search || "(none)",
     });
-    if (consumeLoginNotice() === "api_unreachable") {
-      setApiNotice(true);
-    }
+    const hadStaleNotice = consumeLoginNotice() === "api_unreachable";
+    void verifyApiAndMaybeWarn(hadStaleNotice);
   }, []);
 
   const statusBanner = useMemo(() => {
@@ -33,7 +49,7 @@ export const LoginPage = (props: { redirectTo?: string }) => {
       return {
         title: "Không kết nối được Admin API",
         description:
-          "Render có thể đang khởi động — mở /actuator/health, đợi UP rồi thử lại. Xem Console (F12) log [AdminAuth].",
+          "Không ping được Admin API. Mở health check, đợi UP rồi bấm Thử lại. Xem Console log [AdminAuth].",
       };
     }
     if (searchParams.get("reason") === "session") {
@@ -94,9 +110,19 @@ export const LoginPage = (props: { redirectTo?: string }) => {
               className="mb-5 flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-left text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100"
             >
               <ServerCrash className="mt-0.5 size-5 shrink-0" />
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-semibold">{statusBanner.title}</p>
                 <p className="mt-1 text-xs opacity-90">{statusBanner.description}</p>
+                {apiNotice && (
+                  <button
+                    type="button"
+                    disabled={checkingApi}
+                    onClick={() => void verifyApiAndMaybeWarn(false)}
+                    className="mt-2 text-xs font-semibold underline cursor-pointer disabled:opacity-60"
+                  >
+                    {checkingApi ? "Đang kiểm tra..." : "Thử lại kết nối API"}
+                  </button>
+                )}
               </div>
             </div>
           )}

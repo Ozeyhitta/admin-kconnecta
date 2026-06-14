@@ -12,7 +12,7 @@ dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# Editor
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,32 +22,41 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.claude/
 
+# Public — only app assets
 public/*
 !public/favicon.ico
-!public/shadcn-admin-kit.webp
 
 temp
-
-*storybook.log
 storybook-static
+*storybook.log
 
-# Vitest
-
+# Vitest / Storybook tests (template only)
+**/*.spec.ts
+**/*.spec.tsx
 **/__screenshots__/*
+vitest.config.ts
+vitest.global-setup.ts
+src/vitest-env.d.ts
 
-.claude/settings.local.json
+# Env (set on Vercel / local — never commit secrets)
+.env
+.env.*
+!.env.example
 
-# Project meta files
+# Template / demo (shadcn-admin-kit scaffolding)
+scripts/
+registry.json
+src/stories/
+src/examples/
+src/pages/categories/
+src/pages/products/
+src/pages/reviews/
+pnpm-workspace.yaml
+
+# Project meta (local only)
 CLAUDE.md
 LICENSE
 README.md
-*.md
-
-# Misc
-.env.production
-.env.local
-.env.*.local
-registry.json
-.claude/
-.env.development
+docs/
