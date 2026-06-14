@@ -49,3 +49,5 @@ README.md
 .env.local
 .env.*.local
 registry.json
+.claude/
+.env.development
