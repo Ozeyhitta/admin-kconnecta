@@ -1,6 +1,7 @@
 import { getAdminToken } from "@/lib/currentAdminUser";
+import { resolveApiBaseUrl } from "@/services/axiosInstance";
 
-const baseURL = (import.meta.env.VITE_API_URL ?? "http://localhost:8082").replace(/\/$/, "");
+const baseURL = resolveApiBaseUrl().replace(/\/$/, "");
 
 export class AdminApiError extends Error {
   status: number;

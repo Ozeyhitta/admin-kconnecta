@@ -95,10 +95,11 @@ export const LoginPage = (props: { redirectTo?: string }) => {
                 <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="admin@kconnecta.vn"
                   value={email}
-                  autoComplete="off"
+                  autoComplete="username"
                   disabled={loading}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -113,9 +114,11 @@ export const LoginPage = (props: { redirectTo?: string }) => {
                 <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
+                  autoComplete="current-password"
                   disabled={loading}
                   onChange={(e) => setPassword(e.target.value)}
                   required

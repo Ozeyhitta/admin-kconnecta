@@ -6,7 +6,7 @@ import {
   Brain,
   Shield,
   Scale,
-  MessageSquare,
+
   FileText,
   Sparkles,
   History,
@@ -17,7 +17,11 @@ import {
   AlertTriangle,
   Info,
   Eye,
+  Loader2,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
+import { apiClient } from "@/services/axiosInstance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/common/textarea";
@@ -51,8 +55,10 @@ import { AllowedFileTypesInput } from "./AllowedFileTypesInput";
 import { buildPolicyInsights } from "./insights";
 import type {
   CommunityRule,
+  DiffKind,
   KeywordCategory,
   KeywordEntry,
+  PolicyAuditEntry,
   PolicyConfig,
   RuleCondition,
   RuleConditionField,
@@ -572,6 +578,22 @@ export const ViolationsSection = ({
 
 // ─── 4. AI Moderation ─────────────────────────────────────────────────────────
 
+type PlaygroundResult = {
+  flagged: boolean;
+  categories: Record<string, boolean>;
+  categoryScores: Record<string, number>;
+};
+
+function scoreColor(score: number) {
+  if (score >= 0.5) return "bg-red-500";
+  if (score >= 0.15) return "bg-amber-400";
+  return "bg-emerald-500";
+}
+
+function formatCategory(key: string) {
+  return key.replace("/", " / ").replace(/_/g, " ");
+}
+
 export const AiModerationSection = ({
   config,
   update,
@@ -583,49 +605,156 @@ export const AiModerationSection = ({
   const setAi = (patch: Partial<typeof ai>) =>
     update({ aiModeration: { ...ai, ...patch } });
 
+  const [playText, setPlayText] = useState("");
+  const [playImageUrl, setPlayImageUrl] = useState("");
+  const [playLoading, setPlayLoading] = useState(false);
+  const [playResult, setPlayResult] = useState<PlaygroundResult | null>(null);
+  const [playError, setPlayError] = useState<string | null>(null);
+
+  const runTest = async () => {
+    setPlayLoading(true);
+    setPlayResult(null);
+    setPlayError(null);
+    try {
+      const { data } = await apiClient.post<PlaygroundResult>("/api/v1/admin/moderation/test", {
+        text: playText.trim() || null,
+        imageUrl: playImageUrl.trim() || null,
+      });
+      setPlayResult(data);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setPlayError(msg ?? "Lỗi khi gọi API kiểm duyệt");
+    } finally {
+      setPlayLoading(false);
+    }
+  };
+
   return (
-    <PolicyCard
-      title="AI moderation"
-      description="Detect toxic, spam, NSFW, hate speech, scam — cấu hình độ nhạy và hành động tự động"
-    >
-      <ToggleRow
-        label="Bật AI kiểm duyệt"
-        checked={ai.enabled}
-        onCheckedChange={(enabled) => setAi({ enabled })}
-      />
-      <RangeField
-        label="Độ nhạy AI"
-        value={ai.sensitivity}
-        min={0}
-        max={100}
-        unit="%"
-        onChange={(sensitivity) => setAi({ sensitivity })}
-      />
-      <div className="grid sm:grid-cols-2 gap-2 pt-2">
-        {(
-          [
-            ["toxic", "Detect toxic"],
-            ["spam", "Detect spam"],
-            ["nsfw", "Detect NSFW"],
-            ["hateSpeech", "Detect hate speech"],
-            ["scam", "Detect scam"],
-          ] as const
-        ).map(([key, label]) => (
-          <ToggleRow
-            key={key}
-            label={label}
-            checked={ai.detect[key]}
-            onCheckedChange={(v) => setAi({ detect: { ...ai.detect, [key]: v } })}
-          />
-        ))}
-      </div>
-      <div className="border-t border-border pt-3 space-y-0">
-        <p className="text-xs font-semibold text-muted-foreground mb-2">Hành động tự động</p>
-        <ToggleRow label="Auto hide bài" checked={ai.autoHidePost} onCheckedChange={(v) => setAi({ autoHidePost: v })} />
-        <ToggleRow label="Auto warning" checked={ai.autoWarning} onCheckedChange={(v) => setAi({ autoWarning: v })} />
-        <ToggleRow label="Auto ban" checked={ai.autoBan} onCheckedChange={(v) => setAi({ autoBan: v })} />
-      </div>
-    </PolicyCard>
+    <>
+      <PolicyCard
+        title="AI moderation"
+        description="Detect toxic, spam, NSFW, hate speech, scam — cấu hình độ nhạy và hành động tự động"
+      >
+        <ToggleRow
+          label="Bật AI kiểm duyệt"
+          checked={ai.enabled}
+          onCheckedChange={(enabled) => setAi({ enabled })}
+        />
+        <RangeField
+          label="Độ nhạy AI"
+          value={ai.sensitivity}
+          min={0}
+          max={100}
+          unit="%"
+          onChange={(sensitivity) => setAi({ sensitivity })}
+        />
+        <div className="grid sm:grid-cols-2 gap-2 pt-2">
+          {(
+            [
+              ["toxic", "Detect toxic"],
+              ["spam", "Detect spam"],
+              ["nsfw", "Detect NSFW"],
+              ["hateSpeech", "Detect hate speech"],
+              ["scam", "Detect scam"],
+            ] as const
+          ).map(([key, label]) => (
+            <ToggleRow
+              key={key}
+              label={label}
+              checked={ai.detect[key]}
+              onCheckedChange={(v) => setAi({ detect: { ...ai.detect, [key]: v } })}
+            />
+          ))}
+        </div>
+        <div className="border-t border-border pt-3 space-y-0">
+          <p className="text-xs font-semibold text-muted-foreground mb-2">Hành động tự động</p>
+          <ToggleRow label="Auto hide bài" checked={ai.autoHidePost} onCheckedChange={(v) => setAi({ autoHidePost: v })} />
+          <ToggleRow label="Auto warning" checked={ai.autoWarning} onCheckedChange={(v) => setAi({ autoWarning: v })} />
+          <ToggleRow label="Auto ban" checked={ai.autoBan} onCheckedChange={(v) => setAi({ autoBan: v })} />
+        </div>
+      </PolicyCard>
+
+      <PolicyCard
+        title="Moderation Playground"
+        description="Kiểm tra nội dung qua Google Gemini AI — nhập văn bản hoặc URL ảnh để xem kết quả phân tích"
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Nội dung văn bản</label>
+            <Textarea
+              className="min-h-[80px] resize-none"
+              placeholder="Nhập nội dung cần kiểm tra..."
+              value={playText}
+              onChange={(e) => setPlayText(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">URL hình ảnh (tùy chọn)</label>
+            <Input
+              type="url"
+              placeholder="https://example.com/image.jpg"
+              value={playImageUrl}
+              onChange={(e) => setPlayImageUrl(e.target.value)}
+            />
+          </div>
+          <button
+            onClick={runTest}
+            disabled={playLoading || (!playText.trim() && !playImageUrl.trim())}
+            className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {playLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+            {playLoading ? "Đang kiểm tra..." : "Kiểm tra"}
+          </button>
+
+          {playError && (
+            <p className="text-sm text-destructive">{playError}</p>
+          )}
+
+          {playResult && (
+            <div className="rounded-md border border-border p-4 space-y-4 mt-2">
+              <div className="flex items-center gap-2">
+                {playResult.flagged ? (
+                  <>
+                    <XCircle className="w-5 h-5 text-red-500" />
+                    <span className="font-semibold text-red-500">Nội dung bị gắn cờ vi phạm</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                    <span className="font-semibold text-emerald-600">Nội dung an toàn</span>
+                  </>
+                )}
+              </div>
+              <div className="grid gap-2">
+                {Object.entries(playResult.categoryScores)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([cat, score]) => {
+                    const flagged = playResult.categories[cat];
+                    const pct = Math.min(score * 100, 100);
+                    return (
+                      <div key={cat} className="space-y-0.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className={`font-medium ${flagged ? "text-red-600" : "text-foreground"}`}>
+                            {formatCategory(cat)}
+                            {flagged && <span className="ml-1 text-red-500">●</span>}
+                          </span>
+                          <span className="text-muted-foreground tabular-nums">{(score * 100).toFixed(2)}%</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${scoreColor(score)}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+        </div>
+      </PolicyCard>
+    </>
   );
 };
 
@@ -743,60 +872,156 @@ export const RecommendationSection = ({
 // ─── 9. Audit ─────────────────────────────────────────────────────────────────
 
 export const AuditSection = ({ config }: { config: PolicyConfig }) => {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = config.auditLog.find((e) => e.id === selectedId);
+  const [selected, setSelected] = useState<PolicyAuditEntry | null>(null);
+  const [showRaw, setShowRaw] = useState(false);
 
   return (
     <>
-      <PolicyCard title="Nhật ký thay đổi chính sách" description="Ai sửa, lúc nào, trước / sau thay đổi">
+      <PolicyCard title="Nhật ký thay đổi chính sách" description="Ai sửa, lúc nào, trường nào thay đổi">
         {config.auditLog.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có bản ghi — lưu cấu hình để tạo audit log.</p>
         ) : (
-          <ul className="divide-y divide-border rounded-md border border-border max-h-80 overflow-y-auto">
-            {config.auditLog.map((e) => (
-              <li key={e.id} className="px-3 py-2 text-sm flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-medium">{e.section}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {e.adminLabel} · {new Date(e.changedAt).toLocaleString("vi-VN")}
-                  </p>
-                  <p className="text-xs mt-0.5">{e.summary}</p>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => setSelectedId(e.id)}>
-                  Xem diff
-                </Button>
-              </li>
-            ))}
+          <ul className="divide-y divide-border rounded-md border border-border max-h-[480px] overflow-y-auto">
+            {config.auditLog.map((entry) => {
+              const diffs = entry.diffs ?? [];
+              return (
+                <li key={entry.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium">{entry.adminLabel}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(entry.changedAt).toLocaleString("vi-VN")}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <span className="text-muted-foreground">
+                        Mục: <span className="font-medium text-foreground">{entry.section}</span>
+                      </span>
+                      <span className="text-muted-foreground">
+                        Thay đổi:{" "}
+                        <span className="font-medium text-foreground">{diffs.length} trường</span>
+                      </span>
+                    </div>
+                    <p className="text-xs italic text-muted-foreground">{entry.summary}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setSelected(entry); setShowRaw(false); }}
+                  >
+                    Xem chi tiết
+                  </Button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </PolicyCard>
 
-      <Dialog open={!!selected} onOpenChange={() => setSelectedId(null)}>
+      <Dialog open={!!selected} onOpenChange={() => { setSelected(null); setShowRaw(false); }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Chi tiết thay đổi</DialogTitle>
           </DialogHeader>
-          {selected ? (
-            <div className="grid md:grid-cols-2 gap-3 text-xs">
-              <div>
-                <p className="font-semibold mb-1">Trước</p>
-                <pre className="bg-muted p-2 rounded-md overflow-auto max-h-64 whitespace-pre-wrap">
-                  {selected.beforeJson}
-                </pre>
+          {selected && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <span>{selected.adminLabel}</span>
+                <span>{new Date(selected.changedAt).toLocaleString("vi-VN")}</span>
+                <span>Mục: {selected.section}</span>
               </div>
-              <div>
-                <p className="font-semibold mb-1">Sau</p>
-                <pre className="bg-muted p-2 rounded-md overflow-auto max-h-64 whitespace-pre-wrap">
-                  {selected.afterJson}
-                </pre>
+
+              {(selected.diffs ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">Không có thay đổi chi tiết.</p>
+              ) : (
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="p-2 text-left font-medium">Trường</th>
+                      <th className="p-2 text-left font-medium w-[28%]">Trước</th>
+                      <th className="p-2 text-left font-medium w-[28%]">Sau</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {(selected.diffs ?? []).map((diff, i) => (
+                      <tr key={i} className="hover:bg-muted/30">
+                        <td className="p-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="leading-snug">{diff.label}</span>
+                            <AuditDiffBadge kind={diff.kind} />
+                          </div>
+                        </td>
+                        <td className="p-2">
+                          {diff.kind === "added" ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <span className={`text-red-600${diff.kind === "updated" ? " line-through" : ""}`}>
+                              {formatDiffValue(diff.before)}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-2">
+                          {diff.kind === "removed" ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <span className="font-medium text-green-600">
+                              {formatDiffValue(diff.after)}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              <div className="border-t pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowRaw((v) => !v)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  {showRaw ? "▲ Ẩn JSON gốc" : "▼ Xem JSON gốc"}
+                </button>
+                {showRaw && (
+                  <div className="mt-2 grid gap-2 text-xs md:grid-cols-2">
+                    <div>
+                      <p className="mb-1 font-semibold">Trước</p>
+                      <pre className="max-h-48 overflow-auto rounded bg-muted p-2 whitespace-pre-wrap">
+                        {selected.beforeJson}
+                      </pre>
+                    </div>
+                    <div>
+                      <p className="mb-1 font-semibold">Sau</p>
+                      <pre className="max-h-48 overflow-auto rounded bg-muted p-2 whitespace-pre-wrap">
+                        {selected.afterJson}
+                      </pre>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          ) : null}
+          )}
         </DialogContent>
       </Dialog>
     </>
   );
 };
+
+function AuditDiffBadge({ kind }: { kind: DiffKind }) {
+  if (kind === "added")
+    return <Badge className="border-green-200 bg-green-100 text-[10px] text-green-700">Thêm</Badge>;
+  if (kind === "removed")
+    return <Badge className="border-red-200 bg-red-100 text-[10px] text-red-700">Xóa</Badge>;
+  return <Badge className="border-amber-200 bg-amber-100 text-[10px] text-amber-700">Sửa</Badge>;
+}
+
+function formatDiffValue(val: unknown): string {
+  if (val === undefined || val === null) return "—";
+  if (typeof val === "boolean") return val ? "Bật" : "Tắt";
+  const str = String(val);
+  return str.length > 80 ? `${str.slice(0, 80)}…` : str;
+}
 
 // ─── 10. AI Insights ──────────────────────────────────────────────────────────
 
@@ -1099,7 +1324,7 @@ export const SECTION_META: {
   { key: "ai", label: "AI moderation", icon: Brain },
   { key: "privacy", label: "Riêng tư", icon: Shield },
   { key: "posts", label: "Bài viết", icon: FileText },
-  { key: "chat", label: "Chat", icon: MessageSquare },
+
   { key: "recommendation", label: "Đề xuất", icon: TrendingUp },
   { key: "rules", label: "Rule Engine", icon: Workflow },
   { key: "insights", label: "AI Insight", icon: Sparkles },

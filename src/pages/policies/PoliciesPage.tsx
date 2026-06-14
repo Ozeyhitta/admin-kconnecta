@@ -11,7 +11,7 @@ import {
   AiInsightsSection,
   AiModerationSection,
   AuditSection,
-  ChatPolicySection,
+
   CommunitySection,
   KeywordsSection,
   PostPolicySection,
@@ -59,8 +59,7 @@ const PoliciesPage = () => {
         return <PrivacySection config={config} update={update} />;
       case "posts":
         return <PostPolicySection config={config} update={update} />;
-      case "chat":
-        return <ChatPolicySection config={config} update={update} />;
+
       case "recommendation":
         return (
           <RecommendationSection

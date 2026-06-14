@@ -11,7 +11,7 @@ import { posts } from "./pages/posts";
 import { comments } from "./pages/comments";
 import { conversations } from "./pages/conversations";
 import { postReports } from "./pages/postReports";
-import { Dashboard } from "./pages/dashboard/Dashboard";
+import { AuthenticatedDashboard } from "./pages/dashboard/AuthenticatedDashboard";
 import StatsPage from "./pages/stats/StatsPage";
 import PostTrendsPage from "./pages/postTrends/PostTrendsPage";
 import NotificationsPage from "./pages/notifications/NotificationsPage";
@@ -26,7 +26,7 @@ function App() {
       dataProvider={dataProvider}
       authProvider={authProvider}
       i18nProvider={i18nProvider}
-      dashboard={Dashboard}
+      dashboard={AuthenticatedDashboard}
       requireAuth
     >
       <CustomRoutes>

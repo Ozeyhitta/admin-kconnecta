@@ -128,12 +128,23 @@ export interface RuleEngineRule {
   severity: Severity;
 }
 
+export type DiffKind = "added" | "removed" | "updated";
+
+export interface DiffEntry {
+  field: string;
+  label: string;
+  kind: DiffKind;
+  before: unknown;
+  after: unknown;
+}
+
 export interface PolicyAuditEntry {
   id: string;
   section: string;
   adminLabel: string;
   changedAt: string;
   summary: string;
+  diffs: DiffEntry[];
   beforeJson: string;
   afterJson: string;
 }
@@ -174,7 +185,7 @@ export type PolicySectionKey =
   | "ai"
   | "privacy"
   | "posts"
-  | "chat"
+
   | "recommendation"
   | "audit"
   | "insights"

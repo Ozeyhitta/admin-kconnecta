@@ -4,7 +4,7 @@ import { ActivityLogSummaryCards } from "@/pages/dashboard/components/activityLo
 import { ActivityLogFilterBar } from "@/pages/dashboard/components/activityLogs/ActivityLogFilters";
 import { ActivityLogList } from "@/pages/dashboard/components/activityLogs/ActivityLogList";
 import { ActivityLogDetailDrawer } from "@/pages/dashboard/components/activityLogs/ActivityLogDetailDrawer";
-import { apiClient } from "@/services/axiosInstance";
+import { apiClient, resolveApiBaseUrl } from "@/services/axiosInstance";
 import { getAdminToken } from "@/lib/currentAdminUser";
 import { getPageContent, getPageTotalPages } from "@/services/pagination";
 import type { ActivityLogFilters as Filters, ActivityLogItem, ActivityLogPageResponse } from "@/pages/dashboard/components/activityLogs/types";
@@ -60,7 +60,7 @@ export const ActivityLogListPage = () => {
 
   const handleExport = async () => {
     const token = getAdminToken();
-    const base = (import.meta.env.VITE_API_URL ?? "http://localhost:8082").replace(/\/$/, "");
+    const base = resolveApiBaseUrl().replace(/\/$/, "");
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => {
       if (v !== undefined && v !== "") params.set(k, String(v));

@@ -6,6 +6,20 @@ import react from "@vitejs/plugin-react";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    host: true,
+    port: 5173,
+    proxy: {
+      "/api": {
+        target: "http://localhost:8082",
+        changeOrigin: true,
+      },
+      "/actuator": {
+        target: "http://localhost:8082",
+        changeOrigin: true,
+      },
+    },
+  },
   resolve: {
     alias: [
       { find: "@/components/ui", replacement: path.resolve(__dirname, "./src/components/common") },

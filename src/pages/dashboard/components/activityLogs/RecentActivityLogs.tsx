@@ -2,7 +2,7 @@ import * as React from "react";
 import { Link } from "react-router";
 import { Download, ExternalLink, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { apiClient } from "@/services/axiosInstance";
+import { apiClient, resolveApiBaseUrl } from "@/services/axiosInstance";
 import { getAdminToken } from "@/lib/currentAdminUser";
 import { ADMIN_ACTIVITY_POLL_MS, useIntervalPoll } from "@/lib/adminStatsPoll";
 import { type StatsDateRange } from "@/lib/statsDateRange";
@@ -132,7 +132,7 @@ export const RecentActivityLogs = ({ compact = true, pageSize = 10 }: Props) => 
 
   const handleExport = async () => {
     const token = getAdminToken();
-    const base  = (import.meta.env.VITE_API_URL ?? "http://localhost:8082").replace(/\/$/, "");
+    const base = resolveApiBaseUrl().replace(/\/$/, "");
     const params = new URLSearchParams();
     if (filters.username)    params.set("username",    filters.username);
     if (filters.actionType)  params.set("actionType",  filters.actionType);

@@ -1,5 +1,6 @@
 import { getLoggedInAdmin } from "@/lib/currentAdminUser";
 import { createDefaultPolicyConfig } from "./defaults";
+import { computePolicyDiff, generateSummary } from "./diffPolicy";
 import type { PolicyAuditEntry, PolicyConfig } from "./types";
 
 const STORAGE_KEY = "kconnecta_admin_policies_v1";
@@ -22,19 +23,24 @@ export const savePolicyConfig = (config: PolicyConfig): void => {
 export const appendAuditEntry = (
   config: PolicyConfig,
   section: string,
-  summary: string,
-  before: unknown,
-  after: unknown
+  _summary: string,
+  before: PolicyConfig,
+  after: PolicyConfig
 ): PolicyConfig => {
   const admin = getLoggedInAdmin();
+  // Strip auditLog from snapshots to prevent recursive JSON bloat
+  const { auditLog: _bl, ...cleanBefore } = before;
+  const { auditLog: _al, ...cleanAfter } = after;
+  const diffs = computePolicyDiff(cleanBefore as PolicyConfig, cleanAfter as PolicyConfig);
   const entry: PolicyAuditEntry = {
     id: crypto.randomUUID(),
     section,
     adminLabel: admin?.email ?? admin?.id ?? "Admin",
     changedAt: new Date().toISOString(),
-    summary,
-    beforeJson: JSON.stringify(before, null, 2),
-    afterJson: JSON.stringify(after, null, 2),
+    summary: generateSummary(diffs),
+    diffs,
+    beforeJson: JSON.stringify(cleanBefore, null, 2),
+    afterJson: JSON.stringify(cleanAfter, null, 2),
   };
   const auditLog = [entry, ...config.auditLog].slice(0, 200);
   return { ...config, auditLog };

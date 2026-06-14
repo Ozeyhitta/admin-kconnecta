@@ -9,7 +9,6 @@ import { SystemOverviewCards } from "./SystemOverviewCards";
 import StatsOverview from "./StatsOverview";
 import { ActivityHourCard, ActivityDayCard } from "./OrderChart";
 import { NewUsersAnalytics } from "./NewUsersAnalytics";
-import NewCustomers from "./NewCustomers";
 
 // ─── useDebouncedValue ────────────────────────────────────────────────────────
 // Returns the value after `delay` ms of no changes.
@@ -60,15 +59,10 @@ export const Dashboard = () => {
       </div>
 
       <div className="mb-8">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex flex-col gap-4 md:basis-2/3">
-            <NewUsersAnalytics dateRange={debouncedDateRange} />
-            <ActivityHourCard dateRange={debouncedDateRange} />
-            <ActivityDayCard dateRange={debouncedDateRange} />
-          </div>
-          <div className="flex flex-col gap-4 md:basis-1/3">
-            <NewCustomers />
-          </div>
+        <div className="flex flex-col gap-4">
+          <NewUsersAnalytics dateRange={debouncedDateRange} />
+          <ActivityHourCard dateRange={debouncedDateRange} />
+          <ActivityDayCard dateRange={debouncedDateRange} />
         </div>
       </div>
     </>

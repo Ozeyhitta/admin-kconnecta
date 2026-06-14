@@ -90,6 +90,19 @@ export const ModerationConfigPage = () => {
     setSaving(true);
     try {
       await apiClient.put("/api/v1/admin/moderation-config", fields);
+
+      // Sync rate_limit_max_messages -> chatPolicy.messagesPerMinute so User pages use the same limit.
+      const { data: policyConfig } = await apiClient.get<Record<string, unknown>>("/api/v1/admin/policies");
+      const chatPolicy = (policyConfig?.chatPolicy ?? {}) as Record<string, unknown>;
+      const updated = {
+        ...policyConfig,
+        chatPolicy: {
+          ...chatPolicy,
+          messagesPerMinute: Number(fields.rate_limit_max_messages),
+        },
+      };
+      await apiClient.put("/api/v1/admin/policies", updated);
+
       notify("Đã lưu cấu hình spam. Cấu hình mới sẽ được áp dụng ở lần quét tiếp theo.", {
         type: "success",
       });

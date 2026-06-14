@@ -2,8 +2,14 @@ import axios, { AxiosHeaders } from "axios";
 import { getAdminToken } from "@/lib/currentAdminUser";
 import { clearAuthSession, getLoginPath, isLoginPath } from "@/lib/authSession";
 
+export function resolveApiBaseUrl(): string {
+  const configured = import.meta.env.VITE_API_URL;
+  if (configured !== undefined) return configured;
+  return import.meta.env.DEV ? "" : "http://localhost:8082";
+}
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:8082",
+  baseURL: resolveApiBaseUrl(),
   headers: {
     "Content-Type": "application/json",
   },
@@ -29,6 +35,11 @@ apiClient.interceptors.response.use(
       clearAuthSession();
       if (!isLoginPath(window.location.pathname)) {
         window.location.replace(getLoginPath());
+      }
+    } else if (!error?.response) {
+      clearAuthSession();
+      if (!isLoginPath(window.location.pathname)) {
+        window.location.replace(`${getLoginPath()}?reason=backend`);
       }
     }
     return Promise.reject(error);

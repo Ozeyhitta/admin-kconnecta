@@ -31,9 +31,17 @@ export const authProvider: AuthProvider = {
       return Promise.resolve();
     } catch (error: any) {
       localStorage.setItem("not_authenticated", "true");
+      if (!error?.response) {
+        const message =
+          "Không kết nối được máy chủ. Hãy khởi động Admin backend (port 8082) rồi thử lại.";
+        return Promise.reject(new HttpError(message, 503, { message }));
+      }
       const status = error.response?.status ?? 401;
       const message =
-        error.response?.data?.message ?? "Invalid email or password";
+        error.response?.data?.message ??
+        (status === 404
+          ? "Tài khoản admin không tồn tại"
+          : "Email hoặc mật khẩu không đúng");
       return Promise.reject(new HttpError(message, status, { message }));
     }
   },
