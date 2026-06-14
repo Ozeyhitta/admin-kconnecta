@@ -2,10 +2,12 @@ import axios, { AxiosHeaders } from "axios";
 import { getAdminToken } from "@/lib/currentAdminUser";
 import { clearAuthSession, getLoginPath, isLoginPath } from "@/lib/authSession";
 
+const PRODUCTION_API_URL = "https://admin-kconnecta.onrender.com";
+
 export function resolveApiBaseUrl(): string {
-  const configured = import.meta.env.VITE_API_URL;
-  if (configured !== undefined) return configured;
-  return import.meta.env.DEV ? "" : "http://localhost:8082";
+  const configured = import.meta.env.VITE_API_URL?.trim();
+  if (configured) return configured;
+  return import.meta.env.DEV ? "" : PRODUCTION_API_URL;
 }
 
 export const apiClient = axios.create({

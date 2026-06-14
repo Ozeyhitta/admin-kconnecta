@@ -20,7 +20,7 @@ export const LoginPage = (props: { redirectTo?: string }) => {
       return {
         title: "Không kết nối được máy chủ",
         description:
-          "Backend admin chưa chạy hoặc không phản hồi. Khởi động backend rồi đăng nhập lại.",
+          "Không kết nối được Admin API (Render có thể đang khởi động — đợi ~1 phút rồi thử lại). Xóa cache trang hoặc mở tab ẩn danh nếu vẫn lỗi.",
       };
     }
     if (reason === "session") {

@@ -1,4 +1,4 @@
-import { apiClient } from "@/services/axiosInstance";
+import { apiClient, resolveApiBaseUrl } from "@/services/axiosInstance";
 
 const AUTH_STORAGE_KEY = "auth";
 
@@ -65,8 +65,10 @@ export async function validateAuthSession(): Promise<AuthSessionStatus> {
   if (!hasStoredAuth()) return "missing";
 
   try {
+    const apiBase = resolveApiBaseUrl();
+    const isLocalBackend = !apiBase || apiBase.includes("localhost");
     await apiClient.get("/api/v1/admin/stats/online", {
-      timeout: 8_000,
+      timeout: isLocalBackend ? 8_000 : 60_000,
       headers: { "Cache-Control": "no-cache" },
     });
     return "ok";
