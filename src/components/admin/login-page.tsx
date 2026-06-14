@@ -1,4 +1,4 @@
-﻿import { useMemo, useState, type FormEvent } from "react";
+﻿import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Eye, EyeOff, Lock, Mail, ServerCrash } from "lucide-react";
 import { useLogin, useNotify } from "ra-core";
 import { useSearchParams } from "react-router";
@@ -6,6 +6,8 @@ import { Notification } from "@/components/admin/notification";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { consumeLoginNotice, authDebug } from "@/lib/authDebug";
+import { resolveApiBaseUrl } from "@/services/axiosInstance";
 import logoV1 from "@/assets/LogoKConnecta_V1.png";
 
 export const LoginPage = (props: { redirectTo?: string }) => {
@@ -14,23 +16,34 @@ export const LoginPage = (props: { redirectTo?: string }) => {
   const notify = useNotify();
   const [searchParams] = useSearchParams();
 
+  const [apiNotice, setApiNotice] = useState(false);
+
+  useEffect(() => {
+    authDebug("login_page_mount", {
+      apiBase: resolveApiBaseUrl() || "(vite proxy)",
+      search: window.location.search || "(none)",
+    });
+    if (consumeLoginNotice() === "api_unreachable") {
+      setApiNotice(true);
+    }
+  }, []);
+
   const statusBanner = useMemo(() => {
-    const reason = searchParams.get("reason");
-    if (reason === "backend") {
+    if (apiNotice) {
       return {
-        title: "Không kết nối được máy chủ",
+        title: "Không kết nối được Admin API",
         description:
-          "Không kết nối được Admin API (Render có thể đang khởi động — đợi ~1 phút rồi thử lại). Xóa cache trang hoặc mở tab ẩn danh nếu vẫn lỗi.",
+          "Render có thể đang khởi động — mở /actuator/health, đợi UP rồi thử lại. Xem Console (F12) log [AdminAuth].",
       };
     }
-    if (reason === "session") {
+    if (searchParams.get("reason") === "session") {
       return {
         title: "Phiên đăng nhập đã hết hạn",
         description: "Vui lòng đăng nhập lại để tiếp tục.",
       };
     }
     return null;
-  }, [searchParams]);
+  }, [searchParams, apiNotice]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

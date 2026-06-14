@@ -1,5 +1,5 @@
 import { apiClient, resolveApiBaseUrl } from "@/services/axiosInstance";
-
+import { authDebug } from "@/lib/authDebug";
 const AUTH_STORAGE_KEY = "auth";
 
 export function getLoginPath(): string {
@@ -24,16 +24,12 @@ export function clearAuthSession(): void {
   localStorage.setItem("not_authenticated", "true");
 }
 
-export function redirectToLogin(reason?: "backend" | "session"): void {
+export function redirectToLogin(reason?: "session"): void {
   clearAuthSession();
   const loginPath = getLoginPath();
-  const suffix =
-    reason === "backend"
-      ? "?reason=backend"
-      : reason === "session"
-        ? "?reason=session"
-        : "";
+  const suffix = reason === "session" ? "?reason=session" : "";
   const target = `${loginPath}${suffix}`.replace(/\/+/g, "/");
+  authDebug("redirect_to_login", { reason: reason ?? "none", target });
   if (window.location.pathname + window.location.search !== target) {
     window.location.replace(target);
   }
@@ -67,13 +63,22 @@ export async function validateAuthSession(): Promise<AuthSessionStatus> {
   try {
     const apiBase = resolveApiBaseUrl();
     const isLocalBackend = !apiBase || apiBase.includes("localhost");
+    const timeout = isLocalBackend ? 8_000 : 60_000;
+    authDebug("validate_session_start", { apiBase: apiBase || "(vite proxy)", timeout });
     await apiClient.get("/api/v1/admin/stats/online", {
-      timeout: isLocalBackend ? 8_000 : 60_000,
+      timeout,
       headers: { "Cache-Control": "no-cache" },
     });
+    authDebug("validate_session_ok");
     return "ok";
   } catch (error: unknown) {
-    const status = (error as { response?: { status?: number } })?.response?.status;
+    const err = error as { response?: { status?: number }; code?: string; message?: string };
+    const status = err?.response?.status;
+    authDebug("validate_session_error", {
+      status: status ?? "no_response",
+      code: err?.code,
+      message: err?.message,
+    });
     if (status === 401 || status === 403) {
       return "invalid";
     }

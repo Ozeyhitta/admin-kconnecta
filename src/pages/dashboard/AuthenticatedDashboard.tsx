@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuthenticated } from "ra-core";
 import { Spinner } from "@/components/admin/spinner";
 import { validateAuthSession, redirectToLogin, hasStoredAuth } from "@/lib/authSession";
+import { setLoginNotice } from "@/lib/authDebug";
 import { Dashboard } from "./Dashboard";
 
 /**
@@ -31,7 +32,12 @@ export function AuthenticatedDashboard() {
       if (status !== "ok") {
         setSessionValid(false);
         setSessionPending(false);
-        redirectToLogin(status === "backend_down" ? "backend" : "session");
+        if (status === "backend_down") {
+          setLoginNotice("api_unreachable");
+          redirectToLogin();
+        } else {
+          redirectToLogin("session");
+        }
         return;
       }
 

@@ -1,6 +1,7 @@
 import axios, { AxiosHeaders } from "axios";
 import { getAdminToken } from "@/lib/currentAdminUser";
 import { clearAuthSession, getLoginPath, isLoginPath } from "@/lib/authSession";
+import { authDebug, setLoginNotice } from "@/lib/authDebug";
 
 const PRODUCTION_API_URL = "https://admin-kconnecta.onrender.com";
 
@@ -18,7 +19,14 @@ export const apiClient = axios.create({
   timeout: 30_000,
 });
 
+authDebug("api_client_init", { baseURL: resolveApiBaseUrl() || "(vite proxy)" });
+
 apiClient.interceptors.request.use((config) => {
+  authDebug("api_request", {
+    method: config.method,
+    url: config.url,
+    baseURL: config.baseURL,
+  });
   const token = getAdminToken();
   if (!token) return config;
 
@@ -30,9 +38,18 @@ apiClient.interceptors.request.use((config) => {
 });
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    authDebug("api_response", { status: response.status, url: response.config.url });
+    return response;
+  },
   (error) => {
     const status = error?.response?.status;
+    authDebug("api_error", {
+      status: status ?? "no_response",
+      code: error?.code,
+      message: error?.message,
+      url: error?.config?.url,
+    });
     if (status === 401 || status === 403) {
       clearAuthSession();
       if (!isLoginPath(window.location.pathname)) {
@@ -41,7 +58,8 @@ apiClient.interceptors.response.use(
     } else if (!error?.response) {
       clearAuthSession();
       if (!isLoginPath(window.location.pathname)) {
-        window.location.replace(`${getLoginPath()}?reason=backend`);
+        setLoginNotice("api_unreachable");
+        window.location.replace(getLoginPath());
       }
     }
     return Promise.reject(error);

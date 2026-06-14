@@ -1,19 +1,22 @@
 import { AuthProvider, HttpError } from "ra-core";
-import { apiClient } from "../services/axiosInstance";
+import { apiClient, resolveApiBaseUrl } from "../services/axiosInstance";
 import {
   clearAuthSession,
   hasStoredAuth,
   redirectToLogin,
 } from "@/lib/authSession";
+import { authDebug } from "@/lib/authDebug";
 
 export const authProvider: AuthProvider = {
   login: async ({ email, password }) => {
+    authDebug("login_start", { apiBase: resolveApiBaseUrl() || "(vite proxy)", email });
     try {
       const { data } = await apiClient.post("/api/v1/admin/auth/login", {
         email,
         password,
       });
       if (!data?.token || typeof data.token !== "string") {
+        authDebug("login_error", { reason: "missing_token" });
         return Promise.reject(
           new HttpError("Đăng nhập không trả về token", 500, { message: "Đăng nhập không trả về token" }),
         );
@@ -28,15 +31,22 @@ export const authProvider: AuthProvider = {
         }),
       );
       localStorage.removeItem("not_authenticated");
+      authDebug("login_ok", { email: data.email, role: data.role });
       return Promise.resolve();
     } catch (error: any) {
       localStorage.setItem("not_authenticated", "true");
       if (!error?.response) {
+        authDebug("login_error", {
+          reason: "network",
+          code: error?.code,
+          message: error?.message,
+        });
         const message =
-          "Không kết nối được máy chủ. Hãy khởi động Admin backend (port 8082) rồi thử lại.";
+          "Không kết nối được Admin API. Kiểm tra https://admin-kconnecta.onrender.com/actuator/health rồi thử lại.";
         return Promise.reject(new HttpError(message, 503, { message }));
       }
       const status = error.response?.status ?? 401;
+      authDebug("login_error", { reason: "http", status, message: error.response?.data?.message });
       const message =
         error.response?.data?.message ??
         (status === 404
