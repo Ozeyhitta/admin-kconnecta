@@ -9,4 +9,5 @@ public class PostStatsResponse {
     long reactionCount;
     long commentCount;
     long shareCount;
+    long reportCount;
 }

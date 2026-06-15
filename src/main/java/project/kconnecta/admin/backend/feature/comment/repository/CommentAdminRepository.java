@@ -18,16 +18,19 @@ public interface CommentAdminRepository extends JpaRepository<PostComment, UUID>
             "SELECT c FROM PostComment c LEFT JOIN FETCH c.user LEFT JOIN FETCH c.post " +
             "WHERE (:pattern IS NULL OR LOWER(c.content) LIKE :pattern) " +
             "  AND (:postId IS NULL OR c.post.id = :postId) " +
-            "  AND (:authorId IS NULL OR c.user.id = :authorId)",
+            "  AND (:authorId IS NULL OR c.user.id = :authorId) " +
+            "  AND (:status IS NULL OR c.status = :status)",
            countQuery =
             "SELECT COUNT(c) FROM PostComment c " +
             "WHERE (:pattern IS NULL OR LOWER(c.content) LIKE :pattern) " +
             "  AND (:postId IS NULL OR c.post.id = :postId) " +
-            "  AND (:authorId IS NULL OR c.user.id = :authorId)")
+            "  AND (:authorId IS NULL OR c.user.id = :authorId) " +
+            "  AND (:status IS NULL OR c.status = :status)")
     Page<PostComment> findAllFiltered(
             @Param("pattern") String pattern,
             @Param("postId") UUID postId,
             @Param("authorId") UUID authorId,
+            @Param("status") String status,
             Pageable pageable);
 
     @Query("SELECT c FROM PostComment c LEFT JOIN FETCH c.user LEFT JOIN FETCH c.post WHERE c.id = :id")

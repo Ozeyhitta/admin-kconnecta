@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Getter;
 import project.kconnecta.admin.backend.common.enums.PostPrivacy;
 import project.kconnecta.admin.backend.common.enums.PostStatus;
+import project.kconnecta.admin.backend.common.enums.ReportCategory;
 import project.kconnecta.admin.backend.entity.Post;
 
 import java.time.LocalDateTime;
@@ -28,8 +29,20 @@ public class PostAdminResponse {
     private LocalDateTime publishedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private long reportCount;
+    private ReportCategory latestReportCategory;
+    private String latestReportReason;
 
     public static PostAdminResponse from(Post post) {
+        return from(post, 0L, null, null);
+    }
+
+    public static PostAdminResponse from(
+            Post post,
+            long reportCount,
+            ReportCategory latestReportCategory,
+            String latestReportReason
+    ) {
         var author = post.getAuthor();
         return PostAdminResponse.builder()
                 .id(post.getId())
@@ -47,6 +60,9 @@ public class PostAdminResponse {
                 .publishedAt(post.getPublishedAt())
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
+                .reportCount(reportCount)
+                .latestReportCategory(latestReportCategory)
+                .latestReportReason(latestReportReason)
                 .build();
     }
 }

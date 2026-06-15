@@ -37,6 +37,13 @@ public class PostComment {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    // Trạng thái kiểm duyệt (APPROVED/PENDING/REJECTED) — map cột do user backend ghi.
+    @Column(name = "status", nullable = false, length = 20)
+    private String status;
+
+    @Column(name = "moderation_fail_reason", columnDefinition = "TEXT")
+    private String moderationFailReason;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

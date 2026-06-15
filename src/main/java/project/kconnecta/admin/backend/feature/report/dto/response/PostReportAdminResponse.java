@@ -2,6 +2,7 @@ package project.kconnecta.admin.backend.feature.report.dto.response;
 
 import lombok.Builder;
 import lombok.Getter;
+import project.kconnecta.admin.backend.common.enums.ReportCategory;
 import project.kconnecta.admin.backend.entity.Post;
 import project.kconnecta.admin.backend.entity.PostReport;
 import project.kconnecta.admin.backend.entity.User;
@@ -23,6 +24,7 @@ public class PostReportAdminResponse {
     private String reporterUsername;
     private String reporterFullName;
     private String reporterAvatarUrl;
+    private ReportCategory category;
     private String reason;
     private LocalDateTime createdAt;
 
@@ -43,6 +45,7 @@ public class PostReportAdminResponse {
                 .reporterUsername(reporter != null ? reporter.getUsername() : null)
                 .reporterFullName(reporter != null ? reporter.getFullName() : null)
                 .reporterAvatarUrl(reporter != null ? reporter.getAvatarUrl() : null)
+                .category(report.getCategory())
                 .reason(report.getReason())
                 .createdAt(report.getCreatedAt())
                 .build();

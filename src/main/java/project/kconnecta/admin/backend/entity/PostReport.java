@@ -2,6 +2,7 @@ package project.kconnecta.admin.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import project.kconnecta.admin.backend.common.enums.ReportCategory;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -40,6 +41,10 @@ public class PostReport {
 
     @Column(columnDefinition = "TEXT")
     private String reason;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", length = 30)
+    private ReportCategory category;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -20,6 +20,8 @@ public class CommentAdminResponse {
     private UUID parentCommentId;
     private String content;
     private boolean deleted;
+    private String status;
+    private String moderationFailReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -36,6 +38,8 @@ public class CommentAdminResponse {
                 .parentCommentId(parent != null ? parent.getId() : null)
                 .content(c.getContent())
                 .deleted(c.isDeleted())
+                .status(c.getStatus())
+                .moderationFailReason(c.getModerationFailReason())
                 .createdAt(c.getCreatedAt())
                 .updatedAt(c.getUpdatedAt())
                 .build();
