@@ -11,6 +11,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
+import { formatPostReportReason } from "@/lib/postReportDisplay";
 
 const shortDateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "short",
@@ -50,13 +51,13 @@ const PersonCell = ({ type }: { type: "reporter" | "author" }) => {
 const ReportContentCell = () => {
   const record = useRecordContext();
   if (!record) return null;
-  const reason = (record.reason ?? "").trim();
+  const reason = formatPostReportReason(record.reason, record.category);
   const postContent = (record.postContent ?? "").trim();
 
   return (
     <div className="min-w-0 space-y-1">
-      <p className="line-clamp-2 break-words text-sm leading-snug" title={reason || "reported-from-post-menu"}>
-        {reason || "Người dùng báo cáo từ menu bài viết"}
+      <p className="line-clamp-2 break-words text-sm leading-snug" title={reason}>
+        {reason}
       </p>
       <p className="line-clamp-1 break-words text-xs text-muted-foreground" title={postContent}>
         {postContent || "Bài viết không có nội dung chữ"}
@@ -92,19 +93,19 @@ export const PostReportList = () => {
         </div>
       }
     >
-      <div className="flex h-full flex-row gap-4">
-        <SidebarFilters />
+      <div className="flex h-full flex-col gap-4">
+        <TopFilters />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto">
             <DataTable
               rowClick={(_id, _resource, record) => `/posts/${record.postId}/show`}
-              className="min-w-[760px] [&_[data-slot=table-container]]:overflow-visible [&_[data-slot=table]]:table-fixed [&_[data-slot=table]]:w-full"
+              className="min-w-[900px] [&_[data-slot=table-container]]:overflow-visible [&_[data-slot=table]]:table-fixed [&_[data-slot=table]]:w-full"
             >
               <DataTable.Col
                 source="reporterFullName"
                 label="Người báo cáo"
                 cellClassName="min-w-0 overflow-hidden py-2 align-middle"
-                className="min-w-[11rem] w-[20%]"
+                className="w-48"
               >
                 <PersonCell type="reporter" />
               </DataTable.Col>
@@ -113,7 +114,7 @@ export const PostReportList = () => {
                 source="postAuthorFullName"
                 label="Tác giả bài viết"
                 cellClassName="min-w-0 overflow-hidden py-2 align-middle"
-                className="hidden min-w-[11rem] w-[20%] md:table-cell"
+                className="hidden md:table-cell w-48"
               >
                 <PersonCell type="author" />
               </DataTable.Col>
@@ -121,8 +122,7 @@ export const PostReportList = () => {
               <DataTable.Col
                 source="reason"
                 label="Nội dung báo cáo"
-                cellClassName="min-w-0 overflow-hidden py-2 align-middle"
-                className="min-w-[15rem] w-[36%]"
+                cellClassName="min-w-0 overflow-hidden py-2 align-middle whitespace-normal"
               >
                 <ReportContentCell />
               </DataTable.Col>
@@ -130,7 +130,7 @@ export const PostReportList = () => {
               <DataTable.Col
                 source="createdAt"
                 label="Thời gian"
-                className="hidden w-[10rem] min-w-[10rem] lg:table-cell"
+                className="hidden lg:table-cell w-40"
                 cellClassName="py-2 align-middle text-sm whitespace-nowrap tabular-nums"
                 render={(record) =>
                   record.createdAt ? shortDateFormatter.format(new Date(record.createdAt)) : "-"
@@ -157,21 +157,23 @@ export const PostReportList = () => {
   );
 };
 
-const SidebarFilters = () => (
-  <div className="hidden min-w-48 shrink-0 md:block">
+const TopFilters = () => (
+  <div className="w-full bg-card p-3 rounded-lg border">
     <FilterLiveForm>
-      <TextInput
-        source="q"
-        placeholder="Tìm báo cáo..."
-        label={false}
-        className="mb-4"
-      />
-      <TextInput
-        source="postId"
-        placeholder="Lọc theo ID bài..."
-        label={false}
-        className="mb-4"
-      />
+      <div className="flex flex-wrap items-center gap-3">
+        <TextInput
+          source="q"
+          placeholder="Tìm báo cáo..."
+          label={false}
+          className="w-full sm:w-64"
+        />
+        <TextInput
+          source="postId"
+          placeholder="Lọc theo ID bài..."
+          label={false}
+          className="w-full sm:w-48"
+        />
+      </div>
     </FilterLiveForm>
   </div>
 );

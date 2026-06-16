@@ -17,6 +17,8 @@ export type ShowButtonProps = {
   icon?: React.ReactNode;
   record?: RaRecord;
   resource?: string;
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  size?: "default" | "sm" | "lg" | "icon";
 } & React.AnchorHTMLAttributes<HTMLAnchorElement>;
 
 /**
@@ -39,6 +41,8 @@ export const ShowButton = (props: ShowButtonProps) => {
     icon,
     record: _record,
     resource: _resource,
+    variant = "outline",
+    size = "default",
     ...rest
   } = props;
   const resource = useResourceContext(props);
@@ -67,7 +71,7 @@ export const ShowButton = (props: ShowButtonProps) => {
   });
   return (
     <Link
-      className={buttonVariants({ variant: "outline" })}
+      className={buttonVariants({ variant, size })}
       to={link}
       onClick={stopPropagation}
       aria-label={typeof label === "string" ? label : undefined}

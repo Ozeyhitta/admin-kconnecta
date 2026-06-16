@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { useRecordContext, useTranslate, FilterLiveForm } from "ra-core";
 import {
   ColumnsButton,
@@ -11,7 +10,7 @@ import {
   ShowButton,
 } from "@/components/admin";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, User, CheckCircle } from "lucide-react";
+import { ShieldCheck, User } from "lucide-react";
 import { FullNameField } from "./FullNameField";
 import { isCurrentAdminUser } from "@/lib/currentAdminUser";
 import { LockUserButton } from "./LockUserButton";
@@ -84,61 +83,65 @@ export const CustomerList = () => {
         </div>
       }
     >
-      <div className="flex flex-row gap-4 mb-4">
-        <SidebarFilters />
+      <div className="flex flex-col gap-4">
+        <TopFilters />
         <div className="flex-1 min-w-0">
-          <DataTable>
-            <DataTable.Col label="User" source="fullName">
-              <FullNameField />
-            </DataTable.Col>
+          <div className="overflow-x-auto overflow-y-auto">
+            <DataTable className="min-w-[1000px] [&_[data-slot=table-container]]:overflow-visible [&_[data-slot=table]]:table-fixed [&_[data-slot=table]]:w-full">
+              <DataTable.Col label="User" source="fullName" className="w-56">
+                <FullNameField />
+              </DataTable.Col>
 
-            <DataTable.Col
-              source="email"
-              label="Email"
-              className="hidden md:table-cell"
-            />
+              <DataTable.Col
+                source="email"
+                label="Email"
+                className="hidden md:table-cell"
+                cellClassName="whitespace-normal overflow-hidden truncate"
+              />
 
-            <DataTable.Col
-              source="status"
-              label="Status"
-              className="hidden md:table-cell"
-            >
-              <StatusBadge />
-            </DataTable.Col>
+              <DataTable.Col
+                source="status"
+                label="Status"
+                className="hidden md:table-cell w-28"
+              >
+                <StatusBadge />
+              </DataTable.Col>
 
-            <DataTable.Col
-              source="role"
-              label="Role"
-              className="hidden md:table-cell"
-            >
-              <RoleBadge />
-            </DataTable.Col>
+              <DataTable.Col
+                source="role"
+                label="Role"
+                className="hidden md:table-cell w-28"
+              >
+                <RoleBadge />
+              </DataTable.Col>
 
-            <DataTable.Col
-              source="lastActiveAt"
-              label="Last Active"
-              render={(record) =>
-                record.lastActiveAt
-                  ? shortDateFormatter.format(new Date(record.lastActiveAt))
-                  : "—"
-              }
-            />
+              <DataTable.Col
+                source="lastActiveAt"
+                label="Last Active"
+                className="w-36"
+                render={(record) =>
+                  record.lastActiveAt
+                    ? shortDateFormatter.format(new Date(record.lastActiveAt))
+                    : "—"
+                }
+              />
 
-            <DataTable.Col
-              source="createdAt"
-              label="Registered"
-              className="hidden md:table-cell"
-              render={(record) =>
-                record.createdAt
-                  ? shortDateFormatter.format(new Date(record.createdAt))
-                  : "—"
-              }
-            />
+              <DataTable.Col
+                source="createdAt"
+                label="Registered"
+                className="hidden md:table-cell w-36"
+                render={(record) =>
+                  record.createdAt
+                    ? shortDateFormatter.format(new Date(record.createdAt))
+                    : "—"
+                }
+              />
 
-            <DataTable.Col label={false} source="id" className="w-24 text-right">
-              <UserRowActions />
-            </DataTable.Col>
-          </DataTable>
+              <DataTable.Col label={false} source="id" className="w-24 text-right">
+                <UserRowActions />
+              </DataTable.Col>
+            </DataTable>
+          </div>
           <ListPagination className="justify-start mt-2" />
         </div>
       </div>
@@ -146,47 +149,35 @@ export const CustomerList = () => {
   );
 };
 
-const SidebarFilters = () => {
+const TopFilters = () => {
   const translate = useTranslate();
   return (
-    <div className="min-w-48 hidden md:block">
-      <FilterLiveForm>
-        <TextInput
-          source="q"
-          placeholder={translate("ra.action.search")}
-          label={false}
-          className="mb-6"
-        />
-      </FilterLiveForm>
+    <div className="w-full bg-card p-3 rounded-lg border flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="flex-1 min-w-[240px]">
+        <FilterLiveForm>
+          <TextInput
+            source="q"
+            placeholder={translate("ra.action.search")}
+            label={false}
+            className="w-full sm:w-64"
+          />
+        </FilterLiveForm>
+      </div>
 
-      <FilterCategory icon={<CheckCircle size={16} />} label="Status">
-        <ToggleFilterButton label="Active" value={{ status: "ACTIVE" }} />
-        <ToggleFilterButton label="Blocked" value={{ status: "BLOCKED" }} />
-        <ToggleFilterButton label="Deleted" value={{ status: "DELETED" }} />
-      </FilterCategory>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-muted-foreground mr-1">Status:</span>
+          <ToggleFilterButton label="Active" value={{ status: "ACTIVE" }} className="w-auto" />
+          <ToggleFilterButton label="Blocked" value={{ status: "BLOCKED" }} className="w-auto" />
+          <ToggleFilterButton label="Deleted" value={{ status: "DELETED" }} className="w-auto" />
+        </div>
 
-      <FilterCategory icon={<ShieldCheck size={16} />} label="Role">
-        <ToggleFilterButton label="User" value={{ role: "USER" }} />
-        <ToggleFilterButton label="Admin" value={{ role: "ADMIN" }} />
-      </FilterCategory>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-muted-foreground mr-1">Role:</span>
+          <ToggleFilterButton label="User" value={{ role: "USER" }} className="w-auto" />
+          <ToggleFilterButton label="Admin" value={{ role: "ADMIN" }} className="w-auto" />
+        </div>
+      </div>
     </div>
   );
 };
-
-const FilterCategory = ({
-  icon,
-  label,
-  children,
-}: {
-  icon: ReactNode;
-  label: string;
-  children?: ReactNode;
-}) => (
-  <>
-    <h3 className="flex flex-row items-center gap-2 mb-1 font-bold text-sm">
-      {icon}
-      <span>{label}</span>
-    </h3>
-    <div className="flex flex-col items-start ml-3 mb-4">{children}</div>
-  </>
-);

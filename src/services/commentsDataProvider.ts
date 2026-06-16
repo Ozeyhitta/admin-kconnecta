@@ -8,7 +8,7 @@ export const commentsDataProvider: CommentMethods = {
   getList: async (_resource, params) => {
     const { page = 1, perPage = 20 } = params.pagination ?? {};
     const { field = "createdAt", order = "DESC" } = params.sort ?? {};
-    const { q, postId, authorId } = params.filter ?? {};
+    const { q, postId, authorId, status } = params.filter ?? {};
 
     const { data } = await apiClient.get("/api/v1/admin/comments", {
       params: {
@@ -19,6 +19,7 @@ export const commentsDataProvider: CommentMethods = {
         ...(q ? { search: q } : {}),
         ...(postId ? { postId } : {}),
         ...(authorId ? { authorId } : {}),
+        ...(status ? { status } : {}),
       },
     });
 

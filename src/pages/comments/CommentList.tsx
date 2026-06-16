@@ -1,17 +1,21 @@
+import { useState } from "react";
 import type { RaRecord } from "ra-core";
-import { useRecordContext, FilterLiveForm } from "ra-core";
+import { useRecordContext, FilterLiveForm, useRefresh, useNotify } from "ra-core";
 import { Link } from "react-router";
 import {
   DataTable,
   ExportButton,
   List,
   TextInput,
+  AutocompleteInput,
   ListPagination,
   DeleteButton,
 } from "@/components/admin";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Check, X } from "lucide-react";
+import { apiClient } from "@/services/axiosInstance";
 
 const shortDateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "short",
@@ -51,6 +55,76 @@ const AuthorCell = () => {
           </span>
         ) : null}
       </div>
+    </div>
+  );
+};
+
+const STATUS_META: Record<string, { label: string; className: string }> = {
+  APPROVED: { label: "Đã duyệt", className: "border-green-300 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300" },
+  PENDING: { label: "Chờ duyệt", className: "border-yellow-300 bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300" },
+  REJECTED: { label: "Từ chối", className: "border-red-300 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300" },
+};
+
+const StatusCell = () => {
+  const record = useRecordContext();
+  if (!record?.status) return <span className="text-muted-foreground">—</span>;
+  const meta = STATUS_META[record.status] ?? { label: String(record.status), className: "" };
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <Badge variant="outline" className={meta.className}>{meta.label}</Badge>
+      {record.status === "REJECTED" && record.moderationFailReason ? (
+        <span className="line-clamp-2 text-xs text-muted-foreground" title={record.moderationFailReason}>
+          {record.moderationFailReason}
+        </span>
+      ) : null}
+    </div>
+  );
+};
+
+// Nút duyệt/từ chối — chỉ hiện cho comment PENDING. Gọi admin backend (proxy sang user backend).
+const ModerationActions = () => {
+  const record = useRecordContext();
+  const refresh = useRefresh();
+  const notify = useNotify();
+  const [busy, setBusy] = useState(false);
+  if (!record || record.status !== "PENDING") return null;
+
+  const approve = async () => {
+    setBusy(true);
+    try {
+      await apiClient.post(`/api/v1/admin/comments/${record.id}/approve`);
+      notify("Đã duyệt bình luận", { type: "success" });
+      refresh();
+    } catch {
+      notify("Duyệt bình luận thất bại", { type: "error" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reject = async () => {
+    const reason = window.prompt("Lý do từ chối (tuỳ chọn):", "");
+    if (reason === null) return; // người dùng huỷ
+    setBusy(true);
+    try {
+      await apiClient.post(`/api/v1/admin/comments/${record.id}/reject`, { reason });
+      notify("Đã từ chối bình luận", { type: "success" });
+      refresh();
+    } catch {
+      notify("Từ chối bình luận thất bại", { type: "error" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <Button size="sm" variant="ghost" className="h-8 px-2 text-green-600" onClick={approve} disabled={busy} title="Duyệt">
+        <Check className="h-4 w-4" />
+      </Button>
+      <Button size="sm" variant="ghost" className="h-8 px-2 text-red-600" onClick={reject} disabled={busy} title="Từ chối">
+        <X className="h-4 w-4" />
+      </Button>
     </div>
   );
 };
@@ -95,25 +169,26 @@ export const CommentList = () => {
         </div>
       }
     >
-      <div className="flex h-full flex-row gap-4">
-        <SidebarFilters />
+      <div className="flex h-full flex-col gap-4">
+        <TopFilters />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto">
-            <DataTable className="min-w-[680px] [&_[data-slot=table-container]]:overflow-visible [&_[data-slot=table]]:table-fixed [&_[data-slot=table]]:w-full">
+            <DataTable className="min-w-[1000px] [&_[data-slot=table-container]]:overflow-visible [&_[data-slot=table]]:table-fixed [&_[data-slot=table]]:w-full">
               <DataTable.Col
                 source="id"
                 label="ID"
-                className="w-[10rem] min-w-[10rem] max-w-[10rem]"
-                headerClassName="max-w-[10rem] overflow-hidden truncate"
-                cellClassName="min-w-0 max-w-[10rem] overflow-hidden whitespace-normal py-2 align-middle"
+                className="hidden sm:table-cell w-24 text-muted-foreground"
+                headerClassName="overflow-hidden truncate"
+                cellClassName="min-w-0 overflow-hidden py-2 align-middle"
                 render={(record) => <CommentIdCell record={record} />}
               />
 
               <DataTable.Col
                 source="authorFullName"
                 label="Người bình luận"
+                headerClassName="overflow-hidden truncate"
                 cellClassName="min-w-0 overflow-hidden py-2 align-middle"
-                className="min-w-[10rem] w-[22%]"
+                className="w-48"
               >
                 <AuthorCell />
               </DataTable.Col>
@@ -121,8 +196,7 @@ export const CommentList = () => {
               <DataTable.Col
                 source="content"
                 label="Nội dung"
-                cellClassName="min-w-0 overflow-hidden py-2 align-middle"
-                className="min-w-[12rem] w-[37%]"
+                cellClassName="min-w-0 overflow-hidden py-2 align-middle whitespace-normal"
               >
                 <ContentCell />
               </DataTable.Col>
@@ -131,14 +205,24 @@ export const CommentList = () => {
                 source="postId"
                 label="Bài đăng"
                 cellClassName="min-w-0 overflow-hidden py-2 align-middle"
-                className="hidden w-[7.5rem] min-w-[6rem] lg:table-cell text-muted-foreground"
+                className="hidden md:table-cell w-28 text-muted-foreground"
                 render={(record) => <PostIdCell record={record} />}
               />
 
               <DataTable.Col
+                source="status"
+                label="Trạng thái"
+                headerClassName="overflow-hidden truncate"
+                className="w-28"
+                cellClassName="min-w-0 py-2 align-middle"
+              >
+                <StatusCell />
+              </DataTable.Col>
+
+              <DataTable.Col
                 source="createdAt"
                 label="Thời gian"
-                className="w-[9rem] min-w-[9rem] max-w-[9rem]"
+                className="w-36"
                 headerClassName="overflow-hidden whitespace-normal py-2 text-left align-top leading-tight [&_button]:m-0 [&_button]:max-w-full [&_button]:w-full [&_button]:justify-start [&_button]:px-1"
                 cellClassName="py-2 align-middle text-sm whitespace-nowrap tabular-nums"
                 render={(record) =>
@@ -146,9 +230,10 @@ export const CommentList = () => {
                 }
               />
 
-              <DataTable.Col label="" source="actions" cellClassName="py-2 align-middle" className="w-16 text-right">
-                <div className="flex justify-end">
-                  <DeleteButton size="sm" variant="ghost" mutationMode="pessimistic" />
+              <DataTable.Col label="" source="actions" cellClassName="py-2 align-middle" className="w-28 text-right">
+                <div className="flex items-center justify-end gap-1">
+                  <ModerationActions />
+                  <DeleteButton label="" size="sm" variant="ghost" />
                 </div>
               </DataTable.Col>
             </DataTable>
@@ -160,22 +245,35 @@ export const CommentList = () => {
   );
 };
 
-const SidebarFilters = () => {
+const TopFilters = () => {
   return (
-    <div className="hidden min-w-48 shrink-0 md:block">
+    <div className="w-full bg-card p-3 rounded-lg border">
       <FilterLiveForm>
-        <TextInput
-          source="q"
-          placeholder="Tìm theo nội dung..."
-          label={false}
-          className="mb-4"
-        />
-        <TextInput
-          source="postId"
-          placeholder="Lọc theo ID bài đăng..."
-          label={false}
-          className="mb-4"
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <TextInput
+            source="q"
+            placeholder="Tìm theo nội dung..."
+            label={false}
+            className="w-full sm:w-64"
+          />
+          <TextInput
+            source="postId"
+            placeholder="Lọc theo ID bài đăng..."
+            label={false}
+            className="w-full sm:w-48"
+          />
+          <AutocompleteInput
+            source="status"
+            placeholder="Lọc theo trạng thái..."
+            label={false}
+            className="w-full sm:w-48"
+            choices={[
+              { id: "PENDING", name: "Chờ duyệt" },
+              { id: "APPROVED", name: "Đã duyệt" },
+              { id: "REJECTED", name: "Từ chối" },
+            ]}
+          />
+        </div>
       </FilterLiveForm>
     </div>
   );

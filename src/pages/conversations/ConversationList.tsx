@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
+import { formatChatMessagePreview } from "@/lib/chatMessagePreview";
 
 const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "medium",
@@ -64,7 +65,7 @@ const UserPairCell = () => {
 const LastMessageCell = () => {
   const record = useRecordContext();
   if (!record) return null;
-  const text = record.lastMessageContent?.trim();
+  const text = formatChatMessagePreview(record.lastMessageContent);
   return text ? (
     <p className="line-clamp-2 max-w-md text-sm" title={text}>
       {text}
@@ -86,6 +87,21 @@ const ConversationActions = () => {
   );
 };
 
+const TopFilters = () => (
+  <div className="w-full bg-card p-3 rounded-lg border">
+    <FilterLiveForm>
+      <div className="flex flex-wrap items-center gap-3">
+        <TextInput
+          source="q"
+          placeholder="Tìm theo tên hoặc username..."
+          label={false}
+          className="w-full sm:w-80"
+        />
+      </div>
+    </FilterLiveForm>
+  </div>
+);
+
 export const ConversationList = () => {
   return (
     <List
@@ -98,58 +114,51 @@ export const ConversationList = () => {
         </div>
       }
     >
-      <div className="flex flex-row gap-4 mb-4">
-        <div className="min-w-56 hidden md:block">
-          <FilterLiveForm>
-            <TextInput
-              source="q"
-              placeholder="Tìm theo tên hoặc username..."
-              label={false}
-              className="mb-6"
-            />
-          </FilterLiveForm>
-        </div>
+      <div className="flex flex-col gap-4">
+        <TopFilters />
 
         <div className="flex-1 min-w-0">
-          <DataTable>
-            <DataTable.Col label="Người tham gia" source="user1FullName">
-              <UserPairCell />
-            </DataTable.Col>
-            <DataTable.Col label="Tin nhắn gần nhất" source="lastMessageContent">
-              <LastMessageCell />
-            </DataTable.Col>
-            <DataTable.Col
-              label="Số tin nhắn"
-              source="messageCount"
-              render={(record) => record.messageCount?.toLocaleString("vi-VN") ?? "0"}
-              className="hidden md:table-cell"
-            />
-            <DataTable.Col
-              label="Chưa đọc"
-              source="unreadCount"
-              render={(record) =>
-                record.unreadCount > 0 ? (
-                  <Badge variant="secondary">{record.unreadCount}</Badge>
-                ) : (
-                  <span className="text-muted-foreground">0</span>
-                )
-              }
-              className="hidden lg:table-cell"
-            />
-            <DataTable.Col
-              label="Cập nhật"
-              source="lastMessageAt"
-              render={(record) =>
-                record.lastMessageAt
-                  ? dateFormatter.format(new Date(record.lastMessageAt))
-                  : "—"
-              }
-              className="hidden lg:table-cell"
-            />
-            <DataTable.Col label={false} source="id" className="w-16 text-right">
-              <ConversationActions />
-            </DataTable.Col>
-          </DataTable>
+          <div className="overflow-x-auto overflow-y-auto">
+            <DataTable className="min-w-[900px] [&_[data-slot=table-container]]:overflow-visible [&_[data-slot=table]]:table-fixed [&_[data-slot=table]]:w-full">
+              <DataTable.Col label="Người tham gia" source="user1FullName" className="w-56">
+                <UserPairCell />
+              </DataTable.Col>
+              <DataTable.Col label="Tin nhắn gần nhất" source="lastMessageContent" cellClassName="whitespace-normal">
+                <LastMessageCell />
+              </DataTable.Col>
+              <DataTable.Col
+                label="Số tin nhắn"
+                source="messageCount"
+                render={(record) => record.messageCount?.toLocaleString("vi-VN") ?? "0"}
+                className="hidden md:table-cell w-28"
+              />
+              <DataTable.Col
+                label="Chưa đọc"
+                source="unreadCount"
+                render={(record) =>
+                  record.unreadCount > 0 ? (
+                    <Badge variant="secondary">{record.unreadCount}</Badge>
+                  ) : (
+                    <span className="text-muted-foreground">0</span>
+                  )
+                }
+                className="hidden lg:table-cell w-28"
+              />
+              <DataTable.Col
+                label="Cập nhật"
+                source="lastMessageAt"
+                render={(record) =>
+                  record.lastMessageAt
+                    ? dateFormatter.format(new Date(record.lastMessageAt))
+                    : "—"
+                }
+                className="hidden lg:table-cell w-44"
+              />
+              <DataTable.Col label={false} source="id" className="w-16 text-right">
+                <ConversationActions />
+              </DataTable.Col>
+            </DataTable>
+          </div>
           <ListPagination className="justify-start mt-2" />
         </div>
       </div>

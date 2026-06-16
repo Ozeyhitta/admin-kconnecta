@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatChatMessagePreview } from "@/lib/chatMessagePreview";
 
 const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "medium",
@@ -178,7 +179,7 @@ export const ConversationShow = () => {
                         {message.deleted ? (
                           <span className="italic text-muted-foreground">Tin nhắn đã bị xóa</span>
                         ) : (
-                          message.content || "Không có nội dung"
+                          formatChatMessagePreview(message.content) || "Không có nội dung"
                         )}
                       </p>
                       <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">

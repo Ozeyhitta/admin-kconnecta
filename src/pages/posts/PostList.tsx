@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { MapPin, Star } from "lucide-react";
+import { formatPostReportReason } from "@/lib/postReportDisplay";
 
 const shortDateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "short",
@@ -106,6 +107,29 @@ const ContentCell = () => {
   );
 };
 
+const ReportCell = () => {
+  const record = useRecordContext();
+  if (!record) return null;
+
+  const count = Number(record.reportCount ?? 0);
+  if (count <= 0) {
+    return <span className="text-sm text-muted-foreground">—</span>;
+  }
+
+  const summary = formatPostReportReason(record.latestReportReason, record.latestReportCategory);
+
+  return (
+    <div className="min-w-0 space-y-1">
+      <Badge variant="outline" className="border-orange-300 bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300">
+        {count.toLocaleString("vi-VN")} báo cáo
+      </Badge>
+      <p className="line-clamp-2 break-words text-xs leading-snug text-muted-foreground" title={summary}>
+        {summary}
+      </p>
+    </div>
+  );
+};
+
 export const PostList = () => {
   return (
     <List
@@ -119,16 +143,16 @@ export const PostList = () => {
         </div>
       }
     >
-      <div className="flex h-full flex-row gap-4">
-        <SidebarFilters />
+      <div className="flex h-full flex-col gap-4">
+        <TopFilters />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto">
-            <DataTable className="min-w-[720px] [&_[data-slot=table-container]]:overflow-visible [&_[data-slot=table]]:table-fixed [&_[data-slot=table]]:w-full">
+            <DataTable className="min-w-[900px] [&_[data-slot=table-container]]:overflow-visible [&_[data-slot=table]]:table-fixed [&_[data-slot=table]]:w-full">
               <DataTable.Col
                 source="authorFullName"
                 label="Tác giả"
                 cellClassName="min-w-0 overflow-hidden py-2 align-middle"
-                className="min-w-[11rem] w-[22%]"
+                className="w-56"
               >
                 <AuthorCell />
               </DataTable.Col>
@@ -136,8 +160,7 @@ export const PostList = () => {
               <DataTable.Col
                 source="content"
                 label="Nội dung / Metadata"
-                cellClassName="min-w-0 overflow-hidden py-2 align-middle"
-                className="min-w-[14rem] w-[41%]"
+                cellClassName="min-w-0 overflow-hidden py-2 align-middle whitespace-normal"
               >
                 <ContentCell />
               </DataTable.Col>
@@ -146,15 +169,24 @@ export const PostList = () => {
                 source="status"
                 label="Trạng thái"
                 cellClassName="py-2 align-middle"
-                className="w-28 whitespace-nowrap"
+                className="w-28"
               >
                 <StatusBadge />
               </DataTable.Col>
 
               <DataTable.Col
+                source="reportCount"
+                label="Báo cáo"
+                cellClassName="min-w-0 overflow-hidden py-2 align-middle whitespace-normal"
+                className="hidden lg:table-cell w-44"
+              >
+                <ReportCell />
+              </DataTable.Col>
+
+              <DataTable.Col
                 source="publishedAt"
                 label="Ngày đăng"
-                className="hidden w-[9rem] min-w-[9rem] max-w-[9rem] md:table-cell"
+                className="hidden w-36 md:table-cell"
                 headerClassName="overflow-hidden whitespace-normal py-2 text-left align-top leading-tight [&_button]:m-0 [&_button]:max-w-full [&_button]:w-full [&_button]:justify-start [&_button]:px-1"
                 cellClassName="py-2 align-middle text-sm whitespace-nowrap tabular-nums"
                 render={(r) =>
@@ -174,7 +206,7 @@ export const PostList = () => {
               >
                 <div className="flex justify-end gap-1">
                   <ShowButton label="" size="sm" variant="ghost" />
-                  <DeleteButton label="" size="sm" variant="ghost" mutationMode="pessimistic" />
+                  <DeleteButton label="" size="sm" variant="ghost" />
                 </div>
               </DataTable.Col>
             </DataTable>
@@ -186,23 +218,25 @@ export const PostList = () => {
   );
 };
 
-const SidebarFilters = () => (
-  <div className="hidden min-w-48 shrink-0 md:block">
-    <FilterLiveForm>
-      <TextInput
-        source="q"
-        placeholder="Tìm theo nội dung..."
-        label={false}
-        className="mb-6"
-      />
-    </FilterLiveForm>
+const TopFilters = () => (
+  <div className="w-full bg-card p-3 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="flex-1 min-w-[240px]">
+      <FilterLiveForm>
+        <TextInput
+          source="q"
+          placeholder="Tìm theo nội dung..."
+          label={false}
+          className="w-full sm:w-64"
+        />
+      </FilterLiveForm>
+    </div>
 
-    <h3 className="mb-1 font-bold text-sm">Trạng thái</h3>
-    <div className="mb-4 ml-3 flex flex-col items-start">
-      <ToggleFilterButton label="Hiển thị" value={{ status: "PUBLISHED" }} />
-      <ToggleFilterButton label="Bản nháp" value={{ status: "DRAFT" }} />
-      <ToggleFilterButton label="Đã lên lịch" value={{ status: "SCHEDULED" }} />
-      <ToggleFilterButton label="Đã xóa" value={{ status: "DELETED" }} />
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-sm font-semibold text-muted-foreground mr-1">Trạng thái:</span>
+      <ToggleFilterButton label="Hiển thị" value={{ status: "PUBLISHED" }} className="w-auto" />
+      <ToggleFilterButton label="Bản nháp" value={{ status: "DRAFT" }} className="w-auto" />
+      <ToggleFilterButton label="Đã lên lịch" value={{ status: "SCHEDULED" }} className="w-auto" />
+      <ToggleFilterButton label="Đã xóa" value={{ status: "DELETED" }} className="w-auto" />
     </div>
   </div>
 );

@@ -6,14 +6,12 @@ import {
   Calendar,
   Eye,
   EyeOff,
-  FileText,
   Globe,
   Heart,
   Lock,
   MapPin,
   MessageSquare,
   Share2,
-  ShieldAlert,
   Star,
   Trash2,
   Users,
@@ -32,11 +30,24 @@ import {
 } from "@/components/ui/dialog";
 import { Confirm } from "@/components/admin/confirm";
 import { apiClient } from "@/services/axiosInstance";
+import { formatPostReportReason } from "@/lib/postReportDisplay";
+import { getPageContent } from "@/services/pagination";
 
 interface PostStats {
   reactionCount: number;
   commentCount: number;
   shareCount: number;
+  reportCount?: number;
+}
+
+interface PostReport {
+  id: string;
+  reporterFullName?: string | null;
+  reporterUsername?: string | null;
+  reporterAvatarUrl?: string | null;
+  category?: string | null;
+  reason?: string | null;
+  createdAt?: string | null;
 }
 
 interface Comment {
@@ -181,6 +192,63 @@ const CommentsSection = ({ postId, refresh }: { postId: string; refresh: number 
   );
 };
 
+const ReportsSection = ({ postId, refresh }: { postId: string; refresh: number }) => {
+  const [reports, setReports] = React.useState<PostReport[] | null>(null);
+
+  React.useEffect(() => {
+    if (!postId) return;
+    apiClient
+      .get<{ content: PostReport[] }>("/api/v1/admin/post-reports", {
+        params: { postId, page: 0, size: 50, sortBy: "createdAt", sortDir: "desc" },
+      })
+      .then((r) => setReports(getPageContent(r.data)))
+      .catch(() => setReports([]));
+  }, [postId, refresh]);
+
+  if (reports === null) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <Skeleton key={i} className="h-16 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  if (reports.length === 0) {
+    return <p className="py-6 text-center text-sm text-muted-foreground">Chưa có báo cáo nào</p>;
+  }
+
+  return (
+    <div className="divide-y">
+      {reports.map((report) => {
+        const reporterName = report.reporterFullName ?? report.reporterUsername ?? "Người dùng";
+        const reason = formatPostReportReason(report.reason, report.category);
+        return (
+          <div key={report.id} className="flex gap-3 py-3">
+            <Avatar className="mt-0.5 h-7 w-7 shrink-0">
+              <AvatarImage src={report.reporterAvatarUrl ?? undefined} />
+              <AvatarFallback className="text-xs">{reporterName.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span className="text-sm font-medium">{reporterName}</span>
+                {report.reporterUsername ? (
+                  <span className="text-xs text-muted-foreground">@{report.reporterUsername}</span>
+                ) : null}
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                  {report.createdAt ? fmt.format(new Date(report.createdAt)) : "-"}
+                </span>
+              </div>
+              <p className="mt-1 break-words text-sm text-foreground/90">{reason}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 export const PostShow = () => {
   const { record, isLoading } = useShowController();
   const [update] = useUpdate();
@@ -192,6 +260,7 @@ export const PostShow = () => {
   const [stats, setStats] = React.useState<PostStats | undefined>();
   const [statsLoading, setStatsLoading] = React.useState(true);
   const [commentRefresh, setCommentRefresh] = React.useState(0);
+  const [reportRefresh, setReportRefresh] = React.useState(0);
   const [updatingVisibility, setUpdatingVisibility] = React.useState(false);
   const [deleteDialog, setDeleteDialog] = React.useState(false);
 
@@ -372,6 +441,22 @@ export const PostShow = () => {
               <CommentsSection postId={record.id} refresh={commentRefresh} />
             </CardContent>
           </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Báo cáo ({fmtNum.format(stats?.reportCount ?? 0)})
+                </p>
+                <button
+                  onClick={() => setReportRefresh((n) => n + 1)}
+                  className="cursor-pointer text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Làm mới
+                </button>
+              </div>
+              <ReportsSection postId={record.id} refresh={reportRefresh} />
+            </CardContent>
+          </Card>
         </div>
 
         <div className="space-y-4">
@@ -446,18 +531,13 @@ export const PostShow = () => {
               <InfoRow label="Cập nhật">
                 {record.updatedAt ? fmt.format(new Date(record.updatedAt)) : "-"}
               </InfoRow>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-4">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nhanh</p>
-              <div className="grid grid-cols-3 gap-2">
-                <QuickStat icon={FileText} color="text-sky-500" label="Bài đăng" />
-                <QuickStat icon={Eye} color="text-indigo-400" label="Xem" />
-                <QuickStat icon={ShieldAlert} color="text-orange-500" label="Báo cáo" />
-              </div>
-              <p className="mt-2 text-center text-xs text-muted-foreground">Tính năng đang phát triển</p>
+              {(stats?.reportCount ?? 0) > 0 ? (
+                <InfoRow label="Báo cáo">
+                  <span className="font-medium text-orange-600">
+                    {fmtNum.format(stats?.reportCount ?? 0)}
+                  </span>
+                </InfoRow>
+              ) : null}
             </CardContent>
           </Card>
         </div>
@@ -495,13 +575,5 @@ const InfoRow = ({ label, children }: { label: string; children: React.ReactNode
   <div className="flex justify-between gap-2">
     <span className="shrink-0 text-muted-foreground">{label}</span>
     <span className="text-right font-medium">{children}</span>
-  </div>
-);
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const QuickStat = ({ icon: Icon, color, label }: { icon: React.FC<any>; color: string; label: string }) => (
-  <div className="flex flex-col items-center gap-1 rounded bg-muted/40 p-2">
-    <Icon className={`h-4 w-4 ${color} opacity-60`} />
-    <span className="text-xs text-muted-foreground">{label}</span>
   </div>
 );
