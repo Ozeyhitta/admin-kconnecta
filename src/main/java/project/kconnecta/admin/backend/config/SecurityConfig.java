@@ -83,6 +83,9 @@ public class SecurityConfig {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);
+        // Actuator (e.g. /actuator/health) is called from the admin frontend on the login page;
+        // without a CORS mapping here the browser blocks it ("No 'Access-Control-Allow-Origin'").
+        source.registerCorsConfiguration("/actuator/**", config);
         return source;
     }
 
