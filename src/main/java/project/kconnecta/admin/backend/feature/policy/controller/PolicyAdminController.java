@@ -5,11 +5,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import project.kconnecta.admin.backend.config.security.AdminPrincipal;
+import project.kconnecta.admin.backend.feature.policy.dto.PolicyKeywordMergeResult;
 import project.kconnecta.admin.backend.feature.policy.service.PolicyAdminService;
 
 @RestController
@@ -32,5 +34,23 @@ public class PolicyAdminController {
                 ? principal.getName()
                 : "admin";
         return ResponseEntity.ok(policyAdminService.saveConfig(config, updatedBy));
+    }
+
+    @PostMapping("/merge-default-keywords")
+    public ResponseEntity<PolicyKeywordMergeResult> mergeDefaultKeywords(
+            @AuthenticationPrincipal AdminPrincipal principal) {
+        String updatedBy = principal != null && principal.getName() != null
+                ? principal.getName()
+                : "admin";
+        return ResponseEntity.ok(policyAdminService.mergeDefaultKeywords(updatedBy));
+    }
+
+    @PostMapping("/reset-to-default")
+    public ResponseEntity<JsonNode> resetToDefault(
+            @AuthenticationPrincipal AdminPrincipal principal) {
+        String updatedBy = principal != null && principal.getName() != null
+                ? principal.getName()
+                : "admin";
+        return ResponseEntity.ok(policyAdminService.resetToDefault(updatedBy));
     }
 }

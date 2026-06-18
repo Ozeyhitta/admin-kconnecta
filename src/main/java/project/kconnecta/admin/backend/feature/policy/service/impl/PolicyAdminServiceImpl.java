@@ -10,6 +10,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.nio.charset.StandardCharsets;
+import project.kconnecta.admin.backend.feature.policy.dto.PolicyKeywordMergeResult;
 import project.kconnecta.admin.backend.feature.policy.dto.PolicySaveRequest;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -64,6 +68,50 @@ public class PolicyAdminServiceImpl implements PolicyAdminService {
                 JsonNode.class
         );
         return response.getBody();
+    }
+
+    @Override
+    public PolicyKeywordMergeResult mergeDefaultKeywords(String updatedBy) {
+        HttpHeaders headers = internalHeaders();
+        String url = UriComponentsBuilder
+                .fromUriString(userServiceUrl + "/api/internal/policies/merge-default-keywords")
+                .queryParam("updatedBy", updatedBy != null && !updatedBy.isBlank() ? updatedBy : "admin-merge")
+                .encode(StandardCharsets.UTF_8)
+                .build()
+                .toUriString();
+        ResponseEntity<PolicyKeywordMergeResult> response = restTemplate.exchange(
+                url,
+                HttpMethod.POST,
+                new HttpEntity<>(headers),
+                PolicyKeywordMergeResult.class
+        );
+        PolicyKeywordMergeResult body = response.getBody();
+        if (body == null) {
+            throw new IllegalStateException("Empty merge response from user service");
+        }
+        return body;
+    }
+
+    @Override
+    public JsonNode resetToDefault(String updatedBy) {
+        HttpHeaders headers = internalHeaders();
+        String url = UriComponentsBuilder
+                .fromUriString(userServiceUrl + "/api/internal/policies/reset-to-default")
+                .queryParam("updatedBy", updatedBy != null && !updatedBy.isBlank() ? updatedBy : "admin-reset")
+                .encode(StandardCharsets.UTF_8)
+                .build()
+                .toUriString();
+        ResponseEntity<JsonNode> response = restTemplate.exchange(
+                url,
+                HttpMethod.POST,
+                new HttpEntity<>(headers),
+                JsonNode.class
+        );
+        JsonNode body = response.getBody();
+        if (body == null) {
+            throw new IllegalStateException("Empty reset response from user service");
+        }
+        return body;
     }
 
     private HttpHeaders internalHeaders() {

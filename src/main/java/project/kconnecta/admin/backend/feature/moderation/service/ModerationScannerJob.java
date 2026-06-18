@@ -23,7 +23,7 @@ public class ModerationScannerJob {
     private final ChatSpamDetector chatSpamDetector;
     private final ChatModerationLogService chatModerationLogService;
     private final AdminAlertService adminAlertService;
-    private final ChatRestrictionService chatRestrictionService;
+    private final ViolationPenaltyService violationPenaltyService;
 
     private volatile LocalDateTime lastScannedAt;
 
@@ -32,13 +32,13 @@ public class ModerationScannerJob {
             ChatSpamDetector chatSpamDetector,
             ChatModerationLogService chatModerationLogService,
             AdminAlertService adminAlertService,
-            ChatRestrictionService chatRestrictionService
+            ViolationPenaltyService violationPenaltyService
     ) {
         this.jdbc = jdbc;
         this.chatSpamDetector = chatSpamDetector;
         this.chatModerationLogService = chatModerationLogService;
         this.adminAlertService = adminAlertService;
-        this.chatRestrictionService = chatRestrictionService;
+        this.violationPenaltyService = violationPenaltyService;
         this.lastScannedAt = LocalDateTime.now().minusMinutes(3);
     }
 
@@ -49,7 +49,6 @@ public class ModerationScannerJob {
 
         List<ChatSpamDetector.MessageData> allMessages = fetchMessages(since);
 
-        // Group by sender
         Map<UUID, List<ChatSpamDetector.MessageData>> bySender = new LinkedHashMap<>();
         for (ChatSpamDetector.MessageData msg : allMessages) {
             bySender.computeIfAbsent(msg.senderId(), k -> new ArrayList<>()).add(msg);
@@ -78,16 +77,11 @@ public class ModerationScannerJob {
                 }
             }
 
-            // Auto-restrict if >= 5 violations in last 24h and no existing active restriction
             if (!violations.isEmpty()) {
                 try {
-                    long count24h = chatModerationLogService.countViolationsForUserLast24h(userId);
-                    if (count24h >= 5 && !chatRestrictionService.isCurrentlyRestricted(userId)) {
-                        chatRestrictionService.restrict(userId, 24, "자동 5회 이상 위phạm trong 24h", "SYSTEM");
-                        log.info("Auto-restricted user {} due to {} violations in 24h", userId, count24h);
-                    }
+                    violationPenaltyService.applyForNewViolations(userId, violations);
                 } catch (Exception e) {
-                    log.warn("Failed to check/apply auto-restriction for user {}: {}", userId, e.getMessage());
+                    log.warn("Failed to apply violation policy for user {}: {}", userId, e.getMessage());
                 }
             }
         }
@@ -100,8 +94,8 @@ public class ModerationScannerJob {
         MapSqlParameterSource params = new MapSqlParameterSource().addValue("since", since);
         return jdbc.query(
                 "SELECT id, sender_id, content, created_at FROM chat_messages " +
-                "WHERE created_at > :since AND deleted = false " +
-                "ORDER BY sender_id, created_at",
+                        "WHERE created_at > :since AND deleted = false " +
+                        "ORDER BY sender_id, created_at",
                 params,
                 (rs, rowNum) -> new ChatSpamDetector.MessageData(
                         rs.getObject("id", UUID.class),
