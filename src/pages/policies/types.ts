@@ -17,7 +17,7 @@ export interface CommunityRule {
   severity: Severity;
 }
 
-export type KeywordCategory = "blacklist" | "sensitive" | "blocked_domain";
+export type KeywordCategory = "blacklist" | "watchlist" | "blocked_domain";
 
 export interface KeywordEntry {
   id: string;
@@ -149,22 +149,6 @@ export interface PolicyAuditEntry {
   afterJson: string;
 }
 
-export type AiInsightType =
-  | "keyword_spike"
-  | "toxic_topic"
-  | "spam_cluster"
-  | "new_violation_trend";
-
-export interface AiInsight {
-  id: string;
-  type: AiInsightType;
-  title: string;
-  description: string;
-  changePercent?: number;
-  severity: Severity;
-  periodDays: number;
-}
-
 export interface PolicyConfig {
   communityRules: CommunityRule[];
   keywords: KeywordEntry[];
@@ -187,6 +171,4 @@ export type PolicySectionKey =
   | "posts"
 
   | "recommendation"
-  | "audit"
-  | "insights"
-  | "rules";
+  | "audit";

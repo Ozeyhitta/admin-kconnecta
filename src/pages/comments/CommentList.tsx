@@ -15,6 +15,12 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Check, X } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { apiClient } from "@/services/axiosInstance";
 
 const shortDateFormatter = new Intl.DateTimeFormat("vi-VN", {
@@ -70,14 +76,31 @@ const StatusCell = () => {
   if (!record?.status) return <span className="text-muted-foreground">—</span>;
   const meta = STATUS_META[record.status] ?? { label: String(record.status), className: "" };
   return (
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <Badge variant="outline" className={meta.className}>{meta.label}</Badge>
-      {record.status === "REJECTED" && record.moderationFailReason ? (
-        <span className="line-clamp-2 text-xs text-muted-foreground" title={record.moderationFailReason}>
-          {record.moderationFailReason}
-        </span>
-      ) : null}
-    </div>
+    <Badge variant="outline" className={`${meta.className} whitespace-nowrap`}>
+      {meta.label}
+    </Badge>
+  );
+};
+
+const ModerationReasonCell = () => {
+  const record = useRecordContext();
+  const reason = (record?.moderationFailReason ?? "").trim();
+  if (!reason) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <p className="line-clamp-3 cursor-help text-xs leading-snug text-muted-foreground break-words whitespace-normal">
+            {reason}
+          </p>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="max-w-sm text-xs leading-relaxed">
+          {reason}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
@@ -173,7 +196,7 @@ export const CommentList = () => {
         <TopFilters />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto">
-            <DataTable className="min-w-[1000px] [&_[data-slot=table-container]]:overflow-visible [&_[data-slot=table]]:table-fixed [&_[data-slot=table]]:w-full">
+            <DataTable className="min-w-[1100px] [&_[data-slot=table-container]]:overflow-visible [&_[data-slot=table]]:table-fixed [&_[data-slot=table]]:w-full">
               <DataTable.Col
                 source="id"
                 label="ID"
@@ -213,10 +236,20 @@ export const CommentList = () => {
                 source="status"
                 label="Trạng thái"
                 headerClassName="overflow-hidden truncate"
-                className="w-28"
+                className="w-24"
                 cellClassName="min-w-0 py-2 align-middle"
               >
                 <StatusCell />
+              </DataTable.Col>
+
+              <DataTable.Col
+                source="moderationFailReason"
+                label="Lý do kiểm duyệt"
+                headerClassName="overflow-hidden whitespace-normal py-2 text-left align-top leading-tight"
+                className="w-64 min-w-[14rem]"
+                cellClassName="min-w-0 py-2 align-middle whitespace-normal"
+              >
+                <ModerationReasonCell />
               </DataTable.Col>
 
               <DataTable.Col

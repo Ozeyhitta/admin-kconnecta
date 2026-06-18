@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -156,3 +157,73 @@ export const WeightSlider = ({
 }) => (
   <RangeField label={label} value={value} min={0} max={100} step={5} unit="%" onChange={onChange} />
 );
+
+/** Numeric policy field — allows clearing while typing without snapping to 0 (avoids "0100"). */
+export const PolicyNumberInput = ({
+  value,
+  onChange,
+  className,
+  min = 0,
+  onBlur,
+  onFocus,
+  ...props
+}: Omit<ComponentProps<typeof Input>, "type" | "value" | "onChange"> & {
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+}) => {
+  const [draft, setDraft] = useState(String(value));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) {
+      setDraft(String(value));
+    }
+  }, [value, focused]);
+
+  const commit = () => {
+    if (draft === "") {
+      setDraft(String(value));
+      return;
+    }
+    const parsed = Number(draft);
+    if (!Number.isFinite(parsed)) {
+      setDraft(String(value));
+      return;
+    }
+    const next = Math.max(min, parsed);
+    onChange(next);
+    setDraft(String(next));
+  };
+
+  return (
+    <Input
+      {...props}
+      type="text"
+      inputMode="numeric"
+      className={cn(className)}
+      value={draft}
+      onFocus={(e) => {
+        setFocused(true);
+        onFocus?.(e);
+      }}
+      onChange={(e) => {
+        const raw = e.target.value;
+        if (raw === "") {
+          setDraft("");
+          return;
+        }
+        if (!/^\d+$/.test(raw)) {
+          return;
+        }
+        setDraft(raw);
+        onChange(Number(raw));
+      }}
+      onBlur={(e) => {
+        setFocused(false);
+        commit();
+        onBlur?.(e);
+      }}
+    />
+  );
+};

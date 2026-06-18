@@ -134,7 +134,7 @@ const EXACT_LABELS: Record<string, string> = {
   "recommendation.weights.newContent": "Đề xuất - Trọng số nội dung mới",
 };
 
-const SECTION_PREFIX_LABELS: Record<string, string> = {
+export const SECTION_PREFIX_LABELS: Record<string, string> = {
   communityRules: "Quy tắc cộng đồng",
   keywords: "Từ khóa",
   violationPolicies: "Xử phạt",

@@ -1,24 +1,6 @@
 import { getLoggedInAdmin } from "@/lib/currentAdminUser";
-import { createDefaultPolicyConfig } from "./defaults";
 import { computePolicyDiff, generateSummary } from "./diffPolicy";
 import type { PolicyAuditEntry, PolicyConfig } from "./types";
-
-const STORAGE_KEY = "kconnecta_admin_policies_v1";
-
-export const loadPolicyConfig = (): PolicyConfig => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return createDefaultPolicyConfig();
-    const parsed = JSON.parse(raw) as PolicyConfig;
-    return { ...createDefaultPolicyConfig(), ...parsed };
-  } catch {
-    return createDefaultPolicyConfig();
-  }
-};
-
-export const savePolicyConfig = (config: PolicyConfig): void => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-};
 
 export const appendAuditEntry = (
   config: PolicyConfig,
@@ -28,7 +10,6 @@ export const appendAuditEntry = (
   after: PolicyConfig
 ): PolicyConfig => {
   const admin = getLoggedInAdmin();
-  // Strip auditLog from snapshots to prevent recursive JSON bloat
   const { auditLog: _bl, ...cleanBefore } = before;
   const { auditLog: _al, ...cleanAfter } = after;
   const diffs = computePolicyDiff(cleanBefore as PolicyConfig, cleanAfter as PolicyConfig);

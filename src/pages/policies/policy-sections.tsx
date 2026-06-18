@@ -8,9 +8,7 @@ import {
   Scale,
 
   FileText,
-  Sparkles,
   History,
-  Workflow,
   TrendingUp,
   Ban,
   AlertOctagon,
@@ -20,6 +18,11 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
+  Lock,
+  Database,
+  Clock,
+  UserCheck,
+  Cookie,
 } from "lucide-react";
 import { apiClient } from "@/services/axiosInstance";
 import { Button } from "@/components/ui/button";
@@ -44,6 +47,7 @@ import {
 } from "@/components/ui/select";
 import {
   PolicyCard,
+  PolicyNumberInput,
   RangeField,
   SettingRow,
   SeverityBadge,
@@ -52,7 +56,6 @@ import {
   WeightSlider,
 } from "./policy-ui";
 import { AllowedFileTypesInput } from "./AllowedFileTypesInput";
-import { buildPolicyInsights } from "./insights";
 import type {
   CommunityRule,
   DiffKind,
@@ -60,18 +63,17 @@ import type {
   KeywordEntry,
   PolicyAuditEntry,
   PolicyConfig,
-  RuleCondition,
-  RuleConditionField,
-  RuleEngineRule,
   ViolationActionType,
   ViolationPolicyByType,
 } from "./types";
+import { DEFAULT_AI_MODERATION } from "./defaults";
+import { buildAuditView, type ChangeRow } from "./auditView";
 
 type ConfigUpdater = (patch: Partial<PolicyConfig>) => void;
 
 const KEYWORD_CATEGORY_LABEL: Record<KeywordCategory, string> = {
   blacklist: "Keyword blacklist",
-  sensitive: "Keyword nhạy cảm",
+  watchlist: "Keyword watchlist (vùng xám)",
   blocked_domain: "Link / domain cấm",
 };
 
@@ -79,15 +81,6 @@ const ACTION_LABEL: Record<ViolationActionType, string> = {
   warning: "Cảnh cáo",
   lock_temp: "Khóa tạm",
   ban_permanent: "Ban vĩnh viễn",
-};
-
-const CONDITION_FIELD_LABEL: Record<RuleConditionField, string> = {
-  spam_score: "Spam score",
-  toxic_score: "Toxic score",
-  nsfw_score: "NSFW score",
-  links_per_minute: "Link / phút",
-  messages_per_minute: "Tin nhắn / phút",
-  keyword_match: "Keyword match",
 };
 
 // ─── 1. Community ─────────────────────────────────────────────────────────────
@@ -389,7 +382,7 @@ export const KeywordsSection = ({
   const grouped = useMemo(() => {
     const g: Record<KeywordCategory, KeywordEntry[]> = {
       blacklist: [],
-      sensitive: [],
+      watchlist: [],
       blocked_domain: [],
     };
     for (const k of config.keywords) g[k.category].push(k);
@@ -400,7 +393,7 @@ export const KeywordsSection = ({
     <>
       <PolicyCard
         title="Từ khoá cấm"
-        description="Admin thêm / sửa / xoá keyword blacklist, nhạy cảm và domain cấm"
+        description="Admin thêm / sửa / xoá keyword blacklist, watchlist và domain cấm — đồng bộ sang User app qua API"
       >
         <div className="flex justify-end">
           <Button size="sm" onClick={openCreate}>
@@ -554,14 +547,13 @@ export const ViolationsSection = ({
               </Select>
               {step.action === "lock_temp" ? (
                 <>
-                  <Input
-                    type="number"
+                  <PolicyNumberInput
                     min={1}
                     className="w-20 h-8"
                     value={step.lockDays ?? 3}
-                    onChange={(e) => {
+                    onChange={(lockDays) => {
                       const steps = [...policy.steps];
-                      steps[si] = { ...step, lockDays: Number(e.target.value) };
+                      steps[si] = { ...step, lockDays };
                       patchPolicy({ ...policy, steps });
                     }}
                   />
@@ -594,6 +586,115 @@ function formatCategory(key: string) {
   return key.replace("/", " / ").replace(/_/g, " ");
 }
 
+// ─── Thanh độ nhạy AI (read-only) ───────────────────────────────────────────
+// Minh họa giá trị "Độ nhạy AI" theo 4 mục kèm chú thích từng mục. Chỉ hiển thị —
+// admin vẫn chỉnh giá trị bằng slider RangeField ở trên.
+type SensitivityLevel = {
+  max: number; // ngưỡng trên (bao gồm)
+  label: string;
+  note: string;
+  barClass: string;
+  dotClass: string;
+  activeClass: string;
+};
+
+const SENSITIVITY_LEVELS: SensitivityLevel[] = [
+  {
+    max: 25,
+    label: "Thoáng",
+    note: "Chỉ chặn vi phạm rõ ràng, hiếm khi báo nhầm.",
+    barClass: "bg-emerald-500",
+    dotClass: "bg-emerald-500",
+    activeClass:
+      "border-emerald-300 bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-500/10",
+  },
+  {
+    max: 50,
+    label: "Cân bằng",
+    note: "Cân bằng giữa độ chính xác và độ phủ (khuyến nghị).",
+    barClass: "bg-blue-500",
+    dotClass: "bg-blue-500",
+    activeClass: "border-blue-300 bg-blue-50 dark:border-blue-500/40 dark:bg-blue-500/10",
+  },
+  {
+    max: 75,
+    label: "Nghiêm",
+    note: "Bắt nhiều hơn, có thể báo nhầm (false positive).",
+    barClass: "bg-orange-500",
+    dotClass: "bg-orange-500",
+    activeClass: "border-orange-300 bg-orange-50 dark:border-orange-500/40 dark:bg-orange-500/10",
+  },
+  {
+    max: 100,
+    label: "Rất nghiêm",
+    note: "Cực gắt, nhiều báo nhầm — chỉ dùng khi cần siết mạnh.",
+    barClass: "bg-red-500",
+    dotClass: "bg-red-500",
+    activeClass: "border-red-300 bg-red-50 dark:border-red-500/40 dark:bg-red-500/10",
+  },
+];
+
+const SensitivityScale: FC<{ value: number }> = ({ value }) => {
+  const v = Math.max(0, Math.min(100, value));
+  const activeIdx = SENSITIVITY_LEVELS.findIndex((l) => v <= l.max);
+
+  return (
+    <div className="space-y-3 pt-1">
+      {/* Thanh 4 mục + con trỏ giá trị hiện tại */}
+      <div className="relative pt-5">
+        <div
+          className="absolute top-0 -translate-x-1/2 transition-all duration-200"
+          style={{ left: `${v}%` }}
+        >
+          <div className="flex flex-col items-center leading-none">
+            <span className="text-[10px] font-semibold tabular-nums text-foreground">{v}%</span>
+            <span className="-mt-0.5 text-foreground">▼</span>
+          </div>
+        </div>
+        <div className="flex h-2 w-full overflow-hidden rounded-full">
+          {SENSITIVITY_LEVELS.map((l, i) => (
+            <div
+              key={l.label}
+              className={`h-full ${l.barClass} ${i === activeIdx ? "opacity-100" : "opacity-30"}`}
+              style={{ width: `${l.max - (SENSITIVITY_LEVELS[i - 1]?.max ?? 0)}%` }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Chú thích từng mục */}
+      <div className="grid gap-1.5 sm:grid-cols-2">
+        {SENSITIVITY_LEVELS.map((l, i) => {
+          const active = i === activeIdx;
+          const lower = (SENSITIVITY_LEVELS[i - 1]?.max ?? -1) + 1;
+          return (
+            <div
+              key={l.label}
+              className={`rounded-md border px-2.5 py-1.5 transition-colors ${
+                active ? l.activeClass : "border-border opacity-70"
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className={`size-2 shrink-0 rounded-full ${l.dotClass}`} />
+                <span className="text-xs font-semibold">{l.label}</span>
+                {active && (
+                  <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-semibold text-primary-foreground">
+                    Đang chọn
+                  </span>
+                )}
+                <span className="ml-auto text-[10px] tabular-nums text-muted-foreground">
+                  {lower}–{l.max}
+                </span>
+              </div>
+              <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{l.note}</p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 export const AiModerationSection = ({
   config,
   update,
@@ -601,7 +702,7 @@ export const AiModerationSection = ({
   config: PolicyConfig;
   update: ConfigUpdater;
 }) => {
-  const ai = config.aiModeration;
+  const ai = config.aiModeration ?? DEFAULT_AI_MODERATION;
   const setAi = (patch: Partial<typeof ai>) =>
     update({ aiModeration: { ...ai, ...patch } });
 
@@ -648,6 +749,7 @@ export const AiModerationSection = ({
           unit="%"
           onChange={(sensitivity) => setAi({ sensitivity })}
         />
+        <SensitivityScale value={ai.sensitivity} />
         <div className="grid sm:grid-cols-2 gap-2 pt-2">
           {(
             [
@@ -760,31 +862,76 @@ export const AiModerationSection = ({
 
 // ─── 5–7 Privacy, Post, Chat ──────────────────────────────────────────────────
 
-export const PrivacySection = ({ config, update }: { config: PolicyConfig; update: ConfigUpdater }) => {
-  const p = config.privacy;
-  const set = (patch: Partial<typeof p>) => update({ privacy: { ...p, ...patch } });
-  return (
-    <PolicyCard title="Chính sách quyền riêng tư" description="Dữ liệu user, retention, export, cookie/session">
-      <p className="text-xs font-semibold text-muted-foreground">Dữ liệu user lưu trữ</p>
-      <ToggleRow label="Hồ sơ & metadata" checked={p.storeProfile} onCheckedChange={(v) => set({ storeProfile: v })} />
-      <ToggleRow label="Bài viết & media" checked={p.storePosts} onCheckedChange={(v) => set({ storePosts: v })} />
-      <ToggleRow label="Tin nhắn chat" checked={p.storeChat} onCheckedChange={(v) => set({ storeChat: v })} />
-      <ToggleRow label="Nhật ký hoạt động" checked={p.storeActivityLog} onCheckedChange={(v) => set({ storeActivityLog: v })} />
-      <SettingRow label="Thời gian lưu log (ngày)">
-        <Input type="number" className="w-24 h-8" value={p.logRetentionDays} onChange={(e) => set({ logRetentionDays: Number(e.target.value) })} />
-      </SettingRow>
-      <SettingRow label="Thời gian lưu chat (ngày)">
-        <Input type="number" className="w-24 h-8" value={p.chatRetentionDays} onChange={(e) => set({ chatRetentionDays: Number(e.target.value) })} />
-      </SettingRow>
-      <ToggleRow label="Cho phép export dữ liệu" checked={p.allowDataExport} onCheckedChange={(v) => set({ allowDataExport: v })} />
-      <ToggleRow label="Cho phép xoá tài khoản" checked={p.allowAccountDeletion} onCheckedChange={(v) => set({ allowAccountDeletion: v })} />
-      <ToggleRow label="Cookie / session policy" checked={p.cookiePolicyEnabled} onCheckedChange={(v) => set({ cookiePolicyEnabled: v })} />
-      <SettingRow label="Session tối đa (giờ)">
-        <Input type="number" className="w-24 h-8" value={p.sessionMaxHours} onChange={(e) => set({ sessionMaxHours: Number(e.target.value) })} />
-      </SettingRow>
-    </PolicyCard>
-  );
-};
+// Trang mô tả chính sách quyền riêng tư — chỉ đọc (read-only).
+// Không còn toggle/input cấu hình; nội dung chỉ nhằm minh bạch cách hệ thống
+// xử lý dữ liệu. Dữ liệu privacy vẫn nằm trong PolicyConfig và do User app sử
+// dụng — phần này không chỉnh sửa nó.
+const PRIVACY_POLICY_SECTIONS: { icon: typeof Lock; title: string; body: string }[] = [
+  {
+    icon: Database,
+    title: "Dữ liệu người dùng được lưu trữ",
+    body: "Hệ thống có thể lưu trữ một số loại dữ liệu cần thiết để vận hành dịch vụ, bao gồm thông tin hồ sơ, metadata tài khoản, bài viết, media tải lên, tin nhắn chat và nhật ký hoạt động.",
+  },
+  {
+    icon: Clock,
+    title: "Thời gian lưu dữ liệu",
+    body: "Nhật ký hoạt động có thể được lưu trong một khoảng thời gian nhất định để phục vụ kiểm tra bảo mật, xử lý lỗi và quản trị hệ thống. Tin nhắn chat có thể được lưu tạm thời nhằm hỗ trợ trải nghiệm người dùng và xử lý khiếu nại nếu có.",
+  },
+  {
+    icon: UserCheck,
+    title: "Quyền của người dùng",
+    body: "Người dùng có quyền yêu cầu xem, xuất hoặc xoá dữ liệu cá nhân theo chính sách của hệ thống. Một số yêu cầu có thể cần được quản trị viên xác nhận trước khi xử lý.",
+  },
+  {
+    icon: Cookie,
+    title: "Cookie và phiên đăng nhập",
+    body: "Hệ thống có thể sử dụng cookie hoặc session để duy trì trạng thái đăng nhập, bảo mật tài khoản và cải thiện trải nghiệm sử dụng. Phiên đăng nhập có thể hết hạn sau một khoảng thời gian nhất định để đảm bảo an toàn.",
+  },
+];
+
+export const PrivacySection = () => (
+  <div className="space-y-4">
+    {/* Tiêu đề + mô tả ngắn */}
+    <div className="rounded-lg border border-border bg-card p-5">
+      <div className="flex items-start gap-3">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10">
+          <Lock className="size-5 text-primary" />
+        </div>
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold">Chính sách quyền riêng tư</h2>
+          <p className="text-sm text-muted-foreground">
+            Trang này mô tả cách hệ thống thu thập, lưu trữ và xử lý dữ liệu người dùng. Các thông
+            tin này chỉ nhằm mục đích minh bạch chính sách, không phải khu vực cấu hình tự động.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {/* Ghi chú chỉ đọc */}
+    <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
+      <Info className="size-4 mt-0.5 shrink-0" />
+      <span>
+        Đây là trang chỉ đọc — nội dung mang tính mô tả, không thể chỉnh sửa trực tiếp trong trang
+        quản trị.
+      </span>
+    </div>
+
+    {/* Các section mô tả */}
+    {PRIVACY_POLICY_SECTIONS.map(({ icon: Icon, title, body }, i) => (
+      <div key={title} className="rounded-lg border border-border bg-card p-5">
+        <div className="mb-2 flex items-center gap-2.5">
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <Icon className="size-4" />
+          </div>
+          <h3 className="text-sm font-semibold">
+            {i + 1}. {title}
+          </h3>
+        </div>
+        <p className="text-sm leading-relaxed text-muted-foreground">{body}</p>
+      </div>
+    ))}
+  </div>
+);
 
 export const PostPolicySection = ({ config, update }: { config: PolicyConfig; update: ConfigUpdater }) => {
   const p = config.postPolicy;
@@ -792,20 +939,20 @@ export const PostPolicySection = ({ config, update }: { config: PolicyConfig; up
   return (
     <PolicyCard title="Chính sách bài viết" description="Độ dài, upload, loại file, rate limit">
       <SettingRow label="Độ dài post tối đa (ký tự)">
-        <Input type="number" className="w-28 h-8" value={p.maxPostLength} onChange={(e) => set({ maxPostLength: Number(e.target.value) })} />
+        <PolicyNumberInput className="w-28 h-8" value={p.maxPostLength} onChange={(maxPostLength) => set({ maxPostLength })} />
       </SettingRow>
       <SettingRow label="Ảnh tối đa / post">
-        <Input type="number" className="w-20 h-8" value={p.maxImagesPerPost} onChange={(e) => set({ maxImagesPerPost: Number(e.target.value) })} />
+        <PolicyNumberInput className="w-20 h-8" value={p.maxImagesPerPost} onChange={(maxImagesPerPost) => set({ maxImagesPerPost })} />
       </SettingRow>
       <SettingRow label="Video tối đa (MB)">
-        <Input type="number" className="w-24 h-8" value={p.maxVideoMb} onChange={(e) => set({ maxVideoMb: Number(e.target.value) })} />
+        <PolicyNumberInput className="w-24 h-8" value={p.maxVideoMb} onChange={(maxVideoMb) => set({ maxVideoMb })} />
       </SettingRow>
       <AllowedFileTypesInput
         value={p.allowedFileTypes}
         onChange={(allowedFileTypes) => set({ allowedFileTypes })}
       />
       <SettingRow label="Rate limit đăng bài (/ phút)">
-        <Input type="number" className="w-20 h-8" value={p.postsPerMinute} onChange={(e) => set({ postsPerMinute: Number(e.target.value) })} />
+        <PolicyNumberInput className="w-20 h-8" value={p.postsPerMinute} onChange={(postsPerMinute) => set({ postsPerMinute })} />
       </SettingRow>
       <p className="text-xs text-muted-foreground">
         Ví dụ: tối đa {p.maxImagesPerPost} ảnh/post, video &lt; {p.maxVideoMb}MB
@@ -822,7 +969,7 @@ export const ChatPolicySection = ({ config, update }: { config: PolicyConfig; up
       <ToggleRow label="Chống spam chat" checked={c.antiSpamEnabled} onCheckedChange={(v) => set({ antiSpamEnabled: v })} />
       <ToggleRow label="Chống gửi link độc" checked={c.blockMaliciousLinks} onCheckedChange={(v) => set({ blockMaliciousLinks: v })} />
       <SettingRow label="Giới hạn tin nhắn / phút">
-        <Input type="number" className="w-20 h-8" value={c.messagesPerMinute} onChange={(e) => set({ messagesPerMinute: Number(e.target.value) })} />
+        <PolicyNumberInput className="w-20 h-8" value={c.messagesPerMinute} onChange={(messagesPerMinute) => set({ messagesPerMinute })} />
       </SettingRow>
       <ToggleRow label="AI scan nội dung chat" checked={c.aiScanEnabled} onCheckedChange={(v) => set({ aiScanEnabled: v })} />
     </PolicyCard>
@@ -881,7 +1028,7 @@ export const AuditSection = ({ config }: { config: PolicyConfig }) => {
         {config.auditLog.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có bản ghi — lưu cấu hình để tạo audit log.</p>
         ) : (
-          <ul className="divide-y divide-border rounded-md border border-border max-h-[480px] overflow-y-auto">
+          <ul className="divide-y divide-border rounded-md border border-border max-h-[min(60vh,560px)] overflow-y-auto">
             {config.auditLog.map((entry) => {
               const diffs = entry.diffs ?? [];
               return (
@@ -895,7 +1042,10 @@ export const AuditSection = ({ config }: { config: PolicyConfig }) => {
                     </div>
                     <div className="flex flex-wrap items-center gap-3 text-sm">
                       <span className="text-muted-foreground">
-                        Mục: <span className="font-medium text-foreground">{entry.section}</span>
+                        Khu vực:{" "}
+                        <span className="font-medium text-foreground">
+                          {entry.section === "Chính sách" ? "Chính sách cộng đồng" : entry.section}
+                        </span>
                       </span>
                       <span className="text-muted-foreground">
                         Thay đổi:{" "}
@@ -919,88 +1069,19 @@ export const AuditSection = ({ config }: { config: PolicyConfig }) => {
       </PolicyCard>
 
       <Dialog open={!!selected} onOpenChange={() => { setSelected(null); setShowRaw(false); }}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" aria-describedby={undefined}>
-          <DialogHeader>
+        <DialogContent
+          className="flex h-[min(92vh,900px)] w-[min(96vw,72rem)] max-w-[min(96vw,72rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[min(96vw,72rem)]"
+          aria-describedby={undefined}
+        >
+          <DialogHeader className="shrink-0 border-b px-6 py-4">
             <DialogTitle>Chi tiết thay đổi</DialogTitle>
           </DialogHeader>
           {selected && (
-            <div className="space-y-4">
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <span>{selected.adminLabel}</span>
-                <span>{new Date(selected.changedAt).toLocaleString("vi-VN")}</span>
-                <span>Mục: {selected.section}</span>
-              </div>
-
-              {(selected.diffs ?? []).length === 0 ? (
-                <p className="text-sm text-muted-foreground">Không có thay đổi chi tiết.</p>
-              ) : (
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="p-2 text-left font-medium">Trường</th>
-                      <th className="p-2 text-left font-medium w-[28%]">Trước</th>
-                      <th className="p-2 text-left font-medium w-[28%]">Sau</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {(selected.diffs ?? []).map((diff, i) => (
-                      <tr key={i} className="hover:bg-muted/30">
-                        <td className="p-2">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="leading-snug">{diff.label}</span>
-                            <AuditDiffBadge kind={diff.kind} />
-                          </div>
-                        </td>
-                        <td className="p-2">
-                          {diff.kind === "added" ? (
-                            <span className="text-muted-foreground">—</span>
-                          ) : (
-                            <span className={`text-red-600${diff.kind === "updated" ? " line-through" : ""}`}>
-                              {formatDiffValue(diff.before)}
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-2">
-                          {diff.kind === "removed" ? (
-                            <span className="text-muted-foreground">—</span>
-                          ) : (
-                            <span className="font-medium text-green-600">
-                              {formatDiffValue(diff.after)}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-
-              <div className="border-t pt-3">
-                <button
-                  type="button"
-                  onClick={() => setShowRaw((v) => !v)}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  {showRaw ? "▲ Ẩn JSON gốc" : "▼ Xem JSON gốc"}
-                </button>
-                {showRaw && (
-                  <div className="mt-2 grid gap-2 text-xs md:grid-cols-2">
-                    <div>
-                      <p className="mb-1 font-semibold">Trước</p>
-                      <pre className="max-h-48 overflow-auto rounded bg-muted p-2 whitespace-pre-wrap">
-                        {selected.beforeJson}
-                      </pre>
-                    </div>
-                    <div>
-                      <p className="mb-1 font-semibold">Sau</p>
-                      <pre className="max-h-48 overflow-auto rounded bg-muted p-2 whitespace-pre-wrap">
-                        {selected.afterJson}
-                      </pre>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            <AuditDetail
+              entry={selected}
+              showRaw={showRaw}
+              onToggleRaw={() => setShowRaw((v) => !v)}
+            />
           )}
         </DialogContent>
       </Dialog>
@@ -1016,302 +1097,181 @@ function AuditDiffBadge({ kind }: { kind: DiffKind }) {
   return <Badge className="border-amber-200 bg-amber-100 text-[10px] text-amber-700">Sửa</Badge>;
 }
 
-function formatDiffValue(val: unknown): string {
-  if (val === undefined || val === null) return "—";
-  if (typeof val === "boolean") return val ? "Bật" : "Tắt";
-  const str = String(val);
-  return str.length > 80 ? `${str.slice(0, 80)}…` : str;
+function AuditStateMessage({ title, desc }: { title: string; desc?: string }) {
+  return (
+    <div className="rounded-md border border-border bg-muted/30 px-4 py-6 text-center">
+      <p className="text-sm font-medium text-foreground">{title}</p>
+      {desc ? <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">{desc}</p> : null}
+    </div>
+  );
 }
 
-// ─── 10. AI Insights ──────────────────────────────────────────────────────────
-
-export const AiInsightsSection = ({ config }: { config: PolicyConfig }) => {
-  const insights = useMemo(() => buildPolicyInsights(config), [config]);
-
+function AuditChangesTable({ rows }: { rows: ChangeRow[] }) {
   return (
-    <PolicyCard title="AI Insight cho policy" description="Phân tích xu hướng vi phạm (demo / mock analytics)">
-      <div className="grid gap-3 sm:grid-cols-2">
-        {insights.map((ins) => (
-          <div
-            key={ins.id}
-            className="rounded-lg border border-border p-4 space-y-2 bg-muted/30"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <Sparkles className="size-4 text-primary shrink-0 mt-0.5" />
-              <SeverityBadge severity={ins.severity} />
-            </div>
-            <p className="text-sm font-semibold">{ins.title}</p>
-            <p className="text-xs text-muted-foreground">{ins.description}</p>
-            {ins.changePercent !== undefined ? (
-              <Badge variant="outline" className="text-amber-700 border-amber-300">
-                +{ins.changePercent}% / {ins.periodDays} ngày
-              </Badge>
-            ) : (
-              <Badge variant="outline">{ins.periodDays} ngày</Badge>
-            )}
-          </div>
-        ))}
-      </div>
-    </PolicyCard>
-  );
-};
-
-// ─── Rule Engine ────────────────────────────────────────────────────────────────
-
-export const RuleEngineSection = ({
-  config,
-  update,
-}: {
-  config: PolicyConfig;
-  update: ConfigUpdater;
-}) => {
-  const [editing, setEditing] = useState<RuleEngineRule | null>(null);
-
-  const saveRule = (rule: RuleEngineRule) => {
-    const exists = config.ruleEngine.some((r) => r.id === rule.id);
-    const ruleEngine = exists
-      ? config.ruleEngine.map((r) => (r.id === rule.id ? rule : r))
-      : [...config.ruleEngine, rule];
-    update({ ruleEngine });
-    setEditing(null);
-  };
-
-  const newRule = () => {
-    setEditing({
-      id: crypto.randomUUID(),
-      name: "Rule mới",
-      enabled: true,
-      logic: "AND",
-      severity: "medium",
-      conditions: [
-        { id: crypto.randomUUID(), field: "spam_score", operator: "gt", value: 80 },
-      ],
-      action: "mute",
-      actionDurationMinutes: 60,
-    });
-  };
-
-  return (
-    <>
-      <PolicyCard
-        title="Rule Engine"
-        description="IF điều kiện THEN hành động — ví dụ spam score &gt; 80 AND &gt; 5 link/phút → mute 1 giờ"
-      >
-        <div className="flex justify-end">
-          <Button size="sm" onClick={newRule}>
-            <Plus className="size-4 mr-1" />
-            Thêm rule
-          </Button>
-        </div>
-        <div className="space-y-3">
-          {config.ruleEngine.map((rule) => (
-            <div
-              key={rule.id}
-              className="rounded-md border border-border p-4 space-y-2 text-sm"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Workflow className="size-4 text-primary" />
-                  <span className="font-semibold">{rule.name}</span>
-                  <Badge variant={rule.enabled ? "default" : "outline"}>
-                    {rule.enabled ? "ON" : "OFF"}
-                  </Badge>
-                  <SeverityBadge severity={rule.severity} />
-                </div>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" onClick={() => setEditing(rule)}>
-                    Sửa
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() =>
-                      update({ ruleEngine: config.ruleEngine.filter((r) => r.id !== rule.id) })
-                    }
-                  >
-                    Xoá
-                  </Button>
-                </div>
-              </div>
-              <p className="text-xs font-mono bg-muted px-2 py-1 rounded">
-                IF ({rule.logic}){" "}
-                {rule.conditions
-                  .map(
-                    (c) =>
-                      `${CONDITION_FIELD_LABEL[c.field]} ${c.operator} ${c.value}`
-                  )
-                  .join(` ${rule.logic} `)}
-                THEN {rule.action}
-                {rule.actionDurationMinutes
-                  ? ` (${rule.actionDurationMinutes} phút)`
-                  : ""}
-              </p>
-            </div>
-          ))}
-        </div>
-      </PolicyCard>
-
-      {editing ? (
-        <RuleEditorDialog
-          rule={editing}
-          onClose={() => setEditing(null)}
-          onSave={saveRule}
-        />
-      ) : null}
-    </>
-  );
-};
-
-const RuleEditorDialog = ({
-  rule,
-  onClose,
-  onSave,
-}: {
-  rule: RuleEngineRule;
-  onClose: () => void;
-  onSave: (r: RuleEngineRule) => void;
-}) => {
-  const [draft, setDraft] = useState(rule);
-
-  const patchCondition = (id: string, patch: Partial<RuleCondition>) => {
-    setDraft((d) => ({
-      ...d,
-      conditions: d.conditions.map((c) => (c.id === id ? { ...c, ...patch } : c)),
-    }));
-  };
-
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-lg" aria-describedby={undefined}>
-        <DialogHeader>
-          <DialogTitle>Rule builder</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Tên rule</Label>
-            <Input value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
-          </div>
-          <ToggleRow
-            label="Bật rule"
-            checked={draft.enabled}
-            onCheckedChange={(enabled) => setDraft((d) => ({ ...d, enabled }))}
-          />
-          <SettingRow label="Logic">
-            <Select
-              value={draft.logic}
-              onValueChange={(v) => setDraft((d) => ({ ...d, logic: v as "AND" | "OR" }))}
-            >
-              <SelectTrigger size="sm" className="w-24">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="AND">AND</SelectItem>
-                <SelectItem value="OR">OR</SelectItem>
-              </SelectContent>
-            </Select>
-          </SettingRow>
-          <SeveritySelect
-            value={draft.severity}
-            onChange={(severity) => setDraft((d) => ({ ...d, severity }))}
-          />
-          <Label>Điều kiện (IF)</Label>
-          {draft.conditions.map((c) => (
-            <div key={c.id} className="flex flex-wrap gap-2 items-center">
-              <Select
-                value={c.field}
-                onValueChange={(v) => patchCondition(c.id, { field: v as RuleConditionField })}
-              >
-                <SelectTrigger size="sm" className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(CONDITION_FIELD_LABEL) as RuleConditionField[]).map((f) => (
-                    <SelectItem key={f} value={f}>
-                      {CONDITION_FIELD_LABEL[f]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={c.operator}
-                onValueChange={(v) =>
-                  patchCondition(c.id, { operator: v as RuleCondition["operator"] })
-                }
-              >
-                <SelectTrigger size="sm" className="w-20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="gt">&gt;</SelectItem>
-                  <SelectItem value="gte">≥</SelectItem>
-                  <SelectItem value="eq">=</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input
-                type="number"
-                className="w-20 h-8"
-                value={c.value}
-                onChange={(e) => patchCondition(c.id, { value: Number(e.target.value) })}
-              />
-            </div>
-          ))}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              setDraft((d) => ({
-                ...d,
-                conditions: [
-                  ...d.conditions,
-                  { id: crypto.randomUUID(), field: "spam_score", operator: "gt", value: 50 },
-                ],
-              }))
+    <div className="overflow-x-auto rounded-md border border-border">
+      <table className="w-full min-w-[720px] border-collapse text-sm">
+        <thead>
+          <tr className="border-b bg-muted/50">
+            <th className="p-3 text-left font-medium w-[22%]">Đối tượng</th>
+            <th className="p-3 text-left font-medium w-[18%]">Trường</th>
+            <th className="p-3 text-left font-medium w-[30%]">Trước</th>
+            <th className="p-3 text-left font-medium w-[30%]">Sau</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y">
+          {rows.map((row, i) => {
+            if (row.type === "rule-added") {
+              return (
+                <tr key={i} className="bg-green-50/60 dark:bg-green-500/10">
+                  <td colSpan={4} className="p-3">
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <AuditDiffBadge kind="added" />
+                      <span className="font-medium text-green-700 dark:text-green-400">
+                        Đã thêm chính sách: {row.object}
+                      </span>
+                    </span>
+                  </td>
+                </tr>
+              );
             }
-          >
-            + Điều kiện
-          </Button>
-          <div className="space-y-1.5">
-            <Label>Hành động (THEN)</Label>
-            <Select
-              value={draft.action}
-              onValueChange={(v) => setDraft((d) => ({ ...d, action: v as RuleEngineRule["action"] }))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="mute">Mute</SelectItem>
-                <SelectItem value="warning">Warning</SelectItem>
-                <SelectItem value="hide_post">Hide post</SelectItem>
-                <SelectItem value="lock">Lock</SelectItem>
-                <SelectItem value="ban">Ban</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {draft.action === "mute" ? (
-            <SettingRow label="Thời lượng (phút)">
-              <Input
-                type="number"
-                className="w-24 h-8"
-                value={draft.actionDurationMinutes ?? 60}
-                onChange={(e) =>
-                  setDraft((d) => ({ ...d, actionDurationMinutes: Number(e.target.value) }))
-                }
-              />
-            </SettingRow>
-          ) : null}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Huỷ
-          </Button>
-          <Button onClick={() => onSave(draft)}>Lưu rule</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            if (row.type === "rule-removed") {
+              return (
+                <tr key={i} className="bg-red-50/60 dark:bg-red-500/10">
+                  <td colSpan={4} className="p-3">
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <AuditDiffBadge kind="removed" />
+                      <span className="font-medium text-red-700 dark:text-red-400">
+                        Đã xóa chính sách: {row.object}
+                      </span>
+                    </span>
+                  </td>
+                </tr>
+              );
+            }
+            return (
+              <tr key={i} className="align-top hover:bg-muted/30">
+                <td className="p-3 font-medium">{row.object}</td>
+                <td className="p-3">
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <span className="leading-snug">{row.field}</span>
+                    <AuditDiffBadge kind={row.kind} />
+                  </span>
+                </td>
+                <td className="p-3 break-words">
+                  {row.kind === "added" ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : (
+                    <span className={`text-red-600${row.kind === "updated" ? " line-through" : ""}`}>
+                      {row.before}
+                    </span>
+                  )}
+                </td>
+                <td className="p-3 break-words">
+                  {row.kind === "removed" ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : (
+                    <span className="font-medium text-green-600">{row.after}</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
-};
+}
+
+function AuditDetail({
+  entry,
+  showRaw,
+  onToggleRaw,
+}: {
+  entry: PolicyAuditEntry;
+  showRaw: boolean;
+  onToggleRaw: () => void;
+}) {
+  const view = useMemo(
+    () => buildAuditView(entry.beforeJson, entry.afterJson, entry.section),
+    [entry],
+  );
+  const hasBefore = !!entry.beforeJson && entry.beforeJson.trim().length > 0;
+  const hasAfter = !!entry.afterJson && entry.afterJson.trim().length > 0;
+  const { state } = view;
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-4">
+      {/* Ai · lúc nào · khu vực nào */}
+      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+        <span className="text-muted-foreground">
+          Người thực hiện: <span className="font-medium text-foreground">{entry.adminLabel}</span>
+        </span>
+        <span className="text-muted-foreground">
+          Thời gian:{" "}
+          <span className="font-medium text-foreground">
+            {new Date(entry.changedAt).toLocaleString("vi-VN")}
+          </span>
+        </span>
+        <span className="text-muted-foreground">
+          Khu vực: <span className="font-medium text-foreground">{view.area}</span>
+        </span>
+      </div>
+
+      {/* Tóm tắt thay đổi — ưu tiên trước JSON */}
+      {state.kind === "changes" ? (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold">Thay đổi phát hiện được</p>
+          <AuditChangesTable rows={state.rows} />
+        </div>
+      ) : state.kind === "identical" ? (
+        <AuditStateMessage
+          title="Không có thay đổi nào được phát hiện."
+          desc="Dữ liệu trước và sau giống nhau. Có thể người dùng đã bấm lưu mà không chỉnh sửa nội dung."
+        />
+      ) : state.kind === "unparseable" ? (
+        <AuditStateMessage
+          title="Chưa thể phân tích chi tiết thay đổi."
+          desc="Hệ thống đã lưu dữ liệu trước và sau, nhưng chưa xác định được trường nào thay đổi. Bạn có thể kiểm tra dữ liệu kỹ thuật bên dưới."
+        />
+      ) : state.kind === "missing-after" ? (
+        <AuditStateMessage title="Thiếu dữ liệu sau khi thay đổi." />
+      ) : state.kind === "missing-before" ? (
+        <AuditStateMessage title="Thiếu dữ liệu trước khi thay đổi." />
+      ) : (
+        <AuditStateMessage title="Không có dữ liệu thay đổi." />
+      )}
+
+      {/* JSON kỹ thuật — đóng mặc định, chỉ để debug */}
+      {(hasBefore || hasAfter) && (
+        <div className="flex min-h-0 flex-1 flex-col border-t pt-3">
+          <button
+            type="button"
+            onClick={onToggleRaw}
+            className="shrink-0 self-start text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            {showRaw ? "▲ Ẩn dữ liệu kỹ thuật" : "▼ Xem dữ liệu kỹ thuật"}
+          </button>
+          {showRaw && (
+            <div className="mt-3 grid min-h-0 flex-1 gap-3 text-xs lg:grid-cols-2">
+              <div className="flex min-h-[min(42vh,360px)] flex-col">
+                <p className="mb-1.5 shrink-0 font-semibold">Dữ liệu trước khi thay đổi</p>
+                <pre className="min-h-0 flex-1 overflow-auto rounded-md border bg-muted/60 p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
+                  {entry.beforeJson || "—"}
+                </pre>
+              </div>
+              <div className="flex min-h-[min(42vh,360px)] flex-col">
+                <p className="mb-1.5 shrink-0 font-semibold">Dữ liệu sau khi thay đổi</p>
+                <pre className="min-h-0 flex-1 overflow-auto rounded-md border bg-muted/60 p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
+                  {entry.afterJson || "—"}
+                </pre>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export const SECTION_META: {
   key: import("./types").PolicySectionKey;
@@ -1326,7 +1286,5 @@ export const SECTION_META: {
   { key: "posts", label: "Bài viết", icon: FileText },
 
   { key: "recommendation", label: "Đề xuất", icon: TrendingUp },
-  { key: "rules", label: "Rule Engine", icon: Workflow },
-  { key: "insights", label: "AI Insight", icon: Sparkles },
   { key: "audit", label: "Audit log", icon: History },
 ];
