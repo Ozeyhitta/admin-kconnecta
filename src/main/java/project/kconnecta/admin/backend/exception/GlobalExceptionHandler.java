@@ -7,6 +7,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -75,6 +77,33 @@ public class GlobalExceptionHandler {
                 "status", status,
                 "error", HttpStatus.valueOf(status).getReasonPhrase(),
                 "message", reason
+        ));
+    }
+
+    // User backend returned an error status (4xx/5xx) on an internal call.
+    // Surface the real upstream status + body so the cause is visible instead of a blank 500.
+    @ExceptionHandler(RestClientResponseException.class)
+    public ResponseEntity<Map<String, Object>> handleUpstreamError(RestClientResponseException ex) {
+        int upstream = ex.getStatusCode().value();
+        String body = ex.getResponseBodyAsString();
+        log.error("User backend call failed: status={} body={}", upstream, body, ex);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of(
+                "timestamp", LocalDateTime.now().toString(),
+                "status", 502,
+                "error", "Bad Gateway",
+                "message", "User backend trả về " + upstream + ": " + (body.isBlank() ? "(no body)" : body)
+        ));
+    }
+
+    // Could not reach the User backend at all (wrong USER_SERVICE_URL, service down, timeout).
+    @ExceptionHandler(ResourceAccessException.class)
+    public ResponseEntity<Map<String, Object>> handleUpstreamUnreachable(ResourceAccessException ex) {
+        log.error("User backend unreachable: {}", ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of(
+                "timestamp", LocalDateTime.now().toString(),
+                "status", 502,
+                "error", "Bad Gateway",
+                "message", "Không gọi được User backend: " + ex.getMessage()
         ));
     }
 
