@@ -149,13 +149,18 @@ export const RangeField = ({
 export const WeightSlider = ({
   label,
   value,
+  hint,
   onChange,
 }: {
   label: string;
   value: number;
+  hint?: string;
   onChange: (v: number) => void;
 }) => (
-  <RangeField label={label} value={value} min={0} max={100} step={5} unit="%" onChange={onChange} />
+  <div className="space-y-1">
+    <RangeField label={label} value={value} min={0} max={100} step={5} unit="%" onChange={onChange} />
+    {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+  </div>
 );
 
 /** Numeric policy field — allows clearing while typing without snapping to 0 (avoids "0100"). */

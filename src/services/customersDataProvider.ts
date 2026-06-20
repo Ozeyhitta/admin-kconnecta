@@ -47,13 +47,15 @@ export const customersDataProvider: CustomerMethods = {
       );
     }
 
-    const { status, newPassword, newEmail } = params.data;
+    const { status, newPassword, newEmail, lockDays } = params.data;
 
     if (newPassword) {
       await apiClient.put(`/api/v1/admin/users/${params.id}/password`, { newPassword });
     }
     if (status && status !== params.previousData?.status) {
-      await apiClient.patch(`/api/v1/admin/users/${params.id}/status`, { status });
+      const body =
+        status === "BLOCKED" ? { status, lockDays: lockDays ?? null } : { status };
+      await apiClient.patch(`/api/v1/admin/users/${params.id}/status`, body);
     }
     if (newEmail) {
       await apiClient.put(`/api/v1/admin/users/${params.id}/email`, { newEmail });

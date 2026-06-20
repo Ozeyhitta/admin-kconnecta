@@ -1,4 +1,4 @@
-import { createElement, useEffect, useState } from "react";
+import { createElement } from "react";
 import {
   useCanAccess,
   useCreatePath,
@@ -25,7 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { House, List, BarChart3, Bell, ScrollText, TrendingUp, ShieldAlert } from "lucide-react";
 import logoV1 from "@/assets/LogoKConnecta_V1.png";
 import logoV2 from "@/assets/LogoKConnecta_V2.png";
-import { apiClient } from "@/services/axiosInstance";
+import { useAdminInboxCount } from "@/hooks/useAdminInboxCount";
 
 export function AppSidebar() {
   const hasDashboard = useHasDashboard();
@@ -142,32 +142,17 @@ export const PostTrendsMenuItem = ({ onClick }: { onClick?: () => void }) => {
 
 export const NotificationsMenuItem = ({ onClick }: { onClick?: () => void }) => {
   const match = useMatch({ path: "/notifications", end: false });
-  const [reviewCount, setReviewCount] = useState(0);
+  const { count: reviewCount, acknowledgeInbox } = useAdminInboxCount();
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const { data } = await apiClient.get<{ count: number }>(
-          "/api/v1/admin/notifications/inbox-count",
-        );
-        if (!cancelled) setReviewCount(data?.count ?? 0);
-      } catch {
-        if (!cancelled) setReviewCount(0);
-      }
-    };
-    void load();
-    const timer = setInterval(load, 60_000);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, []);
+  const handleClick = () => {
+    acknowledgeInbox();
+    onClick?.();
+  };
 
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={!!match}>
-        <Link to="/notifications" onClick={onClick} className="relative">
+        <Link to="/notifications" onClick={handleClick} className="relative">
           <Bell />
           Thông báo
           {reviewCount > 0 && (

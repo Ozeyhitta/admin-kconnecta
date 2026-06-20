@@ -16,6 +16,9 @@ export const ADMIN_CHARTS_POLL_MS = 60_000;
 // System overview (total counts that rarely change) — 5 minutes
 export const ADMIN_SYSTEM_POLL_MS = 300_000;
 
+// Admin inbox badge — fast so new alerts appear quickly
+export const ADMIN_INBOX_POLL_MS = 15_000;
+
 // ── useIntervalPoll ────────────────────────────────────────────────────────────
 
 export function useIntervalPoll(

@@ -38,6 +38,32 @@ export function formatAuditValue(val: unknown, maxLen = 200): string {
   return str.length > maxLen ? `${str.slice(0, maxLen)}…` : str;
 }
 
+const STEP_ACTION_LABELS: Record<string, string> = {
+  warning: "Cảnh cáo",
+  lock_temp: "Khóa tạm",
+  ban_permanent: "Ban vĩnh viễn",
+};
+
+// "Các bước xử phạt" được lưu dưới dạng JSON (mảng không có id) → đọc thành chuỗi dễ hiểu.
+export function formatViolationSteps(val: unknown): string {
+  if (typeof val !== "string") return formatAuditValue(val);
+  let steps: unknown;
+  try {
+    steps = JSON.parse(val);
+  } catch {
+    return formatAuditValue(val);
+  }
+  if (!Array.isArray(steps)) return formatAuditValue(val);
+  return steps
+    .map((s) => {
+      const step = s as { offense?: number; action?: string; lockDays?: number };
+      const action = STEP_ACTION_LABELS[step.action ?? ""] ?? step.action ?? "—";
+      const suffix = step.action === "lock_temp" && step.lockDays != null ? ` ${step.lockDays} ngày` : "";
+      return `Lần ${step.offense}: ${action}${suffix}`;
+    })
+    .join("; ");
+}
+
 function ruleLabelById(config: PolicyConfig, id: string): string | undefined {
   const rules = (config as { communityRules?: Array<{ id: string; label?: string }> }).communityRules;
   return rules?.find((r) => r.id === id)?.label;
@@ -108,13 +134,14 @@ function buildRows(diffs: DiffEntry[], before: PolicyConfig, after: PolicyConfig
 
   for (const d of others) {
     const { object, field } = splitLabel(d.label);
+    const isSteps = d.field.endsWith(".steps");
     rows.push({
       type: "field",
       object,
       field,
       kind: d.kind,
-      before: formatAuditValue(d.before),
-      after: formatAuditValue(d.after),
+      before: isSteps ? formatViolationSteps(d.before) : formatAuditValue(d.before),
+      after: isSteps ? formatViolationSteps(d.after) : formatAuditValue(d.after),
     });
   }
 

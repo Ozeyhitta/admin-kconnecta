@@ -5,6 +5,7 @@ import { Users } from "lucide-react";
 
 export const customers: ResourceProps = {
   name: "customers",
+  options: { label: "Quản lý người dùng" },
   list: CustomerList,
   show: CustomerShow,
   recordRepresentation: (record) =>

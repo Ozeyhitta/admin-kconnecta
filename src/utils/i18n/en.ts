@@ -36,7 +36,7 @@ const customEnglishMessages: TranslationMessages = {
     menu: {
       sales: "Sales",
       catalog: "Catalog",
-      customers: "Users",
+      customers: "Quản lý người dùng",
     },
     events: {
       review: {

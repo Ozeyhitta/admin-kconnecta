@@ -163,7 +163,12 @@ const PoliciesPage = () => {
           <Button
             size="sm"
             onClick={handleSave}
-            disabled={!dirty || formDisabled || saving}
+            disabled={
+              !dirty ||
+              formDisabled ||
+              saving ||
+              (tab === "recommendation" && weightTotal !== 100)
+            }
           >
             <Save className="size-4 mr-1" />
             {saving ? "Đang lưu…" : "Lưu thay đổi"}

@@ -5,6 +5,7 @@ import {
   ShieldCheck, User, FileText, MessageSquare, Heart,
   Share2, UserPlus2, LogIn, Activity, ArrowLeft,
   CheckCircle, Lock, KeyRound, Mail, TrendingUp, Trash2,
+  Eye, EyeOff,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -141,6 +142,9 @@ const ResetPasswordDialog = ({
   open, onClose, userId,
 }: { open: boolean; onClose: () => void; userId: string }) => {
   const [pw, setPw] = React.useState("");
+  const [confirmPw, setConfirmPw] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const notify = useNotify();
 
@@ -149,11 +153,16 @@ const ResetPasswordDialog = ({
       notify("Mật khẩu phải có ít nhất 6 ký tự", { type: "warning" });
       return;
     }
+    if (pw !== confirmPw) {
+      notify("Mật khẩu xác nhận không khớp", { type: "warning" });
+      return;
+    }
     setSaving(true);
     try {
       await apiClient.put(`/api/v1/admin/users/${userId}/password`, { newPassword: pw });
       notify("Đã đặt lại mật khẩu", { type: "success" });
       setPw("");
+      setConfirmPw("");
       onClose();
     } catch {
       notify("Đặt lại mật khẩu thất bại", { type: "error" });
@@ -169,14 +178,48 @@ const ResetPasswordDialog = ({
           <DialogTitle>Đặt lại mật khẩu</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 py-2">
-          <Label htmlFor="new-pw">Mật khẩu mới</Label>
-          <Input
-            id="new-pw"
-            type="password"
-            value={pw}
-            onChange={(e) => setPw(e.target.value)}
-            placeholder="Tối thiểu 6 ký tự"
-          />
+          <div className="space-y-2">
+            <Label htmlFor="new-pw">Mật khẩu mới</Label>
+            <div className="relative">
+              <Input
+                id="new-pw"
+                type={showPassword ? "text" : "password"}
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                placeholder="Tối thiểu 6 ký tự"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed"
+              >
+                {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-pw">Xác nhận mật khẩu</Label>
+            <div className="relative">
+              <Input
+                id="confirm-pw"
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPw}
+                onChange={(e) => setConfirmPw(e.target.value)}
+                placeholder="Nhập lại mật khẩu"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed"
+              >
+                {showConfirmPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+              </button>
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Huỷ</Button>
@@ -286,6 +329,12 @@ export const CustomerShow = () => {
                   </Badge>
                 }
               />
+              {record.status === "BLOCKED" && (
+                <DetailRow
+                  label="Khóa đến"
+                  value={record.lockedUntil ? dateFormatter.format(new Date(record.lockedUntil)) : "Vô thời hạn"}
+                />
+              )}
               <DetailRow
                 label="Vai trò"
                 value={

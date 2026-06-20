@@ -21,6 +21,7 @@ import { apiClient } from "@/services/axiosInstance";
 import { getAdminToken } from "@/lib/currentAdminUser";
 import { adminPost, AdminApiError } from "@/services/adminApi";
 import { getPageContent, getPageTotal } from "@/services/pagination";
+import { markAdminInboxSeen } from "@/lib/adminInboxSeen";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -307,8 +308,9 @@ export default function NotificationsPage() {
   };
 
   useEffect(() => {
+    markAdminInboxSeen();
     void loadInbox();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSend = async () => {
     if (!message.trim()) return;

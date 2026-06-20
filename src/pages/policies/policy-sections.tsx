@@ -997,15 +997,55 @@ export const RecommendationSection = ({
       title="Chính sách thuật toán đề xuất"
       description="Ưu tiên nội dung và trọng số feed — tổng weight nên bằng 100%"
     >
-      <ToggleRow label="Ưu tiên bài hot" checked={r.prioritizeHot} onCheckedChange={(v) => set({ prioritizeHot: v })} />
-      <ToggleRow label="Ưu tiên bạn bè" checked={r.prioritizeFriends} onCheckedChange={(v) => set({ prioritizeFriends: v })} />
-      <ToggleRow label="Ưu tiên topic quan tâm" checked={r.prioritizeTopics} onCheckedChange={(v) => set({ prioritizeTopics: v })} />
-      <ToggleRow label="Giảm nội dung toxic" checked={r.reduceToxicContent} onCheckedChange={(v) => set({ reduceToxicContent: v })} />
+      <ToggleRow
+        label="Ưu tiên bài hot"
+        hint="Đẩy bài có nhiều lượt thích, bình luận, chia sẻ lên đầu feed."
+        checked={r.prioritizeHot}
+        onCheckedChange={(v) => set({ prioritizeHot: v })}
+      />
+      <ToggleRow
+        label="Ưu tiên bạn bè"
+        hint="Đẩy bài của bạn bè và người mà người dùng hay tương tác lên trước."
+        checked={r.prioritizeFriends}
+        onCheckedChange={(v) => set({ prioritizeFriends: v })}
+      />
+      <ToggleRow
+        label="Ưu tiên topic quan tâm"
+        hint="(Chưa áp dụng) Sẽ ưu tiên chủ đề người dùng quan tâm — cần dữ liệu chủ đề."
+        checked={r.prioritizeTopics}
+        onCheckedChange={(v) => set({ prioritizeTopics: v })}
+      />
+      <ToggleRow
+        label="Giảm nội dung toxic"
+        hint="(Chưa áp dụng) Sẽ hạ thứ hạng bài có nội dung độc hại — cần điểm toxic."
+        checked={r.reduceToxicContent}
+        onCheckedChange={(v) => set({ reduceToxicContent: v })}
+      />
       <div className="space-y-4 pt-2">
-        <WeightSlider label="Engagement" value={r.weights.engagement} onChange={(v) => setWeight("engagement", v)} />
-        <WeightSlider label="Friends" value={r.weights.friends} onChange={(v) => setWeight("friends", v)} />
-        <WeightSlider label="Trending" value={r.weights.trending} onChange={(v) => setWeight("trending", v)} />
-        <WeightSlider label="New content" value={r.weights.newContent} onChange={(v) => setWeight("newContent", v)} />
+        <WeightSlider
+          label="Engagement"
+          hint="Mức ưu tiên bài có nhiều tương tác (thích, bình luận, chia sẻ)."
+          value={r.weights.engagement}
+          onChange={(v) => setWeight("engagement", v)}
+        />
+        <WeightSlider
+          label="Friends"
+          hint="Mức ưu tiên bài của bạn bè / người dùng hay tương tác cùng."
+          value={r.weights.friends}
+          onChange={(v) => setWeight("friends", v)}
+        />
+        <WeightSlider
+          label="Trending"
+          hint="Bài đang được quan tâm nhiều — tính gộp chung với nhóm tương tác."
+          value={r.weights.trending}
+          onChange={(v) => setWeight("trending", v)}
+        />
+        <WeightSlider
+          label="New content"
+          hint="Mức ưu tiên bài mới đăng gần đây (độ mới)."
+          value={r.weights.newContent}
+          onChange={(v) => setWeight("newContent", v)}
+        />
         <p
           className={`text-xs font-medium ${weightTotal === 100 ? "text-success" : "text-amber-600"}`}
         >
