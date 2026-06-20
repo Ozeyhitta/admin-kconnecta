@@ -49,6 +49,7 @@ apiClient.interceptors.response.use(
       code: error?.code,
       message: error?.message,
       url: error?.config?.url,
+      detail: error?.response?.data,
     });
     // Only force re-login on auth errors — network/timeouts are handled per screen.
     if (status === 401 || status === 403) {
