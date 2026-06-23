@@ -21,7 +21,7 @@ public interface AdminUserService {
 
     List<AdminUserResponseDTO> getUsersByIds(List<UUID> ids);
 
-    AdminUserResponseDTO updateStatus(UUID id, AccountStatus status);
+    AdminUserResponseDTO updateStatus(UUID id, AccountStatus status, Integer lockDays);
 
     AdminUserResponseDTO resetPassword(UUID id, String newPassword);
 

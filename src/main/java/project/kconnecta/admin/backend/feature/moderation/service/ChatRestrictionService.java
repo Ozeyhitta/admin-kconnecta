@@ -3,8 +3,10 @@ package project.kconnecta.admin.backend.feature.moderation.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import project.kconnecta.admin.backend.feature.activitylog.service.ActivityLogWriterService;
 import project.kconnecta.admin.backend.feature.moderation.entity.ChatRestriction;
 import project.kconnecta.admin.backend.feature.moderation.repository.ChatRestrictionRepository;
+import project.kconnecta.admin.backend.feature.user.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -15,6 +17,8 @@ import java.util.UUID;
 public class ChatRestrictionService {
 
     private final ChatRestrictionRepository chatRestrictionRepository;
+    private final ActivityLogWriterService activityLogWriter;
+    private final UserRepository userRepository;
 
     @Transactional
     public ChatRestriction restrict(UUID userId, int durationHours, String reason, String createdByAdmin) {
@@ -26,7 +30,9 @@ public class ChatRestrictionService {
             restriction.setRestrictedUntil(restrictedUntil);
             restriction.setReason(reason);
             restriction.setCreatedByAdmin(createdByAdmin);
-            return chatRestrictionRepository.save(restriction);
+            ChatRestriction saved = chatRestrictionRepository.save(restriction);
+            writeRestrictionLog(userId, durationHours, reason);
+            return saved;
         }
 
         ChatRestriction restriction = ChatRestriction.builder()
@@ -35,7 +41,26 @@ public class ChatRestrictionService {
                 .reason(reason)
                 .createdByAdmin(createdByAdmin)
                 .build();
-        return chatRestrictionRepository.save(restriction);
+        ChatRestriction saved = chatRestrictionRepository.save(restriction);
+        writeRestrictionLog(userId, durationHours, reason);
+        return saved;
+    }
+
+    private void writeRestrictionLog(UUID userId, int durationHours, String reason) {
+        userRepository.findById(userId).ifPresent(user ->
+                activityLogWriter.log(
+                        user.getId(),
+                        user.getUsername(),
+                        "CHAT_RESTRICTED",
+                        buildRestrictionMetadata(durationHours, reason)
+                ));
+    }
+
+    private static String buildRestrictionMetadata(int durationHours, String reason) {
+        String safeReason = reason != null && !reason.isBlank()
+                ? reason.replace("\"", "\\\"")
+                : "Admin hạn chế chat";
+        return "{\"reason\":\"" + safeReason + "\",\"durationHours\":" + durationHours + "}";
     }
 
     @Transactional(readOnly = true)

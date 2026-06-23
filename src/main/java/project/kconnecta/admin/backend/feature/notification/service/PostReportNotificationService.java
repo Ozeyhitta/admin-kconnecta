@@ -12,6 +12,7 @@ import project.kconnecta.admin.backend.feature.notification.dto.response.PostRep
 import project.kconnecta.admin.backend.feature.report.repository.PostReportAdminRepository;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +32,11 @@ public class PostReportNotificationService {
     @Transactional(readOnly = true)
     public long countAll() {
         return postReportAdminRepository.count();
+    }
+
+    @Transactional(readOnly = true)
+    public long countSince(LocalDateTime since) {
+        return postReportAdminRepository.countByCreatedAtAfter(since);
     }
 
     private PostReportNotificationResponse toResponse(PostReport report) {

@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import project.kconnecta.admin.backend.entity.PostReport;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -45,6 +46,8 @@ public interface PostReportAdminRepository extends JpaRepository<PostReport, UUI
     Optional<PostReport> findByIdWithDetails(@Param("id") UUID id);
 
     long countByPost_Id(UUID postId);
+
+    long countByCreatedAtAfter(LocalDateTime createdAt);
 
     @Query("SELECT r.post.id AS postId, COUNT(r) AS reportCount FROM PostReport r WHERE r.post.id IN :postIds GROUP BY r.post.id")
     List<PostReportCountView> countByPostIds(@Param("postIds") Collection<UUID> postIds);

@@ -7,15 +7,19 @@ import org.springframework.transaction.annotation.Transactional;
 import project.kconnecta.admin.backend.common.enums.AccountStatus;
 import project.kconnecta.admin.backend.common.enums.AlertSeverity;
 import project.kconnecta.admin.backend.common.enums.AlertType;
+import project.kconnecta.admin.backend.common.enums.ViolationSource;
 import project.kconnecta.admin.backend.entity.User;
 import project.kconnecta.admin.backend.feature.moderation.dto.ViolationResult;
+import project.kconnecta.admin.backend.feature.moderation.entity.UserViolationLog;
 import project.kconnecta.admin.backend.feature.moderation.repository.ChatModerationLogRepository;
+import project.kconnecta.admin.backend.feature.moderation.repository.UserViolationLogRepository;
 import project.kconnecta.admin.backend.feature.notification.service.NotificationAdminService;
 import project.kconnecta.admin.backend.feature.policy.service.PolicyAdminService;
 import project.kconnecta.admin.backend.feature.user.repository.AccountRepository;
 import project.kconnecta.admin.backend.feature.user.repository.UserRepository;
 import tools.jackson.databind.JsonNode;
 
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +44,7 @@ public class ViolationPenaltyService {
     private final NotificationAdminService notificationAdminService;
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
+    private final UserViolationLogRepository userViolationLogRepository;
 
     @Transactional
     public void applyForNewViolations(UUID userId, List<ViolationResult> violations) {
@@ -66,6 +71,43 @@ public class ViolationPenaltyService {
             case "lock_temp" -> applyTemporaryLock(userId, step.lockDays(), violationLabel, offenseCount);
             case "ban_permanent" -> applyPermanentBan(userId, violationLabel, offenseCount);
             default -> log.warn("Unknown violation penalty action '{}' for policy {}", step.action(), policyId);
+        }
+    }
+
+    /**
+     * Records a post/comment violation for the content author and escalates per the "default"
+     * policy. Offenses are counted unified across chat + content. Deduplicated by content id so
+     * repeated admin actions on the same post/comment count once.
+     */
+    @Transactional
+    public void applyForContentViolation(UUID userId, ViolationSource source, UUID refId, String label) {
+        if (userId == null) {
+            return;
+        }
+        if (refId != null && userViolationLogRepository.existsBySourceAndRefId(source, refId)) {
+            return;
+        }
+
+        AlertType type = source == ViolationSource.COMMENT ? AlertType.COMMENT_REPORTED : AlertType.POST_REPORTED;
+        userViolationLogRepository.save(UserViolationLog.builder()
+                .userId(userId)
+                .source(source)
+                .refId(refId)
+                .violationType(type)
+                .severity(AlertSeverity.MEDIUM)
+                .build());
+
+        long offenseCount = moderationLogRepository.countByUserId(userId)
+                + userViolationLogRepository.countByUserId(userId);
+        PenaltyStep step = resolvePenaltyStep("default", offenseCount);
+        if (step == null) {
+            return;
+        }
+        switch (step.action()) {
+            case "warning" -> notifyUser(userId, buildContentWarningMessage(source, offenseCount));
+            case "lock_temp" -> applyTemporaryLock(userId, step.lockDays(), label, offenseCount);
+            case "ban_permanent" -> applyPermanentBan(userId, label, offenseCount);
+            default -> log.warn("Unknown content violation penalty action '{}'", step.action());
         }
     }
 
@@ -137,8 +179,17 @@ public class ViolationPenaltyService {
                 "Vi phạm chính sách: " + violationLabel,
                 "SYSTEM_POLICY"
         );
+        userRepository.findById(userId)
+                .map(User::getAccount)
+                .ifPresent(account -> {
+                    account.setStatus(AccountStatus.BLOCKED);
+                    account.setLockedUntil(LocalDateTime.now().plusDays(safeDays));
+                    account.setLockReason("Khóa tạm " + safeDays + " ngày do vi phạm lần "
+                            + offenseCount + ": " + violationLabel + ".");
+                    accountRepository.save(account);
+                });
         notifyUser(userId, "Tài khoản của bạn đã vi phạm chính sách " + violationLabel
-                + " lần " + offenseCount + ". Tính năng chat bị khóa tạm " + safeDays + " ngày.");
+                + " lần " + offenseCount + ". Tài khoản bị khóa tạm " + safeDays + " ngày.");
     }
 
     private void applyPermanentBan(UUID userId, String violationLabel, long offenseCount) {
@@ -146,6 +197,9 @@ public class ViolationPenaltyService {
                 .map(User::getAccount)
                 .ifPresent(account -> {
                     account.setStatus(AccountStatus.BLOCKED);
+                    account.setLockedUntil(null);
+                    account.setLockReason("Khóa vĩnh viễn do vi phạm lần "
+                            + offenseCount + ": " + violationLabel + ".");
                     accountRepository.save(account);
                 });
         notifyUser(userId, "Tài khoản của bạn đã bị khóa do vi phạm chính sách "
@@ -163,6 +217,13 @@ public class ViolationPenaltyService {
     private String buildWarningMessage(String violationLabel, long offenseCount) {
         return "Cảnh cáo: bạn đã vi phạm chính sách " + violationLabel
                 + " lần " + offenseCount + ". Vui lòng điều chỉnh nội dung để tránh bị khóa tính năng.";
+    }
+
+    private String buildContentWarningMessage(ViolationSource source, long offenseCount) {
+        String what = source == ViolationSource.COMMENT ? "bình luận" : "bài viết";
+        return "Cảnh cáo (lần " + offenseCount + "): một " + what
+                + " của bạn đã bị gỡ do vi phạm tiêu chuẩn cộng đồng. "
+                + "Vui lòng tuân thủ chính sách, nếu tái phạm tài khoản của bạn có thể bị khóa.";
     }
 
     private String resolvePolicyId(AlertType alertType) {

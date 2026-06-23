@@ -75,6 +75,12 @@ public class AdminAlertService {
         return adminAlertRepository.countByStatusAndType(AlertStatus.NEW, AlertType.ACCOUNT_REVIEW_REQUESTED);
     }
 
+    @Transactional(readOnly = true)
+    public long countNewAccountReviewRequestsSince(LocalDateTime since) {
+        return adminAlertRepository.countByStatusAndTypeAndCreatedAtAfter(
+                AlertStatus.NEW, AlertType.ACCOUNT_REVIEW_REQUESTED, since);
+    }
+
     @Transactional
     public AdminAlert createPostReportIfNotExists(
             UUID reporterId,

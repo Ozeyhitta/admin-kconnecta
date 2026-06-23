@@ -12,4 +12,8 @@ import project.kconnecta.admin.backend.common.enums.AccountStatus;
 public class UpdateStatusRequest {
     @NotNull
     private AccountStatus status;
+
+    /** Optional. When locking (status = BLOCKED), >= 1 means a temporary lock for this many
+     *  days; null/absent means an indefinite lock. Ignored when unlocking. */
+    private Integer lockDays;
 }

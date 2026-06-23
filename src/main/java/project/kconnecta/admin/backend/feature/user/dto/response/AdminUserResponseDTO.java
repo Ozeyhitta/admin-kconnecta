@@ -18,6 +18,7 @@ public class AdminUserResponseDTO {
     private AccountStatus status;
     private AccountRole role;
     private LocalDateTime createdAt;
+    private LocalDateTime lockedUntil;
     private String username;
     private String fullName;
     private String avatarUrl;
@@ -31,6 +32,7 @@ public class AdminUserResponseDTO {
                 .status(account.getStatus())
                 .role(account.getRole())
                 .createdAt(account.getCreatedAt())
+                .lockedUntil(account.getLockedUntil())
                 .username(user != null ? user.getUsername() : null)
                 .fullName(user != null ? user.getFullName() : null)
                 .avatarUrl(user != null ? user.getAvatarUrl() : null)

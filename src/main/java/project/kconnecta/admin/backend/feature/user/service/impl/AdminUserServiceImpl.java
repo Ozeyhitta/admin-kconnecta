@@ -15,6 +15,8 @@ import project.kconnecta.admin.backend.entity.Account;
 import project.kconnecta.admin.backend.exception.ResourceNotFoundException;
 import project.kconnecta.admin.backend.feature.activitylog.dto.response.UserActivityLogResponse;
 import project.kconnecta.admin.backend.feature.activitylog.repository.UserActivityLogRepository;
+import project.kconnecta.admin.backend.feature.activitylog.service.ActivityLogWriterService;
+import project.kconnecta.admin.backend.feature.user.repository.UserRepository;
 import project.kconnecta.admin.backend.feature.comment.repository.CommentAdminRepository;
 import project.kconnecta.admin.backend.feature.post.repository.PostAdminRepository;
 import project.kconnecta.admin.backend.feature.user.dto.response.AdminUserResponseDTO;
@@ -35,6 +37,8 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final PostAdminRepository postAdminRepository;
     private final CommentAdminRepository commentAdminRepository;
     private final UserActivityLogRepository activityLogRepository;
+    private final ActivityLogWriterService activityLogWriter;
+    private final UserRepository userRepository;
 
     @Override
     public Page<AdminUserResponseDTO> getUsers(int page, int size, String sortBy, String sortDir,
@@ -100,11 +104,41 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     @Transactional
-    public AdminUserResponseDTO updateStatus(UUID id, AccountStatus status) {
+    public AdminUserResponseDTO updateStatus(UUID id, AccountStatus status, Integer lockDays) {
         Account account = findAccount(id);
         assertCanModifyUser(account);
         account.setStatus(status);
-        return AdminUserResponseDTO.from(accountRepository.saveAndFlush(account));
+        if (status == AccountStatus.BLOCKED && lockDays != null && lockDays >= 1) {
+            account.setLockedUntil(LocalDateTime.now().plusDays(lockDays));
+            account.setLockReason("Tài khoản bị quản trị viên khóa tạm thời " + lockDays + " ngày sau khi xem xét.");
+        } else if (status == AccountStatus.BLOCKED) {
+            account.setLockedUntil(null);
+            account.setLockReason("Tài khoản bị quản trị viên khóa sau khi xem xét.");
+        } else {
+            account.setLockedUntil(null);
+            account.setLockReason(null);
+        }
+        Account saved = accountRepository.saveAndFlush(account);
+        if (status == AccountStatus.BLOCKED) {
+            userRepository.findByAccount_Id(saved.getId()).ifPresent(user ->
+                    activityLogWriter.log(
+                            user.getId(),
+                            user.getUsername(),
+                            "ACCOUNT_LOCKED",
+                            buildAdminLockMetadata(lockDays, saved.getLockReason())
+                    ));
+        }
+        return AdminUserResponseDTO.from(saved);
+    }
+
+    private static String buildAdminLockMetadata(Integer lockDays, String lockReason) {
+        String reason = lockReason != null && !lockReason.isBlank()
+                ? lockReason.replace("\"", "\\\"")
+                : "Admin khóa tài khoản";
+        if (lockDays != null && lockDays >= 1) {
+            return "{\"reason\":\"" + reason + "\",\"lockDays\":" + lockDays + ",\"source\":\"admin\"}";
+        }
+        return "{\"reason\":\"" + reason + "\",\"source\":\"admin\"}";
     }
 
     @Override

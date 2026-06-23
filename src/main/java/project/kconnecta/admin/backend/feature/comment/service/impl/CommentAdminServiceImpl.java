@@ -11,10 +11,12 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import project.kconnecta.admin.backend.common.enums.ViolationSource;
 import project.kconnecta.admin.backend.entity.PostComment;
 import project.kconnecta.admin.backend.exception.ResourceNotFoundException;
 import project.kconnecta.admin.backend.feature.comment.dto.response.CommentAdminResponse;
 import project.kconnecta.admin.backend.feature.comment.repository.CommentAdminRepository;
+import project.kconnecta.admin.backend.feature.moderation.service.ViolationPenaltyService;
 
 import java.util.Map;
 import java.util.Set;
@@ -26,6 +28,7 @@ public class CommentAdminServiceImpl implements CommentAdminService {
 
     private final CommentAdminRepository commentAdminRepository;
     private final RestTemplate restTemplate;
+    private final ViolationPenaltyService violationPenaltyService;
 
     @Value("${user-service.url:http://localhost:8080}")
     private String userServiceUrl;
@@ -60,6 +63,8 @@ public class CommentAdminServiceImpl implements CommentAdminService {
     @Transactional
     public void deleteComment(UUID id) {
         PostComment comment = findComment(id);
+        violationPenaltyService.applyForContentViolation(
+                comment.getUser().getId(), ViolationSource.COMMENT, comment.getId(), "Bình luận vi phạm (đã xóa)");
         commentAdminRepository.delete(comment);
     }
 
@@ -75,6 +80,7 @@ public class CommentAdminServiceImpl implements CommentAdminService {
 
     @Override
     public void rejectComment(UUID id, String reason) {
+        PostComment comment = findComment(id);
         HttpHeaders headers = internalHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         Map<String, String> body = Map.of("reason", reason != null ? reason : "");
@@ -84,6 +90,9 @@ public class CommentAdminServiceImpl implements CommentAdminService {
                 new HttpEntity<>(body, headers),
                 Void.class
         );
+        violationPenaltyService.applyForContentViolation(
+                comment.getUser().getId(), ViolationSource.COMMENT, comment.getId(),
+                "Bình luận vi phạm" + (reason != null && !reason.isBlank() ? ": " + reason : ""));
     }
 
     private HttpHeaders internalHeaders() {

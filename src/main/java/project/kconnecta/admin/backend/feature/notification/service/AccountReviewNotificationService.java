@@ -21,6 +21,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -56,6 +57,13 @@ public class AccountReviewNotificationService {
     public long countNewRequests() {
         long logCount = activityLogRepository.countByActionType(ACCOUNT_REVIEW_ACTION);
         return logCount > 0 ? logCount : adminAlertService.countNewAccountReviewRequests();
+    }
+
+    @Transactional(readOnly = true)
+    public long countNewRequestsSince(LocalDateTime since) {
+        long logCount = activityLogRepository.countByActionTypeAndCreatedAtAfter(
+                ACCOUNT_REVIEW_ACTION, since);
+        return logCount > 0 ? logCount : adminAlertService.countNewAccountReviewRequestsSince(since);
     }
 
     private Map<UUID, User> loadUsers(List<AdminAlert> alerts) {

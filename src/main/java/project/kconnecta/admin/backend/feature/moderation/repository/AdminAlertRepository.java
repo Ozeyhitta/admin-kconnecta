@@ -30,4 +30,10 @@ public interface AdminAlertRepository extends JpaRepository<AdminAlert, UUID> {
     );
 
     long countByStatusAndType(AlertStatus status, AlertType type);
+
+    long countByStatusAndTypeAndCreatedAtAfter(
+            AlertStatus status,
+            AlertType type,
+            LocalDateTime createdAt
+    );
 }

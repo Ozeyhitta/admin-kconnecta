@@ -67,7 +67,7 @@ public class UserAdminController {
             @PathVariable UUID id,
             @Valid @RequestBody UpdateStatusRequest request) {
 
-        return ResponseEntity.ok(adminUserService.updateStatus(id, request.getStatus()));
+        return ResponseEntity.ok(adminUserService.updateStatus(id, request.getStatus(), request.getLockDays()));
     }
 
     @PutMapping("/{id}/password")

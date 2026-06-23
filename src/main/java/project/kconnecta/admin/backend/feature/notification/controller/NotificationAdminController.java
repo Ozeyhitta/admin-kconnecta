@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import project.kconnecta.admin.backend.feature.notification.dto.response.AccountReviewRequestResponse;
 import project.kconnecta.admin.backend.feature.notification.dto.response.PostReportNotificationResponse;
@@ -16,6 +17,10 @@ import project.kconnecta.admin.backend.feature.notification.dto.request.Broadcas
 import project.kconnecta.admin.backend.feature.notification.dto.request.SendBatchNotificationRequest;
 import project.kconnecta.admin.backend.feature.notification.dto.request.SendNotificationRequest;
 import project.kconnecta.admin.backend.feature.notification.service.NotificationAdminService;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @RestController
 @RequestMapping("/api/v1/admin/notifications")
@@ -52,9 +57,17 @@ public class NotificationAdminController {
     }
 
     @GetMapping("/inbox-count")
-    public ResponseEntity<java.util.Map<String, Long>> countInbox() {
-        long total = accountReviewNotificationService.countNewRequests()
-                + postReportNotificationService.countAll();
+    public ResponseEntity<java.util.Map<String, Long>> countInbox(
+            @RequestParam(required = false) Instant since
+    ) {
+        LocalDateTime sinceLocal = since == null
+                ? null
+                : LocalDateTime.ofInstant(since, ZoneId.systemDefault());
+        long total = sinceLocal == null
+                ? accountReviewNotificationService.countNewRequests()
+                        + postReportNotificationService.countAll()
+                : accountReviewNotificationService.countNewRequestsSince(sinceLocal)
+                        + postReportNotificationService.countSince(sinceLocal);
         return ResponseEntity.ok(java.util.Map.of("count", total));
     }
 
