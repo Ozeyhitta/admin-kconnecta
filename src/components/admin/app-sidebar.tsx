@@ -22,7 +22,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { House, List, BarChart3, Bell, ScrollText, TrendingUp, ShieldAlert } from "lucide-react";
+import { House, List, BarChart3, Bell, ScrollText, TrendingUp } from "lucide-react";
 import logoV1 from "@/assets/LogoKConnecta_V1.png";
 import logoV2 from "@/assets/LogoKConnecta_V2.png";
 import { useAdminInboxCount } from "@/hooks/useAdminInboxCount";
@@ -86,7 +86,6 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
-          <ModerationConfigMenuItem onClick={handleClick} />
           <PoliciesMenuItem onClick={handleClick} />
         </SidebarMenu>
       </SidebarFooter>
@@ -163,20 +162,6 @@ export const NotificationsMenuItem = ({ onClick }: { onClick?: () => void }) => 
               {reviewCount > 9 ? "9+" : reviewCount}
             </span>
           )}
-        </Link>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  );
-};
-
-export const ModerationConfigMenuItem = ({ onClick }: { onClick?: () => void }) => {
-  const match = useMatch({ path: "/moderation-config", end: false });
-  return (
-    <SidebarMenuItem>
-      <SidebarMenuButton asChild isActive={!!match}>
-        <Link to="/moderation-config" onClick={onClick}>
-          <ShieldAlert />
-          Cấu hình kiểm duyệt
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
