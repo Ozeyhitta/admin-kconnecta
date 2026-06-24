@@ -163,11 +163,9 @@ export interface PolicyConfig {
 }
 
 export type PolicySectionKey =
-  | "community"
   | "keywords"
   | "violations"
   | "ai"
-  | "privacy"
   | "posts"
 
   | "recommendation"

@@ -81,7 +81,7 @@ function mapFallbackArea(section: string): string {
 }
 
 function deriveArea(diffs: DiffEntry[], fallbackSection: string): string {
-  if (diffs.some((d) => d.field.startsWith("communityRules"))) return "Chính sách cộng đồng";
+  if (diffs.some((d) => d.field.startsWith("communityRules"))) return "Nội dung trang chính sách";
   const tops = new Set(diffs.map((d) => d.field.split(".")[0]));
   if (tops.size === 1) {
     const top = [...tops][0];

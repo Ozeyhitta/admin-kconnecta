@@ -9,8 +9,6 @@ import {
 } from "@/services/policyApi";
 import type { PolicyConfig } from "./types";
 
-const LEGACY_STORAGE_KEY = "kconnecta_admin_policies_v1";
-
 export const usePolicyConfig = () => {
   const [config, setConfig] = useState<PolicyConfig | null>(null);
   const savedRef = useRef<PolicyConfig | null>(null);
@@ -19,10 +17,6 @@ export const usePolicyConfig = () => {
   const [loading, setLoading] = useState(true);
   const [apiReady, setApiReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,7 +33,7 @@ export const usePolicyConfig = () => {
             remote = await fetchPolicyConfig();
           }
         } catch {
-          // merge is best-effort when user backend is reachable
+          // merge is best-effort
         }
 
         if (cancelled) return;
@@ -86,7 +80,7 @@ export const usePolicyConfig = () => {
   const save = useCallback(
     async (section: string, summary: string) => {
       if (!config || !apiReady) {
-        throw new Error("Không kết nối User backend");
+        throw new Error("Không kết nối Admin API");
       }
       const withAudit = appendAuditEntry(
         config,
@@ -107,7 +101,7 @@ export const usePolicyConfig = () => {
 
   const resetToDefaults = useCallback(async () => {
     if (!apiReady) {
-      throw new Error("Không kết nối User backend");
+      throw new Error("Không kết nối Admin API");
     }
     const fresh = normalizePolicyConfig(await resetPolicyToDefault());
     setConfig(fresh);

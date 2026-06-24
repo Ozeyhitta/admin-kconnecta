@@ -83,7 +83,7 @@ const ACTION_LABEL: Record<ViolationActionType, string> = {
   ban_permanent: "Ban vĩnh viễn",
 };
 
-// ─── 1. Community ─────────────────────────────────────────────────────────────
+// ─── 1. Community rules (policy metadata) ────────────────────────────────────
 
 const SEVERITY_META: Record<string, {
   label: string;
@@ -212,8 +212,10 @@ function RuleEditDialog({
 
           <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
             <div>
-              <p className="text-sm font-medium">Bật rule này</p>
-              <p className="text-xs text-muted-foreground">Tắt để tạm ngừng áp dụng mà không xóa</p>
+              <p className="text-sm font-medium">Hiển thị trên trang user</p>
+              <p className="text-xs text-muted-foreground">
+                Tắt để loại khỏi API public — không ảnh hưởng kiểm duyệt tự động
+              </p>
             </div>
             <Switch
               checked={draft.enabled}
@@ -252,9 +254,22 @@ export const CommunitySection = ({
 
   return (
     <>
+      <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+        <Info className="size-4 mt-0.5 shrink-0" />
+        <div className="min-w-0">
+          <p className="font-medium">Metadata quy tắc — không phải kiểm duyệt</p>
+          <p className="text-xs leading-relaxed opacity-90 mt-1">
+            Lưu định nghĩa loại vi phạm (tên, ví dụ, mức độ) trong cấu hình hệ thống.
+            Kiểm duyệt thực tế nằm ở tab{" "}
+            <span className="font-medium">Từ khóa</span> và{" "}
+            <span className="font-medium">AI moderation</span>.
+          </p>
+        </div>
+      </div>
+
       <PolicyCard
         title="Quy tắc cộng đồng"
-        description="Quản lý nội dung bị cấm — tên, ví dụ vi phạm, mức độ và hình thức xử lý hiển thị với người dùng"
+        description="Định nghĩa loại vi phạm — tên, ví dụ, mức độ và hình thức xử lý (metadata)"
       >
         {/* Legend mức độ */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 pb-2">
@@ -1316,13 +1331,12 @@ function AuditDetail({
 export const SECTION_META: {
   key: import("./types").PolicySectionKey;
   label: string;
+  title?: string;
   icon: FC<{ className?: string }>;
 }[] = [
-  { key: "community", label: "Cộng đồng", icon: Shield },
   { key: "keywords", label: "Từ khóa", icon: FileText },
   { key: "violations", label: "Xử phạt", icon: Scale },
   { key: "ai", label: "AI moderation", icon: Brain },
-  { key: "privacy", label: "Riêng tư", icon: Shield },
   { key: "posts", label: "Bài viết", icon: FileText },
 
   { key: "recommendation", label: "Đề xuất", icon: TrendingUp },

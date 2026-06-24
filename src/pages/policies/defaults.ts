@@ -1,4 +1,8 @@
 import type { AiModerationConfig, KeywordCategory, KeywordEntry, PolicyConfig } from "./types";
+import defaultConfigJson from "./default-config.json";
+
+export const getDefaultPolicyConfig = (): PolicyConfig =>
+  normalizePolicyConfig(defaultConfigJson as PolicyConfig);
 
 // Mirrors backend default-config.json `aiModeration`. Used as the fallback so the
 // admin tab renders even when the API returns no / partial aiModeration.

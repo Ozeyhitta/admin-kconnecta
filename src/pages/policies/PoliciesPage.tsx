@@ -10,10 +10,8 @@ import { usePolicyConfig } from "./usePolicyConfig";
 import {
   AiModerationSection,
   AuditSection,
-  CommunitySection,
   KeywordsSection,
   PostPolicySection,
-  PrivacySection,
   RecommendationSection,
   SECTION_META,
   ViolationsSection,
@@ -34,7 +32,7 @@ const PoliciesPage = () => {
     apiReady,
     loadError,
   } = usePolicyConfig();
-  const [tab, setTab] = useState<PolicySectionKey>("community");
+  const [tab, setTab] = useState<PolicySectionKey>("keywords");
   const [confirmReset, setConfirmReset] = useState(false);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -45,12 +43,12 @@ const PoliciesPage = () => {
     setSaving(true);
     try {
       await save("Chính sách", `Cập nhật mục: ${sectionLabel}`);
-      notify("Đã lưu cấu hình chính sách (đồng bộ User backend)", {
+      notify("Đã lưu cấu hình chính sách vào database", {
         type: "success",
         messageArgs: { _: "Đã lưu cấu hình chính sách" },
       });
     } catch {
-      notify("Không thể lưu cấu hình. Kiểm tra kết nối User backend.", {
+      notify("Không thể lưu cấu hình. Kiểm tra kết nối Admin backend.", {
         type: "error",
         messageArgs: { _: "Không thể lưu cấu hình" },
       });
@@ -69,7 +67,7 @@ const PoliciesPage = () => {
       });
       setConfirmReset(false);
     } catch {
-      notify("Không thể đặt lại cấu hình. Kiểm tra kết nối User backend.", {
+      notify("Không thể đặt lại cấu hình. Kiểm tra kết nối Admin backend.", {
         type: "error",
         messageArgs: { _: "Không thể đặt lại cấu hình" },
       });
@@ -88,16 +86,12 @@ const PoliciesPage = () => {
     }
 
     switch (tab) {
-      case "community":
-        return <CommunitySection config={config} update={update} />;
       case "keywords":
         return <KeywordsSection config={config} update={update} />;
       case "violations":
         return <ViolationsSection config={config} update={update} />;
       case "ai":
         return <AiModerationSection config={config} update={update} />;
-      case "privacy":
-        return <PrivacySection />;
       case "posts":
         return <PostPolicySection config={config} update={update} />;
       case "recommendation":
@@ -129,7 +123,7 @@ const PoliciesPage = () => {
           <div>
             <h1 className="text-lg font-semibold">Quản lý chính sách</h1>
             <p className="text-xs text-muted-foreground">
-              Cộng đồng · từ khóa · AI · quyền riêng tư · audit
+              Từ khóa · AI · bài viết · audit
             </p>
           </div>
         </div>
@@ -139,7 +133,7 @@ const PoliciesPage = () => {
           ) : null}
           {!loading && apiReady ? (
             <Badge variant="outline" className="text-success border-success-border">
-              Đồng bộ User API
+              Đã kết nối database
             </Badge>
           ) : null}
           {dirty ? (
@@ -180,7 +174,7 @@ const PoliciesPage = () => {
         <div className="mb-4 flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           <AlertCircle className="size-4 mt-0.5 shrink-0" />
           <div>
-            <p className="font-medium">Không kết nối User backend — không thể chỉnh sửa</p>
+            <p className="font-medium">Không kết nối Admin API — không thể chỉnh sửa</p>
             {loadError ? (
               <p className="text-xs mt-0.5 opacity-80">{loadError}</p>
             ) : null}
@@ -195,11 +189,11 @@ const PoliciesPage = () => {
       >
         <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
           <TabsList className="inline-flex h-auto w-max min-w-full flex-nowrap justify-start gap-1 bg-muted/80 p-1">
-            {SECTION_META.map(({ key, label, icon: Icon }) => (
+            {SECTION_META.map(({ key, label, title, icon: Icon }) => (
               <TabsTrigger
                 key={key}
                 value={key}
-                title={label}
+                title={title ?? label}
                 className="h-8 shrink-0 flex-none px-2.5 text-xs gap-1.5 sm:px-3 sm:text-sm"
               >
                 <Icon className="size-3.5 shrink-0" />
@@ -217,12 +211,13 @@ const PoliciesPage = () => {
       </Tabs>
 
       <p className="text-xs text-muted-foreground mt-6">
-        Cấu hình lưu trong database User backend (
+        Cấu hình lưu trong database (
         <code className="text-[11px]">platform_policies</code>
-        ), đồng bộ qua Admin API (
+        , <code className="text-[11px]">policy_keywords</code>
+        ) qua Admin API (
         <code className="text-[11px]">/api/v1/admin/policies</code>
         ). User app đọc tại{" "}
-        <code className="text-[11px]">/api/v1/policies/public</code>.
+        <code className="text-[11px]">/api/v1/policies/public</code> — không qua Admin API.
       </p>
 
       <Confirm
