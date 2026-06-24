@@ -32,6 +32,11 @@ public class TopPostResponse {
     long shareCount;
     long reportCount;
 
-    /** Hashtag topics this post belongs to. */
+    /** Hashtag topic names (legacy flat list). */
     List<String> topics;
+
+    /** Topic assignments with source (hashtag / keyword / uncategorized). */
+    List<PostTopicTagResponse> topicTags;
+
+    boolean hasHashtag;
 }

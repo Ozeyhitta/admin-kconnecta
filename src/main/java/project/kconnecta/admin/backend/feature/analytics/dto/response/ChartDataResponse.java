@@ -5,16 +5,22 @@ import lombok.Value;
 
 import java.util.List;
 
-/** Pre-shaped data for the two charts (bar = top topics, line = topic score per day). */
+/** Pre-shaped data for topic charts. */
 @Value
 @Builder
 public class ChartDataResponse {
 
-    /** Bar chart: top topics by score. */
+    /** Top topics excluding uncategorized (#khác). */
     List<TopicScorePoint> topicBar;
 
-    /** Line chart: shared x-axis dates + one series per top topic. */
+    /** Top hashtag-only topics (excludes #khác). */
+    List<TopicScorePoint> topicBarHashtags;
+
+    /** Top auto-extracted keyword topics. */
+    List<TopicScorePoint> topicBarKeywords;
+
     TopicDailySeries topicDaily;
+    TopicDailySeries topicDailyHashtags;
 
     @Value
     @Builder
@@ -22,14 +28,14 @@ public class ChartDataResponse {
         String topic;
         double score;
         long postCount;
+        /** HASHTAG | KEYWORD */
+        String source;
     }
 
     @Value
     @Builder
     public static class TopicDailySeries {
-        /** Ordered x-axis labels (ISO dates) covering the current window. */
         List<String> dates;
-        /** One line per topic; each {@code data} list aligns 1:1 with {@code dates}. */
         List<TopicSeries> series;
     }
 
@@ -38,5 +44,6 @@ public class ChartDataResponse {
     public static class TopicSeries {
         String topic;
         List<Double> data;
+        String source;
     }
 }

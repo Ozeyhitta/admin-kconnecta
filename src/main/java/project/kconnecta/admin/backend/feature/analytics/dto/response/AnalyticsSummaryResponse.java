@@ -9,24 +9,35 @@ import java.time.LocalDateTime;
 @Value
 @Builder
 public class AnalyticsSummaryResponse {
-    /** Echoes the requested range, e.g. "7d" or "30d". */
     String range;
-    /** Number of posts that had at least one interaction in the current window. */
     long totalPosts;
-    /** like + comment + share + report counts in the current window. */
     long totalInteractions;
-    /** Total reports in the current window (moderation signal). */
     long totalReports;
-    /** Distinct hashtag-topics discovered in the current window. */
+    /** Distinct topic buckets (hashtag + keyword + uncategorized). */
     int totalTopics;
-    /** Number of alerts raised. */
     int totalAlerts;
-    /** Highest-scoring topic name (without the leading '#'). */
     String topTopic;
-    /** Score of the highest-scoring topic. */
     double topTopicScore;
-    /** Average trend_score across analysed posts (rounded to 1 decimal). */
     double avgTrendScore;
-    /** Server time the snapshot was computed. */
     LocalDateTime generatedAt;
+
+    /** Posts with at least one #hashtag in content. */
+    long postsWithHashtag;
+    /** Posts without hashtag but assigned topics via keyword extraction. */
+    long postsWithKeywordOnly;
+    /** Posts with no hashtag and no extractable keywords (#khác). */
+    long postsUncategorized;
+    /** Share of posts that have at least one hashtag (0–100). */
+    double hashtagCoveragePercent;
+
+    int hashtagTopicCount;
+    int keywordTopicCount;
+
+    String topHashtagTopic;
+    double topHashtagTopicScore;
+    String topKeywordTopic;
+    double topKeywordTopicScore;
+
+    long uncategorizedPostCount;
+    double uncategorizedTopicScore;
 }

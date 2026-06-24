@@ -4,7 +4,7 @@
 --
 -- AlertType values (project.kconnecta.admin.backend.common.enums.AlertType):
 --   CHAT_SPAM, PROFANITY, MALICIOUS_LINK, RATE_LIMIT, DUPLICATE_MESSAGE,
---   BLOCKED_KEYWORD, ACCOUNT_REVIEW_REQUESTED, POST_REPORTED
+--   BLOCKED_KEYWORD, ACCOUNT_REVIEW_REQUESTED, POST_REPORTED, COMMENT_REPORTED
 
 ALTER TABLE admin_alerts DROP CONSTRAINT IF EXISTS admin_alerts_type_check;
 
@@ -17,6 +17,7 @@ ALTER TABLE admin_alerts ADD CONSTRAINT admin_alerts_type_check CHECK (
         'DUPLICATE_MESSAGE',
         'BLOCKED_KEYWORD',
         'ACCOUNT_REVIEW_REQUESTED',
-        'POST_REPORTED'
+        'POST_REPORTED',
+        'COMMENT_REPORTED'
     )
 );

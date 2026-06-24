@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import project.kconnecta.admin.backend.feature.analytics.dto.response.PostTrendsResponse;
+import project.kconnecta.admin.backend.feature.analytics.dto.response.TopicPostsResponse;
 import project.kconnecta.admin.backend.feature.analytics.service.PostTrendsAnalyticsService;
 
 /**
@@ -30,5 +31,16 @@ public class PostTrendsAdminController {
     public ResponseEntity<PostTrendsResponse> getPostTrends(
             @RequestParam(defaultValue = "7d") String range) {
         return ResponseEntity.ok(postTrendsAnalyticsService.getPostTrends(range));
+    }
+
+    /**
+     * GET /api/v1/admin/analytics/post-trends/topics/posts?topic=giadinh&source=HASHTAG&range=7d
+     */
+    @GetMapping("/post-trends/topics/posts")
+    public ResponseEntity<TopicPostsResponse> getTopicPosts(
+            @RequestParam String topic,
+            @RequestParam(required = false) String source,
+            @RequestParam(defaultValue = "7d") String range) {
+        return ResponseEntity.ok(postTrendsAnalyticsService.getTopicPosts(range, topic, source));
     }
 }
