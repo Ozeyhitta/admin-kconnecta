@@ -3,7 +3,6 @@ import { normalizePolicyConfig } from "./defaults";
 import { appendAuditEntry } from "./storage";
 import {
   fetchPolicyConfig,
-  mergeDefaultKeywords,
   resetPolicyToDefault,
   savePolicyConfig as savePolicyApi,
 } from "@/services/policyApi";
@@ -24,19 +23,9 @@ export const usePolicyConfig = () => {
       setLoading(true);
       setLoadError(null);
       try {
-        let remote = await fetchPolicyConfig();
+        const remote = await fetchPolicyConfig();
         if (cancelled) return;
 
-        try {
-          const mergeResult = await mergeDefaultKeywords();
-          if (!cancelled && mergeResult.added > 0) {
-            remote = await fetchPolicyConfig();
-          }
-        } catch {
-          // merge is best-effort
-        }
-
-        if (cancelled) return;
         const normalized = normalizePolicyConfig(remote);
         setConfig(normalized);
         savedRef.current = normalized;

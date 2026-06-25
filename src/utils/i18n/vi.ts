@@ -1,0 +1,170 @@
+import { TranslationMessages } from "ra-core";
+import englishMessages from "ra-language-english";
+
+const vietnameseMessages: TranslationMessages = {
+  ...englishMessages,
+  ra: {
+    ...englishMessages.ra,
+    action: {
+      ...englishMessages.ra.action,
+      cancel: "Hủy",
+      save: "Lưu",
+      delete: "Xóa",
+      edit: "Sửa",
+      create: "Thêm",
+      show: "Chi tiết",
+      list: "Danh sách",
+      refresh: "Làm mới",
+      back: "Quay lại",
+      search: "Tìm kiếm",
+      export: "Xuất",
+      clear_input_value: "Xóa",
+      confirm: "Xác nhận",
+      unselect: "Bỏ chọn",
+      close: "Đóng",
+      open_menu: "Mở menu",
+      select_all: "Chọn tất cả",
+      select_row: "Chọn dòng",
+      bulk_actions: "Thao tác hàng loạt",
+    },
+    auth: {
+      ...englishMessages.ra.auth,
+      sign_in: "Đăng nhập",
+      sign_in_error: "Đăng nhập thất bại",
+      logout: "Đăng xuất",
+      username: "Tên đăng nhập",
+      password: "Mật khẩu",
+    },
+    page: {
+      ...englishMessages.ra.page,
+      dashboard: "Trang chủ",
+      empty: "Chưa có dữ liệu",
+      error: "Đã xảy ra lỗi",
+      loading: "Đang tải…",
+      create: "Tạo %{name}",
+      edit: "Sửa %{name}",
+      show: "%{name} chi tiết",
+      list: "%{name}",
+    },
+    navigation: {
+      ...englishMessages.ra.navigation,
+      page_rows_per_page: "Số dòng:",
+      no_results: "Không có kết quả",
+      no_more_results: "Trang %{page}, hết kết quả",
+      page_out_of_boundaries: "Trang %{page} vượt giới hạn",
+      page_range_info: "%{offsetBegin}-%{offsetEnd} / %{total}",
+      page_range_info_total: "%{offsetBegin}-%{offsetEnd} / %{total}",
+      next: "Sau",
+      prev: "Trước",
+    },
+    notification: {
+      ...englishMessages.ra.notification,
+      created: "Đã tạo",
+      updated: "Đã cập nhật",
+      deleted: "Đã xóa",
+      http_error: "Lỗi kết nối server",
+    },
+    message: {
+      ...englishMessages.ra.message,
+      delete_title: "Xóa %{name}",
+      delete_content: "Bạn có chắc muốn xóa mục này không?",
+    },
+  },
+  pos: {
+    search: "Tìm kiếm",
+    configuration: "Cấu hình",
+    language: "Ngôn ngữ",
+    theme: {
+      name: "Giao diện",
+      light: "Sáng",
+      dark: "Tối",
+    },
+    dashboard: {
+      monthly_revenue: "Doanh thu tháng",
+      month_history: "Doanh thu 30 ngày",
+      new_orders: "Đơn mới",
+      pending_reviews: "Đánh giá chờ duyệt",
+      all_reviews: "Xem tất cả đánh giá",
+      new_customers: "Người dùng mới",
+      all_customers: "Xem tất cả người dùng",
+      pending_orders: "Đơn chờ xử lý",
+      order: {
+        items:
+          "bởi %{customer_name}, một mục |||| bởi %{customer_name}, %{nb_items} mục",
+      },
+      welcome: {
+        title: "Chào mừng đến KConnecta Admin",
+        subtitle:
+          "Giám sát và quản lý người dùng, bài viết, sản phẩm và hoạt động nền tảng từ bảng điều khiển này.",
+        ra_button: "KConnecta",
+        demo_button: "Xem mã nguồn",
+      },
+    },
+    menu: {
+      sales: "Bán hàng",
+      catalog: "Danh mục",
+      customers: "Quản lý người dùng",
+    },
+    events: {
+      review: {
+        title: 'Đã đánh giá "%{product}"',
+      },
+      order: {
+        title: "Đã đặt 1 sản phẩm |||| Đã đặt %{smart_count} sản phẩm",
+      },
+    },
+  },
+  resources: {
+    customers: {
+      name: "Người dùng |||| Người dùng",
+      fields: {
+        orders: "Đơn hàng",
+        first_seen: "Lần đầu truy cập",
+        full_name: "Họ tên",
+        groups: "Phân khúc",
+        last_seen: "Truy cập gần nhất",
+        last_seen_gte: "Truy cập từ",
+        name: "Tên",
+        total_spent: "Tổng chi tiêu",
+        password: "Mật khẩu",
+        confirm_password: "Xác nhận mật khẩu",
+        stateAbbr: "Tỉnh/thành",
+        has_newsletter: "Bản tin",
+      },
+      filters: {
+        last_visited: "Lần truy cập gần nhất",
+        today: "Hôm nay",
+        this_week: "Tuần này",
+        last_week: "Tuần trước",
+        this_month: "Tháng này",
+        last_month: "Tháng trước",
+        earlier: "Trước đó",
+        has_ordered: "Đã đặt hàng",
+        has_newsletter: "Nhận bản tin",
+        group: "Phân khúc",
+      },
+      fieldGroups: {
+        identity: "Thông tin",
+        address: "Địa chỉ",
+        misc: "Khác",
+        stats: "Thống kê",
+        history: "Lịch sử",
+        password: "Mật khẩu",
+        change_password: "Đổi mật khẩu",
+      },
+      page: {
+        delete: "Xóa người dùng",
+      },
+      errors: {
+        password_mismatch: "Xác nhận mật khẩu không khớp.",
+      },
+      notifications: {
+        created: "Đã tạo người dùng |||| Đã tạo %{smart_count} người dùng",
+        updated: "Đã cập nhật người dùng |||| Đã cập nhật %{smart_count} người dùng",
+        deleted: "Đã xóa người dùng |||| Đã xóa %{smart_count} người dùng",
+      },
+    },
+  },
+};
+
+export default vietnameseMessages;

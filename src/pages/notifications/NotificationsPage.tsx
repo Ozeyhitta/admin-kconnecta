@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { AlertTriangle, Clock, RefreshCw, Send, Users, User, X, Search, Flag, Video } from "lucide-react";
+import { AlertTriangle, Clock, RefreshCw, Send, Users, User, X, Search, Flag, Video, Bell } from "lucide-react";
 import { useNotify } from "ra-core";
 import { Breadcrumb, BreadcrumbPage } from "@/components/admin";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { apiClient } from "@/services/axiosInstance";
-import { getAdminToken } from "@/lib/currentAdminUser";
-import { adminPost, AdminApiError } from "@/services/adminApi";
 import { getPageContent, getPageTotal } from "@/services/pagination";
 import { markAdminInboxSeen } from "@/lib/adminInboxSeen";
 
@@ -272,6 +270,7 @@ export default function NotificationsPage() {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [postReports, setPostReports] = useState<PostReportNotification[]>([]);
   const [postReportsLoading, setPostReportsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"review" | "reports">("review");
 
   const loadReviewRequests = async () => {
     setReviewLoading(true);
@@ -316,31 +315,22 @@ export default function NotificationsPage() {
     if (!message.trim()) return;
     if (targetType === "specific" && selectedUsers.length === 0) return;
 
-    const token = getAdminToken();
-    if (!token) {
-      notify("Phiên đăng nhập hết hạn — vui lòng đăng nhập lại", {
-        type: "warning",
-        messageArgs: { _: "Phiên đăng nhập hết hạn — vui lòng đăng nhập lại" },
-      });
-      return;
-    }
-
     setSending(true);
     try {
       if (targetType === "all") {
-        await adminPost("/api/v1/admin/notifications/broadcast", { text: message });
+        await apiClient.post("/api/v1/admin/notifications/broadcast", { text: message });
         notify("Đã gửi thông báo đến tất cả người dùng", {
           type: "success",
           messageArgs: { _: "Đã gửi thông báo đến tất cả người dùng" },
         });
       } else {
         if (selectedUsers.length === 1) {
-          await adminPost("/api/v1/admin/notifications/send", {
+          await apiClient.post("/api/v1/admin/notifications/send", {
             targetUserId: selectedUsers[0].id,
             text: message,
           });
         } else {
-          await adminPost("/api/v1/admin/notifications/send-batch", {
+          await apiClient.post("/api/v1/admin/notifications/send-batch", {
             targetUserIds: selectedUsers.map((u) => u.id),
             text: message,
           });
@@ -354,12 +344,12 @@ export default function NotificationsPage() {
       setMessage("");
       setSelectedUsers([]);
     } catch (err: unknown) {
+      const axiosErr = err as { response?: { status?: number; data?: { message?: string } } };
+      const status = axiosErr.response?.status;
       const msg =
-        err instanceof AdminApiError
-          ? err.status === 401
-            ? "Phiên đăng nhập hết hạn hoặc token không hợp lệ — đăng xuất và đăng nhập lại"
-            : err.message
-          : "Gửi thông báo thất bại";
+        status === 401
+          ? "Phiên đăng nhập hết hạn hoặc token không hợp lệ — đăng xuất và đăng nhập lại"
+          : axiosErr.response?.data?.message ?? "Gửi thông báo thất bại";
       notify(msg, {
         type: "error",
         messageArgs: { _: msg },
@@ -382,251 +372,296 @@ export default function NotificationsPage() {
         <BreadcrumbPage>Thông báo</BreadcrumbPage>
       </Breadcrumb>
 
-      <div className="mb-5 rounded-lg border border-border bg-card p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold flex items-center gap-2">
-            <AlertTriangle className="size-4 text-amber-500" />
-            Yêu cầu xem xét từ người dùng
-          </h2>
-          <Button variant="outline" size="sm" onClick={() => void loadInbox()} disabled={reviewLoading || postReportsLoading}>
-            <RefreshCw className={`size-4 mr-1.5 ${reviewLoading || postReportsLoading ? "animate-spin" : ""}`} />
-            Làm mới
-          </Button>
+      {/* Header + summary */}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="flex items-center gap-2 text-lg font-semibold">
+          <Bell className="size-5" />
+          Thông báo
+        </h1>
+        <div className="flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+            <AlertTriangle className="size-3.5" />
+            {reviewRequests.length} chờ xử lý
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700 dark:bg-red-950/50 dark:text-red-300">
+            <Flag className="size-3.5" />
+            {postReports.length} báo cáo
+          </span>
         </div>
-
-        {reviewLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-lg border border-border p-3">
-                <Skeleton className="size-10 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-48" />
-                  <Skeleton className="h-3 w-2/3" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : reviewRequests.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            Chưa có yêu cầu xem xét mở khóa nào từ người dùng.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {reviewRequests.map((item) => (
-              <div key={item.id} className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3">
-                <Avatar className="size-10 shrink-0">
-                  <AvatarImage src={item.avatarUrl ?? undefined} />
-                  <AvatarFallback className="text-xs">
-                    {reviewDisplayName(item).charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">{reviewDisplayName(item)}</p>
-                    {item.username && <span className="text-xs text-muted-foreground">@{item.username}</span>}
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {item.description || "Người dùng yêu cầu admin xem xét mở khóa tài khoản."}
-                  </p>
-                  {item.createdAt && (
-                    <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="size-3" />
-                      {notificationTimeFormatter.format(new Date(item.createdAt))}
-                    </p>
-                  )}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate(`/customers/${item.userId}/show`)}
-                >
-                  Xem tài khoản
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
-      <div className="mb-5 rounded-lg border border-border bg-card p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold flex items-center gap-2">
-            <Flag className="size-4 text-red-500" />
-            Báo cáo bài viết / video (Watch)
-          </h2>
-          <Button variant="outline" size="sm" onClick={() => void loadPostReports()} disabled={postReportsLoading}>
-            <RefreshCw className={`size-4 mr-1.5 ${postReportsLoading ? "animate-spin" : ""}`} />
-            Làm mới
-          </Button>
-        </div>
-
-        {postReportsLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-lg border border-border p-3">
-                <Skeleton className="size-10 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-48" />
-                  <Skeleton className="h-3 w-2/3" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : postReports.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            Chưa có báo cáo video hoặc bài viết nào từ người dùng.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {postReports.map((item) => (
-              <div key={item.id} className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3">
-                <Avatar className="size-10 shrink-0">
-                  <AvatarImage src={item.reporterAvatarUrl ?? undefined} />
-                  <AvatarFallback className="text-xs">
-                    {reportDisplayName(item).charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">{reportDisplayName(item)}</p>
-                    {item.reporterUsername && (
-                      <span className="text-xs text-muted-foreground">@{item.reporterUsername}</span>
-                    )}
-                    {isWatchVideoReport(item) && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-950/50 dark:text-red-300">
-                        <Video className="size-3" />
-                        Video Watch
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {item.summary || item.reason || "Người dùng báo cáo nội dung."}
-                  </p>
-                  {item.postAuthorFullName && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Tác giả bài viết: {item.postAuthorFullName}
-                    </p>
-                  )}
-                  {item.createdAt && (
-                    <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="size-3" />
-                      {notificationTimeFormatter.format(new Date(item.createdAt))}
-                    </p>
-                  )}
-                </div>
-                <div className="flex shrink-0 flex-col gap-2">
-                  {item.postId && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/posts/${item.postId}/show`)}
-                    >
-                      Xem bài
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => navigate("/post-reports")}>
-                    Tất cả báo cáo
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-lg border border-border bg-card p-5">
-        <h2 className="text-base font-semibold mb-4 flex items-center gap-2">
-          <Send className="size-4" />
-          Gửi thông báo đến người dùng
-        </h2>
-
-        {/* Target type */}
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => { setTargetType("all"); setSelectedUsers([]); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-              targetType === "all"
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border hover:bg-muted text-muted-foreground"
-            }`}
-          >
-            <Users className="size-4" />
-            Tất cả người dùng
-          </button>
-          <button
-            onClick={() => setTargetType("specific")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-              targetType === "specific"
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border hover:bg-muted text-muted-foreground"
-            }`}
-          >
-            <User className="size-4" />
-            Người dùng cụ thể
-          </button>
-        </div>
-
-        {/* User picker */}
-        {targetType === "specific" && (
-          <div className="mb-4">
-            <Label className="text-sm mb-1.5 block">Người nhận</Label>
-
-            {selectedUsers.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {selectedUsers.map((u) => (
-                  <span
-                    key={u.id}
-                    className="flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
-                  >
-                    <Avatar className="size-4 shrink-0">
-                      <AvatarImage src={u.avatarUrl} />
-                      <AvatarFallback className="text-[10px]">
-                        {displayName(u).charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    {displayName(u)}
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => removeUser(u.id)}
-                      onKeyDown={(e) => e.key === "Enter" && removeUser(u.id)}
-                      className="hover:text-destructive transition-colors cursor-pointer ml-0.5"
-                    >
-                      <X className="size-3" />
-                    </span>
-                  </span>
-                ))}
-              </div>
-            )}
-
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-3">
+        {/* ─── Left: triage inbox ─── */}
+        <div className="rounded-lg border border-border bg-card p-5 lg:col-span-2">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold">Hộp thư xử lý</h2>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPickerOpen(true)}
-              className="w-full justify-start gap-2 text-muted-foreground"
+              onClick={() => void loadInbox()}
+              disabled={reviewLoading || postReportsLoading}
             >
-              <Users className="size-4" />
-              {selectedUsers.length === 0
-                ? "Chọn người dùng..."
-                : `Thêm / bỏ người dùng (${selectedUsers.length} đã chọn)`}
+              <RefreshCw className={`size-4 mr-1.5 ${reviewLoading || postReportsLoading ? "animate-spin" : ""}`} />
+              Làm mới
             </Button>
           </div>
-        )}
 
-        {/* Message */}
-        <div className="mb-4">
-          <Label className="text-sm mb-1.5 block">Nội dung thông báo</Label>
-          <Textarea
-            placeholder="Nhập nội dung thông báo..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            rows={3}
-            className="resize-none"
-          />
+          {/* Tabs */}
+          <div className="mb-4 flex gap-1.5 rounded-lg bg-muted p-1">
+            <button
+              onClick={() => setActiveTab("review")}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                activeTab === "review"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <AlertTriangle className="size-4 text-amber-500" />
+              Yêu cầu xem xét
+              <span className="rounded-full bg-amber-100 px-1.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                {reviewRequests.length}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab("reports")}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                activeTab === "reports"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Flag className="size-4 text-red-500" />
+              Báo cáo bài viết
+              <span className="rounded-full bg-red-100 px-1.5 text-xs font-semibold text-red-700 dark:bg-red-950/50 dark:text-red-300">
+                {postReports.length}
+              </span>
+            </button>
+          </div>
+
+          {/* Review panel */}
+          {activeTab === "review" &&
+            (reviewLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-lg border border-border p-3">
+                    <Skeleton className="size-10 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-48" />
+                      <Skeleton className="h-3 w-2/3" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : reviewRequests.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                Chưa có yêu cầu xem xét mở khóa nào từ người dùng.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {reviewRequests.map((item) => (
+                  <div key={item.id} className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3">
+                    <Avatar className="size-10 shrink-0">
+                      <AvatarImage src={item.avatarUrl ?? undefined} />
+                      <AvatarFallback className="text-xs">
+                        {reviewDisplayName(item).charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium">{reviewDisplayName(item)}</p>
+                        {item.username && <span className="text-xs text-muted-foreground">@{item.username}</span>}
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {item.description || "Người dùng yêu cầu admin xem xét mở khóa tài khoản."}
+                      </p>
+                      {item.createdAt && (
+                        <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="size-3" />
+                          {notificationTimeFormatter.format(new Date(item.createdAt))}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/customers/${item.userId}/show`)}
+                    >
+                      Xem tài khoản
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ))}
+
+          {/* Reports panel */}
+          {activeTab === "reports" &&
+            (postReportsLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-lg border border-border p-3">
+                    <Skeleton className="size-10 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-48" />
+                      <Skeleton className="h-3 w-2/3" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : postReports.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                Chưa có báo cáo video hoặc bài viết nào từ người dùng.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {postReports.map((item) => (
+                  <div key={item.id} className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3">
+                    <Avatar className="size-10 shrink-0">
+                      <AvatarImage src={item.reporterAvatarUrl ?? undefined} />
+                      <AvatarFallback className="text-xs">
+                        {reportDisplayName(item).charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium">{reportDisplayName(item)}</p>
+                        {item.reporterUsername && (
+                          <span className="text-xs text-muted-foreground">@{item.reporterUsername}</span>
+                        )}
+                        {isWatchVideoReport(item) && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-950/50 dark:text-red-300">
+                            <Video className="size-3" />
+                            Video Watch
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {item.summary || item.reason || "Người dùng báo cáo nội dung."}
+                      </p>
+                      {item.postAuthorFullName && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Tác giả bài viết: {item.postAuthorFullName}
+                        </p>
+                      )}
+                      {item.createdAt && (
+                        <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="size-3" />
+                          {notificationTimeFormatter.format(new Date(item.createdAt))}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 flex-col gap-2">
+                      {item.postId && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/posts/${item.postId}/show`)}
+                        >
+                          Xem bài
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => navigate("/post-reports")}>
+                        Tất cả báo cáo
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
         </div>
 
-        <div className="flex justify-end">
-          <Button onClick={handleSend} disabled={sending || !canSend}>
+        {/* ─── Right: compose (sticky) ─── */}
+        <div className="rounded-lg border border-border bg-card p-5 lg:sticky lg:top-4">
+          <h2 className="text-base font-semibold mb-4 flex items-center gap-2">
+            <Send className="size-4" />
+            Gửi thông báo
+          </h2>
+
+          {/* Target type */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => { setTargetType("all"); setSelectedUsers([]); }}
+              className={`flex flex-1 items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                targetType === "all"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border hover:bg-muted text-muted-foreground"
+              }`}
+            >
+              <Users className="size-4" />
+              Tất cả
+            </button>
+            <button
+              onClick={() => setTargetType("specific")}
+              className={`flex flex-1 items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                targetType === "specific"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border hover:bg-muted text-muted-foreground"
+              }`}
+            >
+              <User className="size-4" />
+              Cụ thể
+            </button>
+          </div>
+
+          {/* User picker */}
+          {targetType === "specific" && (
+            <div className="mb-4">
+              <Label className="text-sm mb-1.5 block">Người nhận</Label>
+
+              {selectedUsers.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {selectedUsers.map((u) => (
+                    <span
+                      key={u.id}
+                      className="flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
+                    >
+                      <Avatar className="size-4 shrink-0">
+                        <AvatarImage src={u.avatarUrl} />
+                        <AvatarFallback className="text-[10px]">
+                          {displayName(u).charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      {displayName(u)}
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => removeUser(u.id)}
+                        onKeyDown={(e) => e.key === "Enter" && removeUser(u.id)}
+                        className="hover:text-destructive transition-colors cursor-pointer ml-0.5"
+                      >
+                        <X className="size-3" />
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPickerOpen(true)}
+                className="w-full justify-start gap-2 text-muted-foreground"
+              >
+                <Users className="size-4" />
+                {selectedUsers.length === 0
+                  ? "Chọn người dùng..."
+                  : `Thêm / bỏ người dùng (${selectedUsers.length} đã chọn)`}
+              </Button>
+            </div>
+          )}
+
+          {/* Message */}
+          <div className="mb-4">
+            <Label className="text-sm mb-1.5 block">Nội dung thông báo</Label>
+            <Textarea
+              placeholder="Nhập nội dung thông báo..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={4}
+              className="resize-none"
+            />
+          </div>
+
+          <Button onClick={handleSend} disabled={sending || !canSend} className="w-full">
             <Send className="size-4 mr-1.5" />
             {sending ? "Đang gửi..." : "Gửi thông báo"}
           </Button>

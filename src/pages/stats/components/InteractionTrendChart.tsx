@@ -9,9 +9,10 @@ interface InteractionTrendChartProps {
   chartData: AnalyticsChartPoint[] | null;
   summary: InteractionSummary | null;
   loading?: boolean;
+  onDayClick?: (point: AnalyticsChartPoint) => void;
 }
 
-export const InteractionTrendChart = ({ chartData, summary, loading }: InteractionTrendChartProps) => {
+export const InteractionTrendChart = ({ chartData, summary, loading, onDayClick }: InteractionTrendChartProps) => {
   const ref = React.useRef<HTMLDivElement>(null);
   const inst = React.useRef<echarts.ECharts | null>(null);
 
@@ -76,6 +77,13 @@ export const InteractionTrendChart = ({ chartData, summary, loading }: Interacti
       }],
     }, true);
 
+    const onClick = (params: { dataIndex: number }) => {
+      const point = chartData[params.dataIndex];
+      if (point && onDayClick) onDayClick(point);
+    };
+    inst.current.off("click");
+    inst.current.on("click", onClick);
+
     const onResize = () => inst.current?.resize();
     window.addEventListener("resize", onResize);
     return () => {
@@ -83,13 +91,20 @@ export const InteractionTrendChart = ({ chartData, summary, loading }: Interacti
       inst.current?.dispose();
       inst.current = null;
     };
-  }, [dataKey, chartData, counts, peakIdx]);
+  }, [dataKey, chartData, counts, peakIdx, onDayClick]);
 
   if (loading || chartData === null) return <Skeleton className="w-full h-[220px]" />;
   if (chartData.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-16">Chưa có dữ liệu tương tác</p>;
   }
-  return <div ref={ref} style={{ width: "100%", height: 220 }} />;
+  return (
+    <div className="space-y-1">
+      {onDayClick && (
+        <p className="text-[10px] text-muted-foreground text-right">Nhấn cột để xem chi tiết</p>
+      )}
+      <div ref={ref} style={{ width: "100%", height: 220, cursor: onDayClick ? "pointer" : undefined }} />
+    </div>
+  );
 };
 
 export default InteractionTrendChart;

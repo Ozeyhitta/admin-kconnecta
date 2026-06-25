@@ -8,9 +8,10 @@ interface InteractionBreakdownProps {
   breakdown: InteractionBreakdownItem[];
   summary: InteractionSummary | null;
   loading?: boolean;
+  onTypeClick?: (item: InteractionBreakdownItem) => void;
 }
 
-export const InteractionBreakdown = ({ breakdown, summary, loading }: InteractionBreakdownProps) => {
+export const InteractionBreakdown = ({ breakdown, summary, loading, onTypeClick }: InteractionBreakdownProps) => {
   if (loading) {
     return (
       <div className="space-y-3">
@@ -47,8 +48,21 @@ export const InteractionBreakdown = ({ breakdown, summary, loading }: Interactio
       {breakdown.map(item => {
         const isTop = item.type === topType && item.count > 0;
         const color = BREAKDOWN_COLORS[item.type] ?? "#94a3b8";
+        const clickable = Boolean(onTypeClick) && item.count > 0;
         return (
-          <div key={item.type}>
+          <div
+            key={item.type}
+            role={clickable ? "button" : undefined}
+            tabIndex={clickable ? 0 : undefined}
+            className={clickable ? "rounded-md -mx-1 px-1 py-1 cursor-pointer hover:bg-muted/60 transition-colors" : undefined}
+            onClick={clickable ? () => onTypeClick?.(item) : undefined}
+            onKeyDown={clickable ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onTypeClick?.(item);
+              }
+            } : undefined}
+          >
             <div className="flex justify-between text-sm mb-1">
               <span className={`font-medium ${isTop ? "text-amber-700" : ""}`}>
                 {isTop && "★ "}{item.type}
@@ -71,7 +85,10 @@ export const InteractionBreakdown = ({ breakdown, summary, loading }: Interactio
         );
       })}
 
-      <p className="text-xs text-muted-foreground text-right pt-1">Tổng: {fmt.format(total)}</p>
+      <p className="text-xs text-muted-foreground text-right pt-1">
+        Tổng: {fmt.format(total)}
+        {onTypeClick && " · Nhấn loại để xem chi tiết"}
+      </p>
       {commentNote && (
         <p className="text-xs text-muted-foreground italic border-t pt-2 leading-relaxed">
           💡 {commentNote}

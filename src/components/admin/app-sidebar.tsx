@@ -118,7 +118,7 @@ export const StatsMenuItem = ({ onClick }: { onClick?: () => void }) => {
       <SidebarMenuButton asChild isActive={!!match}>
         <Link to="/stats" onClick={onClick}>
           <BarChart3 />
-          Thống kê &amp; Báo cáo
+          Thống kê tương tác
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>

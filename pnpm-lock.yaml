@@ -155,9 +155,6 @@ importers:
       ra-language-english:
         specifier: ^5.14.0
         version: 5.14.3(@tanstack/react-query@5.83.0(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react-hook-form@7.71.1(react@19.1.0))(react-router-dom@7.12.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-router@7.12.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react@19.1.0)
-      ra-language-french:
-        specifier: ^5.14.0
-        version: 5.14.3(@tanstack/react-query@5.83.0(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react-hook-form@7.71.1(react@19.1.0))(react-router-dom@7.12.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-router@7.12.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react@19.1.0)
       react:
         specifier: ^19.0.0
         version: 19.1.0
@@ -4239,9 +4236,6 @@ packages:
 
   ra-language-english@5.14.3:
     resolution: {integrity: sha512-7guJTCsHcqKpqntDQaEQEjG4lnKthF4TiMgQdhBQK3xgf3r5pRkU3C1/gUEcn0Vh5sEDJjtHKx2I/voTYm9rEQ==}
-
-  ra-language-french@5.14.3:
-    resolution: {integrity: sha512-uLo2XbXhy0evioc7yVAlDegG3EMe/HbFHB58nrQMyRnXEL7Kmn7MiuRuulbNkCUxTBn2JTlEfI0/8Rl+1FMSKg==}
 
   range-parser@1.2.1:
     resolution: {integrity: sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg==}
@@ -9102,17 +9096,6 @@ snapshots:
       - react-router-dom
 
   ra-language-english@5.14.3(@tanstack/react-query@5.83.0(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react-hook-form@7.71.1(react@19.1.0))(react-router-dom@7.12.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-router@7.12.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react@19.1.0):
-    dependencies:
-      ra-core: 5.14.3(@tanstack/react-query@5.83.0(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react-hook-form@7.71.1(react@19.1.0))(react-router-dom@7.12.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-router@7.12.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react@19.1.0)
-    transitivePeerDependencies:
-      - '@tanstack/react-query'
-      - react
-      - react-dom
-      - react-hook-form
-      - react-router
-      - react-router-dom
-
-  ra-language-french@5.14.3(@tanstack/react-query@5.83.0(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react-hook-form@7.71.1(react@19.1.0))(react-router-dom@7.12.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-router@7.12.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react@19.1.0):
     dependencies:
       ra-core: 5.14.3(@tanstack/react-query@5.83.0(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react-hook-form@7.71.1(react@19.1.0))(react-router-dom@7.12.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-router@7.12.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react@19.1.0)
     transitivePeerDependencies:

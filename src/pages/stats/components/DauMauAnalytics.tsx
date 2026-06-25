@@ -20,11 +20,19 @@ const TREND_ICON: Record<string, React.FC<{ className?: string }>> = {
 interface DauMauAnalyticsProps {
   data: DauMauAnalytics | null;
   loading: boolean;
+  /** Mẫu nhỏ (MAU < ngưỡng): ẩn gauge + kết luận xu hướng để không diễn giải nhiễu. */
+  lowData?: boolean;
 }
 
-export const DauMauAnalyticsSection = ({ data, loading }: DauMauAnalyticsProps) => {
+export const DauMauAnalyticsSection = ({ data, loading, lowData }: DauMauAnalyticsProps) => {
   const s = data?.summary;
   const TrendIcon = s ? (TREND_ICON[s.dauTrendStatus] ?? Minus) : Minus;
+  // Mẫu nhỏ: chỉ giữ ghi chú cảnh báo/trung tính, bỏ các kết luận tăng (success) / giảm (danger).
+  const shownInsights = data?.insights == null
+    ? null
+    : lowData
+      ? data.insights.filter((i) => i.level === "warning" || i.level === "info")
+      : data.insights;
 
   return (
     <section className="space-y-4">
@@ -35,7 +43,7 @@ export const DauMauAnalyticsSection = ({ data, loading }: DauMauAnalyticsProps) 
       {/* KPI row */}
       <div className="flex flex-wrap gap-4 items-start">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 flex-1">
-          <MiniKpi title="DAU hôm nay" value={s?.dauToday} loading={loading} icon={UserCheck} color="text-indigo-500" />
+          <MiniKpi title="DAU mới nhất" value={s?.dauToday} loading={loading} icon={UserCheck} color="text-indigo-500" />
           <MiniKpi title="MAU 30 ngày" value={s?.mau30Days} loading={loading} icon={Users} color="text-blue-500" />
           <MiniKpi
             title="TB DAU / ngày"
@@ -47,15 +55,15 @@ export const DauMauAnalyticsSection = ({ data, loading }: DauMauAnalyticsProps) 
           />
           <MiniKpi
             title="Xu hướng"
-            value={s?.dauTrendStatus}
+            value={lowData ? "—" : s?.dauTrendStatus}
             loading={loading}
             isText
-            icon={TrendIcon}
+            icon={lowData ? Minus : TrendIcon}
             color="text-slate-600"
-            sub={s?.dauGrowthRate != null ? `${s.dauGrowthRate >= 0 ? "+" : ""}${s.dauGrowthRate.toFixed(1)}% vs kỳ trước` : undefined}
+            sub={!lowData && s?.dauGrowthRate != null ? `${s.dauGrowthRate >= 0 ? "+" : ""}${s.dauGrowthRate.toFixed(1)}% vs kỳ trước` : undefined}
           />
         </div>
-        {!loading && s && (
+        {!loading && s && !lowData && (
           <div className="flex items-center justify-center px-4">
             <RatioGauge ratio={s.dauMauRatio} />
           </div>
@@ -85,7 +93,7 @@ export const DauMauAnalyticsSection = ({ data, loading }: DauMauAnalyticsProps) 
           Phân tích &amp; cảnh báo DAU
         </p>
         <AnalyticsInsightCards
-          insights={data?.insights ?? null}
+          insights={shownInsights}
           loading={loading}
           limit={4}
           emptyMessage="DAU ổn định — không có cảnh báo trong kỳ này."

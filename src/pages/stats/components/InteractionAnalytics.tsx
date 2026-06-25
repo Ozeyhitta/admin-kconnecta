@@ -4,18 +4,48 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InteractionTrendChart } from "./InteractionTrendChart";
 import { InteractionBreakdown } from "./InteractionBreakdown";
+import { InteractionDetailDialog } from "./InteractionDetailDialog";
 import { AnalyticsInsightCards } from "./AnalyticsInsightCards";
-import type { InteractionAnalytics } from "../types";
+import type { StatsDateRange } from "@/lib/statsDateRange";
+import {
+  INTERACTION_TYPE_TO_ACTION,
+  type AnalyticsChartPoint,
+  type InteractionAnalytics,
+  type InteractionBreakdownItem,
+  type InteractionChartSelection,
+} from "../types";
 
 const fmt = new Intl.NumberFormat("vi-VN");
 
 interface InteractionAnalyticsProps {
   data: InteractionAnalytics | null;
   loading: boolean;
+  dateRange: StatsDateRange;
+  /** Mẫu nhỏ (MAU < ngưỡng): ẩn kết luận xu hướng để không diễn giải nhiễu. */
+  lowData?: boolean;
 }
 
-export const InteractionAnalyticsSection = ({ data, loading }: InteractionAnalyticsProps) => {
+export const InteractionAnalyticsSection = ({ data, loading, dateRange, lowData }: InteractionAnalyticsProps) => {
   const s = data?.summary;
+  const [detailOpen, setDetailOpen] = React.useState(false);
+  const [selection, setSelection] = React.useState<InteractionChartSelection | null>(null);
+
+  const openDayDetail = React.useCallback((point: AnalyticsChartPoint) => {
+    setSelection({ kind: "day", date: point.date, label: point.label });
+    setDetailOpen(true);
+  }, []);
+
+  const openTypeDetail = React.useCallback((item: InteractionBreakdownItem) => {
+    const actionType = INTERACTION_TYPE_TO_ACTION[item.type] ?? item.type;
+    setSelection({ kind: "type", type: item.type, actionType });
+    setDetailOpen(true);
+  }, []);
+  // Mẫu nhỏ: chỉ giữ ghi chú cảnh báo/trung tính, bỏ các kết luận tăng (success) / giảm (danger).
+  const shownInsights = data?.insights == null
+    ? null
+    : lowData
+      ? data.insights.filter((i) => i.level === "warning" || i.level === "info")
+      : data.insights;
 
   return (
     <section className="space-y-4">
@@ -46,12 +76,12 @@ export const InteractionAnalyticsSection = ({ data, loading }: InteractionAnalyt
         />
         <MiniKpi
           title="Xu hướng"
-          value={s?.interactionTrendStatus}
+          value={lowData ? "—" : s?.interactionTrendStatus}
           loading={loading}
           isText
-          icon={trendIcon(s?.interactionTrendStatus)}
+          icon={lowData ? Minus : trendIcon(s?.interactionTrendStatus)}
           color="text-slate-600"
-          sub={s?.interactionGrowthRate != null
+          sub={!lowData && s?.interactionGrowthRate != null
             ? `${s.interactionGrowthRate >= 0 ? "+" : ""}${s.interactionGrowthRate.toFixed(1)}% vs kỳ trước`
             : undefined}
         />
@@ -67,6 +97,7 @@ export const InteractionAnalyticsSection = ({ data, loading }: InteractionAnalyt
               chartData={data?.chartData ?? null}
               summary={s ?? null}
               loading={loading}
+              onDayClick={openDayDetail}
             />
           </CardContent>
         </Card>
@@ -80,6 +111,7 @@ export const InteractionAnalyticsSection = ({ data, loading }: InteractionAnalyt
               breakdown={data?.breakdown ?? []}
               summary={s ?? null}
               loading={loading}
+              onTypeClick={openTypeDetail}
             />
           </CardContent>
         </Card>
@@ -90,12 +122,19 @@ export const InteractionAnalyticsSection = ({ data, loading }: InteractionAnalyt
           Phân tích &amp; cảnh báo tương tác
         </p>
         <AnalyticsInsightCards
-          insights={data?.insights ?? null}
+          insights={shownInsights}
           loading={loading}
           limit={4}
           emptyMessage="Tương tác ổn định — không có cảnh báo trong kỳ này."
         />
       </div>
+
+      <InteractionDetailDialog
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        dateRange={dateRange}
+        selection={selection}
+      />
     </section>
   );
 };

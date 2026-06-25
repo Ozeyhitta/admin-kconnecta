@@ -1,19 +1,9 @@
-import frenchMessages from "../utils/i18n/fr";
-import englishMessages from "../utils/i18n/en";
+import vietnameseMessages from "../utils/i18n/vi";
 import polyglotI18nProvider from "ra-i18n-polyglot";
 
 export const i18nProvider = polyglotI18nProvider(
-  (locale) => {
-    if (locale === "fr") {
-      return frenchMessages;
-    }
-
-    // Always fallback on english
-    return englishMessages;
-  },
-  "en",
-  [
-    { locale: "en", name: "English" },
-    { locale: "fr", name: "Français" },
-  ],
+  () => vietnameseMessages,
+  "vi",
+  [{ locale: "vi", name: "Tiếng Việt" }],
+  { allowMissing: true },
 );
