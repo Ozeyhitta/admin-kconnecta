@@ -3,7 +3,10 @@ spring:
     name: kconnecta.admin.backend
 
   config:
-    import: "optional:file:.env[.properties]"
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../Admin_backend/.env[.properties]
+      - optional:file:Admin_backend/.env[.properties]
 
   datasource:
     url: ${DB_URL}

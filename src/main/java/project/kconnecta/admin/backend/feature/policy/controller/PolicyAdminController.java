@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import project.kconnecta.admin.backend.config.security.AdminPrincipal;
-import project.kconnecta.admin.backend.feature.policy.dto.PolicyKeywordMergeResult;
 import project.kconnecta.admin.backend.feature.policy.service.PolicyAdminService;
 
 @RestController
@@ -34,15 +33,6 @@ public class PolicyAdminController {
                 ? principal.getName()
                 : "admin";
         return ResponseEntity.ok(policyAdminService.saveConfig(config, updatedBy));
-    }
-
-    @PostMapping("/merge-default-keywords")
-    public ResponseEntity<PolicyKeywordMergeResult> mergeDefaultKeywords(
-            @AuthenticationPrincipal AdminPrincipal principal) {
-        String updatedBy = principal != null && principal.getName() != null
-                ? principal.getName()
-                : "admin";
-        return ResponseEntity.ok(policyAdminService.mergeDefaultKeywords(updatedBy));
     }
 
     @PostMapping("/reset-to-default")

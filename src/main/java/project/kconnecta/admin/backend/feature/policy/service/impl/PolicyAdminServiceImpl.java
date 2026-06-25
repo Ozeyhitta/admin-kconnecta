@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import project.kconnecta.admin.backend.feature.policy.dto.PolicyKeywordMergeResult;
 import project.kconnecta.admin.backend.feature.policy.entity.PlatformPolicy;
 import project.kconnecta.admin.backend.feature.policy.repository.PlatformPolicyRepository;
 import project.kconnecta.admin.backend.feature.policy.service.PolicyAdminService;
@@ -75,21 +74,6 @@ public class PolicyAdminServiceImpl implements PolicyAdminService {
             return buildMergedConfig();
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid policy JSON", e);
-        }
-    }
-
-    @Override
-    @Transactional
-    public PolicyKeywordMergeResult mergeDefaultKeywords(String updatedBy) {
-        try {
-            JsonNode defaultKeywords = loadDefaultConfigJson().path("keywords");
-            PolicyKeywordMergeResult result = keywordService.mergeFromDefault(defaultKeywords);
-            if (result.added() > 0) {
-                touchMetadata(updatedBy != null ? updatedBy : "admin-merge");
-            }
-            return result;
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to merge default policy keywords", e);
         }
     }
 
@@ -169,12 +153,5 @@ public class PolicyAdminServiceImpl implements PolicyAdminService {
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid policy JSON", e);
         }
-    }
-
-    private void touchMetadata(String updatedBy) {
-        PlatformPolicy entity = getEntity();
-        entity.setUpdatedAt(LocalDateTime.now());
-        entity.setUpdatedBy(updatedBy);
-        repository.save(entity);
     }
 }

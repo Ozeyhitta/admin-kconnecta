@@ -1,63 +1,73 @@
 package project.kconnecta.admin.backend.feature.notification.service.impl;
 
-import project.kconnecta.admin.backend.feature.notification.service.NotificationAdminService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.transaction.annotation.Transactional;
+import project.kconnecta.admin.backend.common.enums.NotificationType;
 import project.kconnecta.admin.backend.entity.User;
 import project.kconnecta.admin.backend.exception.ResourceNotFoundException;
+import project.kconnecta.admin.backend.feature.notification.entity.AdminNotification;
+import project.kconnecta.admin.backend.feature.notification.repository.AdminNotificationRepository;
+import project.kconnecta.admin.backend.feature.notification.service.NotificationAdminService;
 import project.kconnecta.admin.backend.feature.user.repository.UserRepository;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class NotificationAdminServiceImpl implements NotificationAdminService {
 
     private final UserRepository userRepository;
-    private final RestTemplate restTemplate;
-
-    @Value("${user-service.url:http://localhost:8080}")
-    private String userServiceUrl;
-
-    @Value("${user-service.internal-key:kconnecta-internal-secret}")
-    private String internalKey;
+    private final AdminNotificationRepository notificationRepository;
 
     @Override
+    @Transactional
     public void send(UUID accountId, String text) {
-        UUID userId = resolveUserId(accountId);
-        post("/api/internal/notifications/send", Map.of("recipientUserId", userId, "text", text));
+        String content = text == null ? "" : text.trim();
+        if (content.isEmpty()) {
+            throw new IllegalArgumentException("Notification text is required");
+        }
+
+        User recipient = resolveRecipient(accountId);
+        AdminNotification notification = AdminNotification.builder()
+                .recipient(recipient)
+                .type(NotificationType.SYSTEM)
+                .content(content)
+                .isRead(false)
+                .isActioned(false)
+                .build();
+        notificationRepository.save(notification);
+        log.info("Saved SYSTEM notification for user {}", recipient.getId());
     }
 
     @Override
+    @Transactional
     public void sendToMany(List<UUID> accountIds, String text) {
+        if (accountIds == null || accountIds.isEmpty()) {
+            throw new IllegalArgumentException("At least one recipient is required");
+        }
         for (UUID accountId : accountIds) {
             send(accountId, text);
         }
     }
 
     @Override
+    @Transactional
     public void broadcast(String text) {
-        post("/api/internal/notifications/broadcast", Map.of("text", text));
+        String content = text == null ? "" : text.trim();
+        if (content.isEmpty()) {
+            throw new IllegalArgumentException("Notification text is required");
+        }
+        int inserted = notificationRepository.broadcastToAll(content, NotificationType.SYSTEM.name());
+        log.info("Broadcast SYSTEM notification to {} users", inserted);
     }
 
-    private UUID resolveUserId(UUID accountId) {
-        User user = userRepository.findByAccount_Id(accountId)
-                .or(() -> userRepository.findById(accountId))
-                .orElseThrow(() -> new ResourceNotFoundException("User not found for id: " + accountId));
-        return user.getId();
-    }
-
-    private void post(String path, Object body) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("X-Internal-Key", internalKey);
-        restTemplate.postForEntity(userServiceUrl + path, new HttpEntity<>(body, headers), Void.class);
+    private User resolveRecipient(UUID accountOrUserId) {
+        return userRepository.findByAccount_Id(accountOrUserId)
+                .or(() -> userRepository.findById(accountOrUserId))
+                .orElseThrow(() -> new ResourceNotFoundException("User not found for id: " + accountOrUserId));
     }
 }

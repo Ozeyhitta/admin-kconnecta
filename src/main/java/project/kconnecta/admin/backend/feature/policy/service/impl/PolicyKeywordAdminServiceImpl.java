@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import project.kconnecta.admin.backend.feature.policy.dto.PolicyKeywordMergeResult;
 import project.kconnecta.admin.backend.feature.policy.entity.KeywordCategory;
 import project.kconnecta.admin.backend.feature.policy.entity.PolicyKeyword;
 import project.kconnecta.admin.backend.feature.policy.repository.PolicyKeywordRepository;
@@ -59,41 +58,6 @@ public class PolicyKeywordAdminServiceImpl implements PolicyKeywordAdminService 
             }
             repository.save(entity);
         }
-    }
-
-    @Override
-    @Transactional
-    public PolicyKeywordMergeResult mergeFromDefault(JsonNode defaultKeywords) {
-        if (defaultKeywords == null || !defaultKeywords.isArray()) {
-            throw new IllegalStateException("default-config.json has no keywords array");
-        }
-
-        Set<String> seen = new HashSet<>();
-        for (PolicyKeyword existing : repository.findAllByOrderByCategoryAscValueAsc()) {
-            seen.add(dedupeKey(existing.getCategory(), existing.getValue()));
-        }
-
-        int added = 0;
-        int skipped = 0;
-        LocalDateTime now = LocalDateTime.now();
-        for (JsonNode kw : defaultKeywords) {
-            PolicyKeyword entity = fromJsonNode(kw, now);
-            if (entity.getValue().isBlank()) {
-                skipped++;
-                continue;
-            }
-            String key = dedupeKey(entity.getCategory(), entity.getValue());
-            if (seen.contains(key)) {
-                skipped++;
-                continue;
-            }
-            repository.save(entity);
-            seen.add(key);
-            added++;
-        }
-
-        long total = repository.count();
-        return new PolicyKeywordMergeResult(added, skipped, (int) total);
     }
 
     @Override

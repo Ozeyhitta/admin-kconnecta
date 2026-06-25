@@ -11,6 +11,7 @@ import project.kconnecta.admin.backend.feature.stats.dto.response.DauMauResponse
 import project.kconnecta.admin.backend.feature.stats.dto.response.DayCountResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.EngagementAnalyticsResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.HourCountResponse;
+import project.kconnecta.admin.backend.feature.stats.dto.response.InteractionDetailResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.NewUsersAnalyticsResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.OnlineUsersResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.OverviewStatsResponse;
@@ -97,5 +98,14 @@ public class StatsAdminController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return ResponseEntity.ok(statsAdminService.getEngagementAnalytics(from, to));
+    }
+
+    @GetMapping("/interaction-detail")
+    public ResponseEntity<InteractionDetailResponse> getInteractionDetail(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) String actionType) {
+        return ResponseEntity.ok(statsAdminService.getInteractionDetail(from, to, date, actionType));
     }
 }

@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import project.kconnecta.admin.backend.common.enums.AccountStatus;
 import project.kconnecta.admin.backend.feature.activitylog.repository.UserActivityLogRepository;
+import project.kconnecta.admin.backend.feature.activitylog.dto.response.ActivityLogItemResponse;
+import project.kconnecta.admin.backend.feature.activitylog.service.ActivityLogAdminService;
 import project.kconnecta.admin.backend.feature.comment.repository.CommentAdminRepository;
 import project.kconnecta.admin.backend.feature.post.repository.PostAdminRepository;
 import project.kconnecta.admin.backend.feature.report.repository.PostReportAdminRepository;
@@ -18,6 +20,7 @@ import project.kconnecta.admin.backend.feature.stats.dto.response.EngagementAnal
 import project.kconnecta.admin.backend.feature.stats.dto.response.HourCountResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.InteractionAnalyticsResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.InteractionBreakdownItem;
+import project.kconnecta.admin.backend.feature.stats.dto.response.InteractionDetailResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.InteractionSummary;
 import project.kconnecta.admin.backend.feature.stats.dto.response.NewUsersAnalyticsResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.NewUsersChartPoint;
@@ -54,6 +57,7 @@ public class StatsAdminServiceImpl implements StatsAdminService {
     private final PostAdminRepository postRepository;
     private final CommentAdminRepository commentRepository;
     private final PostReportAdminRepository reportRepository;
+    private final ActivityLogAdminService activityLogAdminService;
 
     // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -63,6 +67,16 @@ public class StatsAdminServiceImpl implements StatsAdminService {
             "REACTION_ADDED",      "Cảm xúc",
             "POST_SHARED",         "Chia sẻ",
             "FRIEND_REQUEST_SENT", "Kết bạn"
+    );
+    private static final Map<String, String> LABEL_TO_ACTION = Map.of(
+            "Bài đăng", "POST_CREATED",
+            "Bình luận", "COMMENT_ADDED",
+            "Cảm xúc", "REACTION_ADDED",
+            "Chia sẻ", "POST_SHARED",
+            "Kết bạn", "FRIEND_REQUEST_SENT"
+    );
+    private static final List<String> INTERACTION_ACTION_ORDER = List.of(
+            "POST_CREATED", "COMMENT_ADDED", "REACTION_ADDED", "POST_SHARED", "FRIEND_REQUEST_SENT"
     );
     private static final double DOMINANT_INTERACTION_PCT = 40.0;
     private static final double INTERACTION_DROP_PCT     = -30.0;
@@ -480,6 +494,79 @@ public class StatsAdminServiceImpl implements StatsAdminService {
                 .build();
     }
 
+    @Override
+    public InteractionDetailResponse getInteractionDetail(
+            LocalDate from, LocalDate to, LocalDate date, String actionType) {
+        DateRange range = resolveRange(from, to);
+        boolean byDay = date != null;
+        boolean byType = actionType != null && !actionType.isBlank();
+
+        if (byDay == byType) {
+            throw new IllegalArgumentException("Provide exactly one of date or actionType");
+        }
+
+        if (byDay) {
+            if (date.isBefore(range.from().toLocalDate()) || date.isAfter(range.to().toLocalDate())) {
+                throw new IllegalArgumentException("date must be within the selected range");
+            }
+            Map<String, Long> raw = new HashMap<>();
+            for (Object[] row : activityLogRepository.getInteractionBreakdownOnDay(date)) {
+                raw.put(row[0].toString(), ((Number) row[1]).longValue());
+            }
+            long total = raw.values().stream().mapToLong(Long::longValue).sum();
+            List<InteractionBreakdownItem> breakdown = buildBreakdownItems(raw, total);
+            String title = String.format("Chi tiết ngày %s", date.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+            return InteractionDetailResponse.builder()
+                    .mode("day")
+                    .title(title)
+                    .totalCount(total)
+                    .breakdown(breakdown)
+                    .chartData(List.of())
+                    .recentLogs(fetchRecentInteractionLogs(date.atStartOfDay(), date.atTime(LocalTime.MAX), null))
+                    .build();
+        }
+
+        String resolvedAction = LABEL_TO_ACTION.getOrDefault(actionType, actionType);
+        if (!ACTION_LABELS.containsKey(resolvedAction)) {
+            throw new IllegalArgumentException("Unknown actionType: " + actionType);
+        }
+        Map<String, Long> byDayMap = activityLogRepository
+                .getInteractionsByDayForActionType(range.from(), range.to(), resolvedAction).stream()
+                .collect(Collectors.toMap(
+                        r -> r[0].toString().substring(0, 10),
+                        r -> ((Number) r[1]).longValue(),
+                        (a, b) -> a + b));
+        List<AnalyticsChartPoint> chartData = buildDailyChart(range, byDayMap);
+        long total = chartData.stream().mapToLong(AnalyticsChartPoint::getCount).sum();
+        String label = ACTION_LABELS.get(resolvedAction);
+        String title = String.format("Chi tiết %s", label);
+        return InteractionDetailResponse.builder()
+                .mode("type")
+                .title(title)
+                .totalCount(total)
+                .breakdown(List.of())
+                .chartData(chartData)
+                .recentLogs(fetchRecentInteractionLogs(range.from(), range.to(), resolvedAction))
+                .build();
+    }
+
+    private List<InteractionBreakdownItem> buildBreakdownItems(Map<String, Long> raw, long total) {
+        List<InteractionBreakdownItem> items = new ArrayList<>();
+        for (String action : INTERACTION_ACTION_ORDER) {
+            long count = raw.getOrDefault(action, 0L);
+            int pct = total == 0 ? 0 : (int) Math.round(count * 100.0 / total);
+            items.add(InteractionBreakdownItem.builder()
+                    .type(ACTION_LABELS.get(action)).count(count).percentage(pct).build());
+        }
+        items.sort(Comparator.comparingLong(InteractionBreakdownItem::getCount).reversed());
+        return items;
+    }
+
+    private List<ActivityLogItemResponse> fetchRecentInteractionLogs(
+            LocalDateTime from, LocalDateTime to, String actionType) {
+        return activityLogAdminService.getRecentInteractionLogs(from, to, actionType, 15);
+    }
+
     // ── Engagement helpers ────────────────────────────────────────────────────
 
     private List<AnalyticsChartPoint> buildDailyChart(DateRange range, Map<String, Long> countByDay) {
@@ -539,17 +626,8 @@ public class StatsAdminServiceImpl implements StatsAdminService {
         for (Object[] row : activityLogRepository.getInteractionBreakdownBetween(range.from(), range.to())) {
             raw.put(row[0].toString(), ((Number) row[1]).longValue());
         }
-        List<String> order = List.of("POST_CREATED", "COMMENT_ADDED", "REACTION_ADDED", "POST_SHARED", "FRIEND_REQUEST_SENT");
         long total = raw.values().stream().mapToLong(Long::longValue).sum();
-        List<InteractionBreakdownItem> items = new ArrayList<>();
-        for (String action : order) {
-            long count = raw.getOrDefault(action, 0L);
-            int pct = total == 0 ? 0 : (int) Math.round(count * 100.0 / total);
-            items.add(InteractionBreakdownItem.builder()
-                    .type(ACTION_LABELS.get(action)).count(count).percentage(pct).build());
-        }
-        items.sort(Comparator.comparingLong(InteractionBreakdownItem::getCount).reversed());
-        return items;
+        return buildBreakdownItems(raw, total);
     }
 
     private List<AnalyticsInsight> buildDauInsights(DauMauSummary s, List<AnalyticsChartPoint> chart, LocalDate dauTodayDate) {

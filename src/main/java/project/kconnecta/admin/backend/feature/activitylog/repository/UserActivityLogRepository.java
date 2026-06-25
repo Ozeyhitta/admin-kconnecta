@@ -172,6 +172,28 @@ public interface UserActivityLogRepository
             @org.springframework.data.repository.query.Param("from") java.time.LocalDateTime from,
             @org.springframework.data.repository.query.Param("to") java.time.LocalDateTime to);
 
+    @org.springframework.data.jpa.repository.Query(
+            value = "SELECT action_type, COUNT(*)::bigint AS cnt " +
+                    "FROM user_activity_logs " +
+                    "WHERE created_at::date = CAST(:day AS date) " +
+                    "  AND action_type IN ('REACTION_ADDED','COMMENT_ADDED','POST_SHARED','POST_CREATED','FRIEND_REQUEST_SENT') " +
+                    "GROUP BY action_type",
+            nativeQuery = true)
+    java.util.List<Object[]> getInteractionBreakdownOnDay(
+            @org.springframework.data.repository.query.Param("day") java.time.LocalDate day);
+
+    @org.springframework.data.jpa.repository.Query(
+            value = "SELECT created_at::date AS period, COUNT(*)::bigint AS cnt " +
+                    "FROM user_activity_logs " +
+                    "WHERE created_at BETWEEN :from AND :to " +
+                    "  AND action_type = :actionType " +
+                    "GROUP BY created_at::date ORDER BY period",
+            nativeQuery = true)
+    java.util.List<Object[]> getInteractionsByDayForActionType(
+            @org.springframework.data.repository.query.Param("from") java.time.LocalDateTime from,
+            @org.springframework.data.repository.query.Param("to") java.time.LocalDateTime to,
+            @org.springframework.data.repository.query.Param("actionType") String actionType);
+
     /** Count LOGIN events for a user within a time window (burst detection). */
     @org.springframework.data.jpa.repository.Query(
             value = "SELECT COUNT(*) FROM user_activity_logs " +

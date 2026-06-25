@@ -91,6 +91,42 @@ public class ActivityLogAdminServiceImpl implements ActivityLogAdminService {
                 .build();
     }
 
+    private static final Set<String> INTERACTION_ACTIONS = Set.of(
+            "REACTION_ADDED", "COMMENT_ADDED", "POST_SHARED", "POST_CREATED", "FRIEND_REQUEST_SENT"
+    );
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ActivityLogItemResponse> getRecentInteractionLogs(
+            LocalDateTime from,
+            LocalDateTime to,
+            String actionType,
+            int limit
+    ) {
+        int safeLimit = Math.min(Math.max(limit, 1), 50);
+        Pageable pageable = PageRequest.of(0, safeLimit, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Specification<UserActivityLog> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (from != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+            }
+            if (to != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), to));
+            }
+            if (actionType != null && !actionType.isBlank()) {
+                predicates.add(cb.equal(root.get("actionType"), actionType));
+            } else {
+                predicates.add(root.get("actionType").in(INTERACTION_ACTIONS));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        Page<UserActivityLog> page = repository.findAll(spec, pageable);
+        Map<UUID, User> usersById = loadUsers(page.getContent());
+        return page.getContent().stream()
+                .map(log -> toItem(log, usersById))
+                .toList();
+    }
+
     @Override
     @Transactional(readOnly = true)
     public String exportCsv(

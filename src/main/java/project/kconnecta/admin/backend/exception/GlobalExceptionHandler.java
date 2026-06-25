@@ -81,17 +81,16 @@ public class GlobalExceptionHandler {
     }
 
     // User backend returned an error status (4xx/5xx) on an internal call.
-    // Surface the real upstream status + body so the cause is visible instead of a blank 500.
     @ExceptionHandler(RestClientResponseException.class)
     public ResponseEntity<Map<String, Object>> handleUpstreamError(RestClientResponseException ex) {
         int upstream = ex.getStatusCode().value();
         String body = ex.getResponseBodyAsString();
-        log.error("User backend call failed: status={} body={}", upstream, body, ex);
+        log.error("User backend call failed: status={} body={}", upstream, truncateForLog(body), ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of(
                 "timestamp", LocalDateTime.now().toString(),
                 "status", 502,
                 "error", "Bad Gateway",
-                "message", "User backend trả về " + upstream + ": " + (body.isBlank() ? "(no body)" : body)
+                "message", describeUpstreamFailure(upstream, body)
         ));
     }
 
@@ -139,5 +138,31 @@ public class GlobalExceptionHandler {
             current = current.getCause();
         }
         return false;
+    }
+
+    private static String describeUpstreamFailure(int upstreamStatus, String body) {
+        String normalized = body == null ? "" : body.toLowerCase(java.util.Locale.ROOT);
+        if (upstreamStatus == 503 && normalized.contains("service suspended")) {
+            return "User backend trên Render đang bị tạm dừng (Service Suspended). "
+                    + "Vào Render Dashboard → resume service user-kconnecta, hoặc đặt USER_SERVICE_URL=http://localhost:8080 khi chạy local.";
+        }
+        if (upstreamStatus == 503) {
+            return "User backend không khả dụng (HTTP 503). Kiểm tra Render hoặc USER_SERVICE_URL.";
+        }
+        if (body == null || body.isBlank()) {
+            return "User backend trả về HTTP " + upstreamStatus + " (không có nội dung phản hồi).";
+        }
+        if (normalized.contains("<html")) {
+            return "User backend trả về HTTP " + upstreamStatus + " (phản hồi HTML — thường là service down/suspended trên hosting).";
+        }
+        String trimmed = body.length() > 300 ? body.substring(0, 300) + "…" : body;
+        return "User backend trả về HTTP " + upstreamStatus + ": " + trimmed;
+    }
+
+    private static String truncateForLog(String body) {
+        if (body == null || body.isBlank()) {
+            return "(no body)";
+        }
+        return body.length() > 500 ? body.substring(0, 500) + "…" : body;
     }
 }
