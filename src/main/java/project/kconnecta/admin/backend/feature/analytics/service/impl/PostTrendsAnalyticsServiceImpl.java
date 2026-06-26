@@ -120,7 +120,7 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
 
     @Override
     @Transactional(readOnly = true)
-    public TopicPostsResponse getTopicPosts(String range, String topic, String source) {
+    public TopicPostsResponse getTopicPosts(String range, String topic, String source, String date) {
         int days = normalizeDays(range);
         String normalizedRange = days == 30 ? "30d" : "7d";
         String normalizedTopic = normalizeTopicParam(topic);

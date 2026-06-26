@@ -17,5 +17,5 @@ public interface PostTrendsAnalyticsService {
      *
      * @param source optional HASHTAG | KEYWORD | UNCATEGORIZED filter
      */
-    TopicPostsResponse getTopicPosts(String range, String topic, String source);
+    TopicPostsResponse getTopicPosts(String range, String topic, String source, String date);
 }
