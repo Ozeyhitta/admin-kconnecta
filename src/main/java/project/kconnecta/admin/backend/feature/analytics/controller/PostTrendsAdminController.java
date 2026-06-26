@@ -34,13 +34,14 @@ public class PostTrendsAdminController {
     }
 
     /**
-     * GET /api/v1/admin/analytics/post-trends/topics/posts?topic=giadinh&source=HASHTAG&range=7d
+     * GET /api/v1/admin/analytics/post-trends/topics/posts?topic=giadinh&source=HASHTAG&range=7d&date=2026-06-01
      */
     @GetMapping("/post-trends/topics/posts")
     public ResponseEntity<TopicPostsResponse> getTopicPosts(
             @RequestParam String topic,
             @RequestParam(required = false) String source,
-            @RequestParam(defaultValue = "7d") String range) {
-        return ResponseEntity.ok(postTrendsAnalyticsService.getTopicPosts(range, topic, source));
+            @RequestParam(defaultValue = "7d") String range,
+            @RequestParam(required = false) String date) {
+        return ResponseEntity.ok(postTrendsAnalyticsService.getTopicPosts(range, topic, source, date));
     }
 }
