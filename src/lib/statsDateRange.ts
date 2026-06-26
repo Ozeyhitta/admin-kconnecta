@@ -71,6 +71,28 @@ export const toStatsApiParams = (range: StatsDateRange) => {
   return params;
 };
 
+export interface StatsAdvancedFilters {
+  interactionType: string;
+  userSegment: string;
+  interactionSource: string;
+}
+
+export const toStatsAdvancedApiParams = (filters: StatsAdvancedFilters) => {
+  const params: Record<string, string> = {};
+  if (filters.interactionType !== "all") params.interactionTypes = filters.interactionType;
+  if (filters.userSegment !== "all") params.userSegment = filters.userSegment;
+  if (filters.interactionSource !== "all") params.interactionSource = filters.interactionSource;
+  return params;
+};
+
+export const toEngagementAnalyticsApiParams = (
+  range: StatsDateRange,
+  filters: StatsAdvancedFilters,
+) => ({
+  ...toStatsApiParams(range),
+  ...toStatsAdvancedApiParams(filters),
+});
+
 export const describeStatsRange = (range: StatsDateRange) => {
   const formatter = new Intl.DateTimeFormat("vi-VN", { dateStyle: "short" });
   const from = formatter.format(new Date(range.from));

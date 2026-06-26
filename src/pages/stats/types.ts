@@ -17,6 +17,7 @@ export interface AnalyticsInsight {
 export interface DauMauSummary {
   dauToday: number;
   mau30Days: number;
+  /** Backend field: dauToday ÷ mau30Days. UI uses averageDau30Days ÷ mau30Days instead. */
   dauMauRatio: number;
   averageDau30Days: number;
   peakDauDay: string | null;
@@ -37,6 +38,8 @@ export interface InteractionBreakdownItem {
   type: string;
   count: number;
   percentage: number;
+  previousCount?: number | null;
+  deltaPercentage?: number | null;
 }
 
 export interface InteractionSummary {
@@ -60,6 +63,20 @@ export interface EngagementAnalyticsResponse {
   dauMau: DauMauAnalytics;
   interactions: InteractionAnalytics;
 }
+
+export interface StatsActiveFilters {
+  interactionType: string;
+  userSegment: string;
+  interactionSource: string;
+}
+
+export const ACTION_TO_INTERACTION_TYPE: Record<string, string> = {
+  POST_CREATED: "Bài đăng",
+  COMMENT_ADDED: "Bình luận",
+  REACTION_ADDED: "Cảm xúc",
+  POST_SHARED: "Chia sẻ",
+  FRIEND_REQUEST_SENT: "Kết bạn",
+};
 
 export const BREAKDOWN_COLORS: Record<string, string> = {
   "Bài đăng": "#6366f1",
@@ -88,6 +105,14 @@ export interface InteractionDetailResponse {
   breakdown: InteractionBreakdownItem[];
   chartData: AnalyticsChartPoint[];
   recentLogs: InteractionActivityLogItem[];
+  selectedDate?: string | null;
+  comparisons?: {
+    previousDayCount?: number | null;
+    average30DayCount?: number | null;
+    previousPeriodSameDayCount?: number | null;
+  };
+  topContents?: InteractionTopContentItem[];
+  topUsers?: InteractionTopUserItem[];
 }
 
 export interface InteractionActivityLogItem {
@@ -100,4 +125,26 @@ export interface InteractionActivityLogItem {
   actionLabel?: string | null;
   description?: string | null;
   createdAt?: string | null;
+  /** Post involved in comment / reaction / share (when API provides it). */
+  postId?: string | null;
+  post_id?: string | null;
+  targetType?: string | null;
+  targetId?: string | null;
+  metadata?: string | null;
+}
+
+export interface InteractionTopContentItem {
+  id: string;
+  contentId?: string | null;
+  title?: string | null;
+  type?: string | null;
+  interactionCount: number;
+}
+
+export interface InteractionTopUserItem {
+  userId: string;
+  username?: string | null;
+  fullName?: string | null;
+  avatarUrl?: string | null;
+  interactionCount: number;
 }

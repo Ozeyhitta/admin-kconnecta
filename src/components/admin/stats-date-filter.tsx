@@ -27,9 +27,18 @@ const COMPARE_OPTIONS: { value: StatsCompareMode; label: string }[] = [
 interface StatsDateFilterProps {
   value: StatsDateRange;
   onChange: (value: StatsDateRange) => void;
+  /** Limit compare modes shown (e.g. stats page when backend only supports previous_period). */
+  compareOptions?: StatsCompareMode[];
+  /** Optional note below compare row when compare support is limited. */
+  compareModeHint?: string;
 }
 
-export const StatsDateFilter = ({ value, onChange }: StatsDateFilterProps) => {
+export const StatsDateFilter = ({
+  value,
+  onChange,
+  compareOptions,
+  compareModeHint,
+}: StatsDateFilterProps) => {
   const handlePresetClick = (preset: StatsRangePreset) => {
     if (preset === "custom") {
       onChange({ ...value, preset });
@@ -42,9 +51,12 @@ export const StatsDateFilter = ({ value, onChange }: StatsDateFilterProps) => {
   const currentLabel  = describeStatsRange(value);
   const compareRange  = getComparisonRange(value);
   const compareLabel  = describeCompareLabel(value.compareMode);
+  const shownCompareOptions = compareOptions
+    ? COMPARE_OPTIONS.filter((opt) => compareOptions.includes(opt.value))
+    : COMPARE_OPTIONS;
 
   return (
-    <div className="mb-4 rounded-lg border bg-card p-3 space-y-3">
+    <div className="rounded-lg border bg-card p-4 space-y-3">
       {/* Preset buttons */}
       <div className="flex flex-wrap items-center gap-2">
         <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -93,7 +105,7 @@ export const StatsDateFilter = ({ value, onChange }: StatsDateFilterProps) => {
       {/* Compare row */}
       <div className="flex items-center gap-2 pt-0.5">
         <span className="text-xs text-muted-foreground shrink-0">So sánh:</span>
-        {COMPARE_OPTIONS.map(opt => (
+        {shownCompareOptions.map(opt => (
           <button
             key={opt.value}
             onClick={() => onChange({ ...value, compareMode: opt.value })}
@@ -107,6 +119,10 @@ export const StatsDateFilter = ({ value, onChange }: StatsDateFilterProps) => {
           </button>
         ))}
       </div>
+
+      {compareModeHint && (
+        <p className="text-xs text-amber-700 dark:text-amber-400">{compareModeHint}</p>
+      )}
 
       {/* Active range info */}
       <div className="border-t pt-2 space-y-0.5">

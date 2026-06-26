@@ -112,4 +112,6 @@ export interface TopicPostsResponse {
 export type TopicChartSelection = {
   topic: string;
   source?: TopicSource;
+  /** ISO date (yyyy-MM-dd) from daily line chart drill-down */
+  date?: string;
 };

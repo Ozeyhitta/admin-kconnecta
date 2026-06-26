@@ -6,6 +6,9 @@ import { apiClient } from "@/services/axiosInstance";
 import { ADMIN_CHARTS_POLL_MS, useIntervalPoll } from "@/lib/adminStatsPoll";
 import { toStatsApiParams, describeStatsRange, type StatsDateRange } from "@/lib/statsDateRange";
 import { getChartTheme } from "@/lib/chartColors";
+import { attachChartDayInteraction } from "@/pages/stats/lib/chartDayInteraction";
+import { InteractionDetailDialog } from "@/pages/stats/components/InteractionDetailDialog";
+import type { AnalyticsChartPoint, InteractionChartSelection, StatsActiveFilters } from "@/pages/stats/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,6 +19,21 @@ type Period = "day" | "week" | "month";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = new Intl.NumberFormat("vi-VN");
+const CLICK_HINT = "<br/><span style=\"color:#94a3b8;font-size:11px\">Nhấn để xem chi tiết</span>";
+
+const DEFAULT_ACTIVITY_FILTERS: StatsActiveFilters = {
+  interactionType: "all",
+  userSegment: "all",
+  interactionSource: "all",
+};
+
+function toChartPoints(data: DayData[], period: Period): AnalyticsChartPoint[] {
+  return data.map((d) => ({
+    date: d.day.slice(0, 10),
+    label: formatDayLabel(d.day, period),
+    count: d.count,
+  }));
+}
 
 function fillDateGaps(data: DayData[], from: string, to: string): DayData[] {
   const map = new Map(data.map(d => [d.day.slice(0, 10), d.count]));
@@ -215,6 +233,8 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
   const chartInst = React.useRef<echarts.ECharts | null>(null);
   const [period, setPeriod]   = React.useState<Period>("day");
   const [rawData, setRawData] = React.useState<DayData[] | null>(null);
+  const [detailOpen, setDetailOpen] = React.useState(false);
+  const [selection, setSelection] = React.useState<InteractionChartSelection | null>(null);
 
   const fetchData = React.useCallback(async () => {
     try {
@@ -244,6 +264,7 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
     if (counts.length === 0 || total === 0) return -1;
     return counts.indexOf(Math.max(...counts));
   }, [counts, total]);
+  const periodLabel = period === "day" ? "ngày" : period === "week" ? "tuần" : "tháng";
 
   const trendBadge = React.useMemo(() => {
     if (!data || data.length < 4 || total === 0) return null;
@@ -256,12 +277,55 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
     return { up: second >= first, text: `${second >= first ? "+" : ""}${pct}% nửa cuối kỳ` };
   }, [data, total]);
 
+  const chartPoints = React.useMemo(
+    () => (data ? toChartPoints(data, period) : []),
+    [data, period],
+  );
+  const dayChartPoints = React.useMemo(
+    () => (data && period === "day" ? toChartPoints(data, "day") : null),
+    [data, period],
+  );
+
+  const openDayDetail = React.useCallback((point: AnalyticsChartPoint) => {
+    setSelection({ kind: "day", date: point.date, label: point.label });
+    setDetailOpen(true);
+  }, []);
+
+  const onDayClick = period === "day" ? openDayDetail : undefined;
+  const chartPointsRef = React.useRef(chartPoints);
+  const onDayClickRef = React.useRef(onDayClick);
+  chartPointsRef.current = chartPoints;
+  onDayClickRef.current = onDayClick;
+
+  const dataKey = data === null ? "" : JSON.stringify({ data, period });
+
   React.useEffect(() => {
-    if (!data || !chartRef.current) return;
+    if (!dataKey || !chartRef.current) return;
+
     chartInst.current ??= echarts.init(chartRef.current);
+
+    const detachInteraction = attachChartDayInteraction(
+      chartInst.current,
+      () => chartPointsRef.current,
+      () => onDayClickRef.current,
+    );
+
+    const onResize = () => chartInst.current?.resize();
+    window.addEventListener("resize", onResize);
+    return () => {
+      detachInteraction();
+      window.removeEventListener("resize", onResize);
+      chartInst.current?.dispose();
+      chartInst.current = null;
+    };
+  }, [dataKey]);
+
+  React.useEffect(() => {
+    if (!data || !chartInst.current) return;
 
     const labels    = data.map(d => formatDayLabel(d.day, period));
     const hasSparse = counts.filter(c => c > 0).length < counts.length * 0.3;
+    const clickable = period === "day" && !!onDayClickRef.current;
 
     chartInst.current.setOption({
       tooltip: {
@@ -277,11 +341,17 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
           const delta = prev !== null ? val - prev : null;
           const deltaHtml = delta === null ? ""
             : `<br/><span style="color:${delta >= 0 ? getChartTheme().primary : getChartTheme().destructive}">`
-              + `${delta >= 0 ? "▲" : "▼"} ${fmt.format(Math.abs(delta))} so trước</span>`;
-          const cumul = counts.slice(0, idx + 1).reduce((a, b) => a + b, 0);
+              + `${delta >= 0 ? "▲" : "▼"} ${fmt.format(Math.abs(delta))} so với ngày trước</span>`;
+          const avgHtml = avg > 0
+            ? `<br/><span style="color:${getChartTheme().mutedText}">TB/${periodLabel}: ${avg.toFixed(1)} · ${val >= avg ? "trên" : "dưới"} trung bình</span>`
+            : "";
+          const peakHtml = idx === peakIdx && val > 0
+            ? `<br/><span style="color:#f59e0b;font-weight:600">⭐ Cao nhất trong kỳ</span>`
+            : "";
+          const unit = period === "day" ? "hoạt động" : `hoạt động/${periodLabel}`;
+          const clickHtml = clickable ? CLICK_HINT : "";
           return `<b>${params[0].name}</b>${weekday ? ` (${weekday})` : ""}<br/>`
-            + `${fmt.format(val)} hoạt động${deltaHtml}<br/>`
-            + `<span style="color:${getChartTheme().mutedText}">Tích lũy: ${fmt.format(cumul)}</span>`;
+            + `${fmt.format(val)} ${unit}${deltaHtml}${avgHtml}${peakHtml}${clickHtml}`;
         },
       },
       grid: { left: "2%", right: "2%", bottom: "3%", top: "8%", containLabel: true },
@@ -302,12 +372,18 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
       },
       series: [{
         type: "line",
-        data: counts,
+        triggerEvent: clickable,
+        showSymbol: clickable,
+        data: counts.map((c, i) => ({
+          value: c,
+          symbolSize: clickable ? (i === peakIdx ? 12 : 8) : 4,
+          itemStyle: {
+            color: i === peakIdx && c > 0 ? "#f59e0b" : "#8b5cf6",
+          },
+        })),
         smooth: !hasSparse,
         symbol: "circle",
-        symbolSize: 4,
         lineStyle: { color: "#8b5cf6", width: 2 },
-        itemStyle: { color: "#8b5cf6" },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: "rgba(139,92,246,0.28)" },
@@ -322,21 +398,13 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
         } : undefined,
       }],
     }, true);
-
-    const onResize = () => chartInst.current?.resize();
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      chartInst.current?.dispose();
-      chartInst.current = null;
-    };
-  }, [data, counts, period, total]);
+  }, [dataKey, data, counts, period, total, avg, peakIdx, periodLabel]);
 
   const insight     = React.useMemo(() => data ? dayInsight(data, period) : "", [data, period]);
   const rangeLabel  = describeStatsRange(dateRange);
-  const periodLabel = period === "day" ? "ngày" : period === "week" ? "tuần" : "tháng";
 
   return (
+    <>
     <Card>
       <CardContent className="pt-4">
         {/* Header */}
@@ -405,7 +473,12 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
         ) : total === 0 ? (
           <p className="text-sm text-muted-foreground py-16 text-center">Chưa có dữ liệu</p>
         ) : (
-          <div ref={chartRef} style={{ width: "100%", height: 200 }} />
+          <div className="space-y-1">
+            {period === "day" && (
+              <p className="text-xs text-muted-foreground text-right">Nhấn biểu đồ để xem chi tiết</p>
+            )}
+            <div ref={chartRef} style={{ width: "100%", height: 200 }} />
+          </div>
         )}
 
         {/* Insight */}
@@ -414,6 +487,17 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
         )}
       </CardContent>
     </Card>
+
+    <InteractionDetailDialog
+      open={detailOpen}
+      onOpenChange={setDetailOpen}
+      dateRange={dateRange}
+      activeFilters={DEFAULT_ACTIVITY_FILTERS}
+      selection={selection}
+      chartData={dayChartPoints}
+      averageInteractionsPerDay={avg}
+    />
+    </>
   );
 };
 
