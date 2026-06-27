@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Severity } from "./types";
+import type { RateLimitWindowUnit, Severity } from "./types";
 
 export const PolicyCard = ({
   title,
@@ -146,23 +146,6 @@ export const RangeField = ({
   </div>
 );
 
-export const WeightSlider = ({
-  label,
-  value,
-  hint,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  hint?: string;
-  onChange: (v: number) => void;
-}) => (
-  <div className="space-y-1">
-    <RangeField label={label} value={value} min={0} max={100} step={5} unit="%" onChange={onChange} />
-    {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
-  </div>
-);
-
 /** Numeric policy field — allows clearing while typing without snapping to 0 (avoids "0100"). */
 export const PolicyNumberInput = ({
   value,
@@ -232,3 +215,47 @@ export const PolicyNumberInput = ({
     />
   );
 };
+
+const RATE_LIMIT_UNITS: { value: RateLimitWindowUnit; label: string }[] = [
+  { value: "minute", label: "Phút" },
+  { value: "hour", label: "Giờ" },
+  { value: "day", label: "Ngày" },
+];
+
+export const RateLimitSettingRow = ({
+  label,
+  count,
+  windowValue,
+  windowUnit,
+  onCountChange,
+  onWindowValueChange,
+  onWindowUnitChange,
+}: {
+  label: string;
+  count: number;
+  windowValue: number;
+  windowUnit: RateLimitWindowUnit;
+  onCountChange: (value: number) => void;
+  onWindowValueChange: (value: number) => void;
+  onWindowUnitChange: (value: RateLimitWindowUnit) => void;
+}) => (
+  <SettingRow label={label}>
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <PolicyNumberInput className="w-16 h-8" value={count} min={1} onChange={onCountChange} />
+      <span className="text-xs text-muted-foreground">lần /</span>
+      <PolicyNumberInput className="w-16 h-8" value={windowValue} min={1} onChange={onWindowValueChange} />
+      <Select value={windowUnit} onValueChange={(v) => onWindowUnitChange(v as RateLimitWindowUnit)}>
+        <SelectTrigger size="sm" className="h-8 w-[100px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {RATE_LIMIT_UNITS.map(({ value, label: unitLabel }) => (
+            <SelectItem key={value} value={value}>
+              {unitLabel}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  </SettingRow>
+);

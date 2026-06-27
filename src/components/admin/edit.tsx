@@ -6,7 +6,6 @@ import {
   useEditContext,
   useGetRecordRepresentation,
   useGetResourceLabel,
-  useHasDashboard,
   useResourceContext,
   useResourceDefinition,
 } from "ra-core";
@@ -18,6 +17,7 @@ import {
   BreadcrumbPage,
 } from "@/components/admin/breadcrumb";
 import { cn } from "@/lib/utils";
+import { getHomePath } from "@/lib/authSession";
 import { ShowButton } from "@/components/admin/show-button";
 import { DeleteButton } from "./delete-button";
 
@@ -107,7 +107,6 @@ export const EditView = ({
   const recordRepresentation = getRecordRepresentation(context.record);
 
   const { hasShow } = useResourceDefinition({ resource });
-  const hasDashboard = useHasDashboard();
 
   if (context.isLoading || !context.record) {
     return null;
@@ -117,13 +116,11 @@ export const EditView = ({
     <>
       {!disableBreadcrumb && (
         <Breadcrumb>
-          {hasDashboard && (
-            <BreadcrumbItem>
-              <Link to="/">
-                <Translate i18nKey="ra.page.dashboard">Home</Translate>
-              </Link>
-            </BreadcrumbItem>
-          )}
+          <BreadcrumbItem>
+            <Link to={getHomePath()}>
+              <Translate i18nKey="ra.page.dashboard">Home</Translate>
+            </Link>
+          </BreadcrumbItem>
           <BreadcrumbItem>
             <Link to={listLink}>{listLabel}</Link>
           </BreadcrumbItem>

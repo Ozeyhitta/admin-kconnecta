@@ -43,6 +43,13 @@ export const normalizePolicyConfig = (config: PolicyConfig): PolicyConfig => ({
   ...config,
   auditLog: config.auditLog ?? [],
   keywords: mapKeywordsFromRaw((config.keywords ?? []) as RawKeyword[]),
+  postPolicy: {
+    ...config.postPolicy,
+    postRateLimitWindowValue: config.postPolicy?.postRateLimitWindowValue ?? 1,
+    postRateLimitWindowUnit: config.postPolicy?.postRateLimitWindowUnit ?? "minute",
+    editRateLimitWindowValue: config.postPolicy?.editRateLimitWindowValue ?? 1,
+    editRateLimitWindowUnit: config.postPolicy?.editRateLimitWindowUnit ?? "minute",
+  },
   aiModeration: {
     ...DEFAULT_AI_MODERATION,
     ...(config.aiModeration ?? {}),

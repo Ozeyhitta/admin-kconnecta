@@ -3,7 +3,6 @@ import {
   useCanAccess,
   useCreatePath,
   useGetResourceLabel,
-  useHasDashboard,
   useResourceDefinitions,
   useTranslate,
 } from "ra-core";
@@ -26,9 +25,9 @@ import { House, List, BarChart3, Bell, ScrollText, TrendingUp } from "lucide-rea
 import logoV1 from "@/assets/LogoKConnecta_V1.png";
 import logoV2 from "@/assets/LogoKConnecta_V2.png";
 import { useAdminInboxCount } from "@/hooks/useAdminInboxCount";
+import { getHomePath } from "@/lib/authSession";
 
 export function AppSidebar() {
-  const hasDashboard = useHasDashboard();
   const resources = useResourceDefinitions();
   const { openMobile, setOpenMobile } = useSidebar();
   const handleClick = () => {
@@ -46,7 +45,7 @@ export function AppSidebar() {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <Link to="/">
+              <Link to={getHomePath()}>
                 <img
                   src={logoV2}
                   alt="KConnecta"
@@ -67,7 +66,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Quản lý dữ liệu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {hasDashboard ? <DashboardMenuItem onClick={handleClick} /> : null}
+              <DashboardMenuItem onClick={handleClick} />
               <StatsMenuItem onClick={handleClick} />
               <PostTrendsMenuItem onClick={handleClick} />
               <NotificationsMenuItem onClick={handleClick} />
@@ -98,11 +97,11 @@ export const DashboardMenuItem = ({ onClick }: { onClick?: () => void }) => {
   const label = translate("ra.page.dashboard", {
     _: "Dashboard",
   });
-  const match = useMatch({ path: "/", end: true });
+  const match = useMatch({ path: getHomePath(), end: true });
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={!!match}>
-        <Link to="/" onClick={onClick}>
+        <Link to={getHomePath()} onClick={onClick}>
           <House />
           {label}
         </Link>

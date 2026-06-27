@@ -70,12 +70,19 @@ export interface PrivacyPolicyConfig {
   sessionMaxHours: number;
 }
 
+export type RateLimitWindowUnit = "minute" | "hour" | "day";
+
 export interface PostPolicyConfig {
   maxPostLength: number;
   maxImagesPerPost: number;
   maxVideoMb: number;
   allowedFileTypes: string;
   postsPerMinute: number;
+  postRateLimitWindowValue: number;
+  postRateLimitWindowUnit: RateLimitWindowUnit;
+  editsPerMinute: number;
+  editRateLimitWindowValue: number;
+  editRateLimitWindowUnit: RateLimitWindowUnit;
 }
 
 export interface ChatPolicyConfig {
@@ -163,10 +170,8 @@ export interface PolicyConfig {
 }
 
 export type PolicySectionKey =
+  | "playground"
   | "keywords"
-  | "violations"
   | "ai"
   | "posts"
-
-  | "recommendation"
   | "audit";

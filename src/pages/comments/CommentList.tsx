@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { RaRecord } from "ra-core";
 import { useRecordContext, FilterLiveForm, useRefresh, useNotify } from "ra-core";
 import { Link } from "react-router";
@@ -22,6 +22,24 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { apiClient } from "@/services/axiosInstance";
+
+const LOCK_RENEW_MS = 2 * 60 * 1000;
+
+function apiErrorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === "object" && "response" in err) {
+    const res = (err as { response?: { data?: { message?: string }; status?: number } }).response;
+    if (res?.data?.message) return res.data.message;
+  }
+  return fallback;
+}
+
+function isLockedByOther(record: RaRecord): boolean {
+  return Boolean(
+    record.moderationLockedBy
+    && !record.moderationLockedByMe
+    && record.moderationLockedByUsername,
+  );
+}
 
 const shortDateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "short",
@@ -104,22 +122,87 @@ const ModerationReasonCell = () => {
   );
 };
 
-// Nút duyệt/từ chối — chỉ hiện cho comment PENDING. Gọi admin backend (proxy sang user backend).
+// Nút duyệt/từ chối — chỉ hiện cho comment PENDING. Một admin giữ khóa tại một thời điểm.
 const ModerationActions = () => {
   const record = useRecordContext();
   const refresh = useRefresh();
   const notify = useNotify();
   const [busy, setBusy] = useState(false);
+  const [lockHeld, setLockHeld] = useState(false);
+  const [lockBlocked, setLockBlocked] = useState<string | null>(null);
+  const lockHeldRef = useRef(false);
+
+  useEffect(() => {
+    if (!record || record.status !== "PENDING") return;
+
+    if (isLockedByOther(record)) {
+      setLockBlocked(
+        `@${record.moderationLockedByUsername} đang duyệt bình luận này`,
+      );
+      return;
+    }
+
+    let cancelled = false;
+    const acquire = async () => {
+      try {
+        await apiClient.post(`/api/v1/admin/comments/${record.id}/moderation-lock`);
+        if (cancelled) return;
+        lockHeldRef.current = true;
+        setLockHeld(true);
+        setLockBlocked(null);
+      } catch (err) {
+        if (cancelled) return;
+        setLockBlocked(apiErrorMessage(err, "Không thể giữ khóa duyệt bình luận"));
+      }
+    };
+
+    void acquire();
+
+    const renewTimer = window.setInterval(() => {
+      if (!lockHeldRef.current) return;
+      void apiClient.post(`/api/v1/admin/comments/${record.id}/moderation-lock/renew`).catch(() => {
+        lockHeldRef.current = false;
+        setLockHeld(false);
+        setLockBlocked("Khóa duyệt đã hết hạn — vui lòng tải lại trang");
+      });
+    }, LOCK_RENEW_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(renewTimer);
+      if (lockHeldRef.current) {
+        lockHeldRef.current = false;
+        void apiClient.delete(`/api/v1/admin/comments/${record.id}/moderation-lock`).catch(() => {});
+      }
+    };
+  }, [record?.id, record?.status, record?.moderationLockedBy, record?.moderationLockedByMe, record?.moderationLockedByUsername]);
+
   if (!record || record.status !== "PENDING") return null;
+
+  if (lockBlocked) {
+    return (
+      <span className="max-w-[8rem] text-xs leading-snug text-amber-700 dark:text-amber-400" title={lockBlocked}>
+        {lockBlocked}
+      </span>
+    );
+  }
+
+  if (!lockHeld) {
+    return (
+      <span className="text-xs text-muted-foreground">Đang giữ khóa…</span>
+    );
+  }
 
   const approve = async () => {
     setBusy(true);
     try {
       await apiClient.post(`/api/v1/admin/comments/${record.id}/approve`);
       notify("Đã duyệt bình luận", { type: "success" });
+      lockHeldRef.current = false;
+      setLockHeld(false);
       refresh();
-    } catch {
-      notify("Duyệt bình luận thất bại", { type: "error" });
+    } catch (err) {
+      notify(apiErrorMessage(err, "Duyệt bình luận thất bại"), { type: "error" });
     } finally {
       setBusy(false);
     }
@@ -127,14 +210,16 @@ const ModerationActions = () => {
 
   const reject = async () => {
     const reason = window.prompt("Lý do từ chối (tuỳ chọn):", "");
-    if (reason === null) return; // người dùng huỷ
+    if (reason === null) return;
     setBusy(true);
     try {
       await apiClient.post(`/api/v1/admin/comments/${record.id}/reject`, { reason });
       notify("Đã từ chối bình luận", { type: "success" });
+      lockHeldRef.current = false;
+      setLockHeld(false);
       refresh();
-    } catch {
-      notify("Từ chối bình luận thất bại", { type: "error" });
+    } catch (err) {
+      notify(apiErrorMessage(err, "Từ chối bình luận thất bại"), { type: "error" });
     } finally {
       setBusy(false);
     }

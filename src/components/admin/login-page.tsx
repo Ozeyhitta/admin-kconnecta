@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Eye, EyeOff, Lock, Mail, ServerCrash } from "lucide-react";
 import { useLogin, useNotify } from "ra-core";
 import { useSearchParams } from "react-router";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { consumeLoginNotice, authDebug } from "@/lib/authDebug";
+import { getHomePath } from "@/lib/authSession";
 import { checkAdminApiHealth } from "@/lib/adminApiHealth";
 import { resolveApiBaseUrl } from "@/services/axiosInstance";
 import logoV1 from "@/assets/LogoKConnecta_V1.png";
@@ -72,7 +73,7 @@ export const LoginPage = (props: { redirectTo?: string }) => {
 
     setLoading(true);
     try {
-      await login({ email, password }, redirectTo ?? "/");
+      await login({ email, password }, redirectTo ?? getHomePath());
     } catch (error: unknown) {
       notify(
         typeof error === "string"

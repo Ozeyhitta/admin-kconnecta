@@ -1,45 +1,139 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNotify } from "ra-core";
+import { useNavigate } from "react-router";
 import { AlertCircle, Save, RotateCcw, ScrollText } from "lucide-react";
 import { Breadcrumb, BreadcrumbPage } from "@/components/admin";
 import { Confirm } from "@/components/admin/confirm";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { usePolicyConfig } from "./usePolicyConfig";
 import {
+  ModerationPlaygroundSection,
   AiModerationSection,
   AuditSection,
   KeywordsSection,
   PostPolicySection,
-  RecommendationSection,
   SECTION_META,
-  ViolationsSection,
 } from "./policy-sections";
 import type { PolicySectionKey } from "./types";
 
+type PendingUnsavedAction = { targetLabel: string; path: string };
+
+function getRouteLabel(pathname: string): string {
+  if (pathname === "/" || pathname === "") return "Dashboard";
+  if (pathname.startsWith("/stats")) return "Thống kê tương tác";
+  if (pathname.startsWith("/post-trends")) return "Phân tích xu hướng";
+  if (pathname.startsWith("/notifications")) return "Thông báo";
+  if (pathname.startsWith("/policies")) return "Chính sách";
+  if (pathname.startsWith("/posts")) return "Bài viết";
+  if (pathname.startsWith("/customers")) return "Người dùng";
+  if (pathname.startsWith("/comments")) return "Bình luận";
+  if (pathname.startsWith("/conversations")) return "Tin nhắn";
+  if (pathname.startsWith("/postReports")) return "Báo cáo bài viết";
+  if (pathname.startsWith("/supportRequests")) return "Hỗ trợ";
+  if (pathname.startsWith("/activityLogs")) return "Nhật ký hoạt động";
+  return pathname;
+}
+
 const PoliciesPage = () => {
   const notify = useNotify();
+  const navigate = useNavigate();
   const {
     config,
+    savedConfig,
     update,
     save,
     resetToDefaults,
+    revertChanges,
     dirty,
     lastSaved,
-    weightTotal,
     loading,
     apiReady,
     loadError,
   } = usePolicyConfig();
   const [tab, setTab] = useState<PolicySectionKey>("keywords");
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmUnsaved, setConfirmUnsaved] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingUnsavedAction | null>(null);
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
 
+  const requestRouteLeave = useCallback((path: string) => {
+    setPendingAction({ targetLabel: getRouteLabel(path), path });
+    setConfirmUnsaved(true);
+  }, []);
+
+  useEffect(() => {
+    if (!dirty) return;
+
+    const handleDocumentClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const anchor = target.closest("a[href]");
+      if (!(anchor instanceof HTMLAnchorElement)) return;
+      if (anchor.target === "_blank" || anchor.hasAttribute("download")) return;
+
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) {
+        return;
+      }
+
+      let nextUrl: URL;
+      try {
+        nextUrl = new URL(href, window.location.origin);
+      } catch {
+        return;
+      }
+
+      if (nextUrl.origin !== window.location.origin) return;
+
+      const currentPath = window.location.pathname;
+      const nextPath = nextUrl.pathname;
+      if (!currentPath.startsWith("/policies") || nextPath === currentPath) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      requestRouteLeave(`${nextPath}${nextUrl.search}${nextUrl.hash}`);
+    };
+
+    document.addEventListener("click", handleDocumentClick, true);
+    return () => document.removeEventListener("click", handleDocumentClick, true);
+  }, [dirty, requestRouteLeave]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [dirty]);
+
+  const currentSectionLabel =
+    SECTION_META.find((s) => s.key === tab)?.label ?? "Chính sách";
+  const pendingSectionLabel = pendingAction?.targetLabel ?? "trang khác";
+
+  const closeUnsavedDialog = () => {
+    setConfirmUnsaved(false);
+    setPendingAction(null);
+  };
+
   const handleSave = async () => {
-    const sectionLabel =
-      SECTION_META.find((s) => s.key === tab)?.label ?? "Chính sách";
+    const sectionLabel = currentSectionLabel;
     setSaving(true);
     try {
       await save("Chính sách", `Cập nhật mục: ${sectionLabel}`);
@@ -47,6 +141,47 @@ const PoliciesPage = () => {
         type: "success",
         messageArgs: { _: "Đã lưu cấu hình chính sách" },
       });
+    } catch {
+      notify("Không thể lưu cấu hình. Kiểm tra kết nối Admin backend.", {
+        type: "error",
+        messageArgs: { _: "Không thể lưu cấu hình" },
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTabChange = (next: PolicySectionKey) => {
+    if (next === tab) return;
+    setTab(next);
+  };
+
+  const handleDiscardAndContinue = () => {
+    revertChanges();
+    if (pendingAction) {
+      const nextPath = pendingAction.path;
+      closeUnsavedDialog();
+      navigate(nextPath);
+      return;
+    }
+    closeUnsavedDialog();
+  };
+
+  const handleSaveAndContinue = async () => {
+    setSaving(true);
+    try {
+      await save("Chính sách", `Cập nhật mục: ${currentSectionLabel}`);
+      notify("Đã lưu cấu hình chính sách vào database", {
+        type: "success",
+        messageArgs: { _: "Đã lưu cấu hình chính sách" },
+      });
+      if (pendingAction) {
+        const nextPath = pendingAction.path;
+        closeUnsavedDialog();
+        navigate(nextPath);
+        return;
+      }
+      closeUnsavedDialog();
     } catch {
       notify("Không thể lưu cấu hình. Kiểm tra kết nối Admin backend.", {
         type: "error",
@@ -86,22 +221,20 @@ const PoliciesPage = () => {
     }
 
     switch (tab) {
+      case "playground":
+        return (
+          <ModerationPlaygroundSection
+            aiModeration={config?.aiModeration}
+            savedAiModeration={savedConfig?.aiModeration}
+            policyDirty={dirty}
+          />
+        );
       case "keywords":
         return <KeywordsSection config={config} update={update} />;
-      case "violations":
-        return <ViolationsSection config={config} update={update} />;
       case "ai":
         return <AiModerationSection config={config} update={update} />;
       case "posts":
         return <PostPolicySection config={config} update={update} />;
-      case "recommendation":
-        return (
-          <RecommendationSection
-            config={config}
-            update={update}
-            weightTotal={weightTotal}
-          />
-        );
       case "audit":
         return <AuditSection config={config} />;
       default:
@@ -160,8 +293,7 @@ const PoliciesPage = () => {
             disabled={
               !dirty ||
               formDisabled ||
-              saving ||
-              (tab === "recommendation" && weightTotal !== 100)
+              saving
             }
           >
             <Save className="size-4 mr-1" />
@@ -184,7 +316,7 @@ const PoliciesPage = () => {
 
       <Tabs
         value={tab}
-        onValueChange={(v) => setTab(v as PolicySectionKey)}
+        onValueChange={(v) => handleTabChange(v as PolicySectionKey)}
         className="gap-4"
       >
         <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
@@ -230,6 +362,41 @@ const PoliciesPage = () => {
         onConfirm={handleReset}
         onClose={() => setConfirmReset(false)}
       />
+
+      <Dialog
+        open={confirmUnsaved}
+        onOpenChange={(open) => {
+          if (!open) closeUnsavedDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Chưa lưu cấu hình</DialogTitle>
+            <DialogDescription>
+              Bạn có thay đổi chưa được lưu ở mục{" "}
+              <span className="font-medium text-foreground">{currentSectionLabel}</span>.
+              {" "}
+              Hãy lưu cấu hình trước khi chuyển sang{" "}
+              <span className="font-medium text-foreground">{pendingSectionLabel}</span>.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button variant="ghost" disabled={saving} onClick={closeUnsavedDialog}>
+              Ở lại
+            </Button>
+            <Button
+              variant="outline"
+              disabled={saving}
+              onClick={handleDiscardAndContinue}
+            >
+              Rời không lưu
+            </Button>
+            <Button disabled={saving} onClick={handleSaveAndContinue}>
+              {saving ? "Đang lưu…" : "Lưu và rời"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

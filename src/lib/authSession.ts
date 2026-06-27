@@ -2,10 +2,26 @@ import { apiClient, resolveApiBaseUrl } from "@/services/axiosInstance";
 import { authDebug } from "@/lib/authDebug";
 const AUTH_STORAGE_KEY = "auth";
 
+function normalizeBasename(): string {
+  return (import.meta.env.VITE_BASENAME ?? "").replace(/\/$/, "");
+}
+
 export function getLoginPath(): string {
-  const basename = (import.meta.env.VITE_BASENAME ?? "").replace(/\/$/, "");
-  const path = `${basename}/login`.replace(/\/+/g, "/");
+  const path = `${normalizeBasename()}/login`.replace(/\/+/g, "/");
   return path.startsWith("/") ? path : `/${path}`;
+}
+
+export function getHomePath(): string {
+  const path = `${normalizeBasename()}/home`.replace(/\/+/g, "/");
+  return path.startsWith("/") ? path : `/${path}`;
+}
+
+export function isRootPath(pathname: string): boolean {
+  const basename = normalizeBasename();
+  if (!basename) {
+    return pathname === "/" || pathname === "";
+  }
+  return pathname === basename || pathname === `${basename}/`;
 }
 
 export function hasStoredAuth(): boolean {

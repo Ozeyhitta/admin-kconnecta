@@ -134,7 +134,7 @@ export const PostList = () => {
   return (
     <List
       perPage={20}
-      sort={{ field: "createdAt", order: "DESC" }}
+      sort={{ field: "updatedAt", order: "DESC" }}
       pagination={false}
       className="flex-1 min-h-0 overflow-hidden"
       actions={
@@ -184,17 +184,19 @@ export const PostList = () => {
               </DataTable.Col>
 
               <DataTable.Col
-                source="publishedAt"
-                label="Ngày đăng"
+                source="updatedAt"
+                label="Cập nhật"
                 className="hidden w-36 md:table-cell"
                 headerClassName="overflow-hidden whitespace-normal py-2 text-left align-top leading-tight [&_button]:m-0 [&_button]:max-w-full [&_button]:w-full [&_button]:justify-start [&_button]:px-1"
                 cellClassName="py-2 align-middle text-sm whitespace-nowrap tabular-nums"
                 render={(r) =>
-                  r.publishedAt
-                    ? shortDateFormatter.format(new Date(r.publishedAt))
-                    : r.createdAt
-                      ? shortDateFormatter.format(new Date(r.createdAt))
-                      : "—"
+                  r.updatedAt
+                    ? shortDateFormatter.format(new Date(r.updatedAt))
+                    : r.publishedAt
+                      ? shortDateFormatter.format(new Date(r.publishedAt))
+                      : r.createdAt
+                        ? shortDateFormatter.format(new Date(r.createdAt))
+                        : "—"
                 }
               />
 

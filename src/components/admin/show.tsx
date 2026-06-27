@@ -8,7 +8,6 @@ import {
   ShowBase,
   Translate,
   useCreatePath,
-  useHasDashboard,
   useShowContext,
   useGetRecordRepresentation,
   useGetResourceLabel,
@@ -18,6 +17,7 @@ import {
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { cn } from "@/lib/utils";
+import { getHomePath } from "@/lib/authSession";
 import { EditButton } from "@/components/admin/edit-button";
 
 export interface ShowProps
@@ -136,7 +136,6 @@ export const ShowView = ({
   const recordRepresentation = getRecordRepresentation(context.record);
 
   const { hasEdit } = useResourceDefinition({ resource });
-  const hasDashboard = useHasDashboard();
 
   if (context.isLoading || !context.record) {
     return null;
@@ -149,13 +148,11 @@ export const ShowView = ({
     <>
       {!disableBreadcrumb && (
         <Breadcrumb>
-          {hasDashboard && (
-            <BreadcrumbItem>
-              <Link to="/">
-                <Translate i18nKey="ra.page.dashboard">Home</Translate>
-              </Link>
-            </BreadcrumbItem>
-          )}
+          <BreadcrumbItem>
+            <Link to={getHomePath()}>
+              <Translate i18nKey="ra.page.dashboard">Home</Translate>
+            </Link>
+          </BreadcrumbItem>
           <BreadcrumbItem>
             <Link to={listLink}>{listLabel}</Link>
           </BreadcrumbItem>

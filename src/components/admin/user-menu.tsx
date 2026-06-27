@@ -6,7 +6,7 @@ import {
   useLogout,
   UserMenuContext,
 } from "ra-core";
-import { LogOut } from "lucide-react";
+import { LogOut, Loader2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +37,7 @@ export function UserMenu({ children }: UserMenuProps) {
   const logout = useLogout();
 
   const [open, setOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleToggleOpen = useCallback(() => {
     setOpen((prevOpen) => !prevOpen);
@@ -45,6 +46,16 @@ export function UserMenu({ children }: UserMenuProps) {
   const handleClose = useCallback(() => {
     setOpen(false);
   }, []);
+
+  const handleLogout = useCallback(async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logout({}, undefined, false);
+    } finally {
+      setLoggingOut(false);
+    }
+  }, [loggingOut, logout]);
 
   if (!authProvider) return null;
 
@@ -74,11 +85,12 @@ export function UserMenu({ children }: UserMenuProps) {
           {children}
           {Children.count(children) > 0 && <DropdownMenuSeparator />}
           <DropdownMenuItem
-            onClick={() => logout({}, undefined, false)}
-            className="cursor-pointer"
+            onClick={() => void handleLogout()}
+            disabled={loggingOut}
+            className="cursor-pointer disabled:opacity-60 disabled:cursor-wait"
           >
-            <LogOut />
-            <Translate i18nKey="ra.auth.logout">Log out</Translate>
+            {loggingOut ? <Loader2 className="animate-spin" /> : <LogOut />}
+            {loggingOut ? "Đang đăng xuất..." : <Translate i18nKey="ra.auth.logout">Log out</Translate>}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

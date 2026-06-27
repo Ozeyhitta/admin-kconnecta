@@ -9,7 +9,6 @@ import {
   ListBase,
   Translate,
   useGetResourceLabel,
-  useHasDashboard,
   useResourceContext,
   useResourceDefinition,
   useTranslate,
@@ -17,6 +16,7 @@ import {
 import type { ReactElement, ReactNode } from "react";
 import { Link } from "react-router";
 import { cn } from "@/lib/utils";
+import { getHomePath } from "@/lib/authSession";
 import { CreateButton } from "@/components/admin/create-button";
 import { ExportButton } from "@/components/admin/export-button";
 import { ListPagination } from "@/components/admin/list-pagination";
@@ -124,19 +124,16 @@ export const ListView = <RecordType extends RaRecord = RaRecord>(
           name: resourceLabel,
         });
   const { hasCreate } = useResourceDefinition({ resource });
-  const hasDashboard = useHasDashboard();
 
   return (
     <>
       {!disableBreadcrumb && (
         <Breadcrumb>
-          {hasDashboard && (
-            <BreadcrumbItem>
-              <Link to="/">
-                <Translate i18nKey="ra.page.dashboard">Home</Translate>
-              </Link>
-            </BreadcrumbItem>
-          )}
+          <BreadcrumbItem>
+            <Link to={getHomePath()}>
+              <Translate i18nKey="ra.page.dashboard">Home</Translate>
+            </Link>
+          </BreadcrumbItem>
           <BreadcrumbPage>{resourceLabel}</BreadcrumbPage>
         </Breadcrumb>
       )}

@@ -5,11 +5,9 @@ import {
   Trash2,
   Brain,
   Shield,
-  Scale,
 
   FileText,
   History,
-  TrendingUp,
   Ban,
   AlertOctagon,
   AlertTriangle,
@@ -23,6 +21,7 @@ import {
   Clock,
   UserCheck,
   Cookie,
+  FlaskConical,
 } from "lucide-react";
 import { apiClient } from "@/services/axiosInstance";
 import { Button } from "@/components/ui/button";
@@ -48,12 +47,12 @@ import {
 import {
   PolicyCard,
   PolicyNumberInput,
+  RateLimitSettingRow,
   RangeField,
   SettingRow,
   SeverityBadge,
   SeveritySelect,
   ToggleRow,
-  WeightSlider,
 } from "./policy-ui";
 import { AllowedFileTypesInput } from "./AllowedFileTypesInput";
 import type {
@@ -63,10 +62,9 @@ import type {
   KeywordEntry,
   PolicyAuditEntry,
   PolicyConfig,
-  ViolationActionType,
-  ViolationPolicyByType,
 } from "./types";
 import { DEFAULT_AI_MODERATION } from "./defaults";
+import type { AiModerationConfig } from "./types";
 import { buildAuditView, type ChangeRow } from "./auditView";
 
 type ConfigUpdater = (patch: Partial<PolicyConfig>) => void;
@@ -75,12 +73,6 @@ const KEYWORD_CATEGORY_LABEL: Record<KeywordCategory, string> = {
   blacklist: "Keyword blacklist",
   watchlist: "Keyword watchlist (vùng xám)",
   blocked_domain: "Link / domain cấm",
-};
-
-const ACTION_LABEL: Record<ViolationActionType, string> = {
-  warning: "Cảnh cáo",
-  lock_temp: "Khóa tạm",
-  ban_permanent: "Ban vĩnh viễn",
 };
 
 // ─── 1. Community rules (policy metadata) ────────────────────────────────────
@@ -261,6 +253,7 @@ export const CommunitySection = ({
           <p className="text-xs leading-relaxed opacity-90 mt-1">
             Lưu định nghĩa loại vi phạm (tên, ví dụ, mức độ) trong cấu hình hệ thống.
             Kiểm duyệt thực tế nằm ở tab{" "}
+            <span className="font-medium">Playground</span>,{" "}
             <span className="font-medium">Từ khóa</span> và{" "}
             <span className="font-medium">AI moderation</span>.
           </p>
@@ -509,81 +502,7 @@ export const KeywordsSection = ({
   );
 };
 
-// ─── 3. Violations ────────────────────────────────────────────────────────────
-
-export const ViolationsSection = ({
-  config,
-  update,
-}: {
-  config: PolicyConfig;
-  update: ConfigUpdater;
-}) => {
-  const patchPolicy = (policy: ViolationPolicyByType) => {
-    const violationPolicies = config.violationPolicies.map((p) =>
-      p.id === policy.id ? policy : p
-    );
-    update({ violationPolicies });
-  };
-
-  return (
-    <PolicyCard
-      title="Chính sách xử lý vi phạm"
-      description="Cấu hình theo loại vi phạm: lần 1 → cảnh cáo, lần 2 → khoá, lần 3 → ban"
-    >
-      {config.violationPolicies.map((policy) => (
-        <div key={policy.id} className="rounded-md border border-border p-4 space-y-3">
-          <p className="text-sm font-semibold">{policy.label}</p>
-          {policy.steps.map((step, si) => (
-            <div key={step.offense} className="flex flex-wrap items-center gap-2 text-sm">
-              <Badge variant="outline">Lần {step.offense}</Badge>
-              <span className="text-muted-foreground">→</span>
-              <Select
-                value={step.action}
-                onValueChange={(v) => {
-                  const steps = [...policy.steps];
-                  steps[si] = {
-                    ...step,
-                    action: v as ViolationActionType,
-                    lockDays: v === "lock_temp" ? step.lockDays ?? 3 : undefined,
-                  };
-                  patchPolicy({ ...policy, steps });
-                }}
-              >
-                <SelectTrigger size="sm" className="w-[160px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(ACTION_LABEL) as ViolationActionType[]).map((a) => (
-                    <SelectItem key={a} value={a}>
-                      {ACTION_LABEL[a]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {step.action === "lock_temp" ? (
-                <>
-                  <PolicyNumberInput
-                    min={1}
-                    className="w-20 h-8"
-                    value={step.lockDays ?? 3}
-                    onChange={(lockDays) => {
-                      const steps = [...policy.steps];
-                      steps[si] = { ...step, lockDays };
-                      patchPolicy({ ...policy, steps });
-                    }}
-                  />
-                  <span className="text-xs text-muted-foreground">ngày</span>
-                </>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      ))}
-    </PolicyCard>
-  );
-};
-
-// ─── 4. AI Moderation ─────────────────────────────────────────────────────────
+// ─── 3. AI Moderation ─────────────────────────────────────────────────────────
 
 type PlaygroundResult = {
   flagged: boolean;
@@ -597,8 +516,67 @@ function scoreColor(score: number) {
   return "bg-emerald-500";
 }
 
+const CATEGORY_VI_LABELS: Record<string, string> = {
+  harassment: "Quấy rối",
+  violence: "Bạo lực",
+  hate: "Thù ghét",
+  spam: "Spam / rác",
+  "self-harm": "Tự làm hại bản thân",
+  sexual: "Nội dung tình dục",
+  misinformation: "Thông tin sai lệch",
+  toxic: "Độc hại",
+  nsfw: "NSFW / không phù hợp",
+  "hate speech": "Ngôn từ thù ghét",
+  scam: "Lừa đảo",
+};
+
 function formatCategory(key: string) {
-  return key.replace("/", " / ").replace(/_/g, " ");
+  const normalized = key.replace("/", " / ").replace(/_/g, " ");
+  const vi = CATEGORY_VI_LABELS[key] ?? CATEGORY_VI_LABELS[normalized.toLowerCase()];
+  return vi ? `${normalized} (${vi})` : normalized;
+}
+
+/** Độ nhạy cao → chặn sớm hơn (ngưỡng điểm thấp hơn). 0% thoáng ≈ chỉ chặn điểm ~100%. */
+function resolveFlagThresholdPct(sensitivity: number): number {
+  const clamped = Math.max(0, Math.min(100, sensitivity));
+  return 100 - clamped;
+}
+
+function evaluatePlaygroundAtSensitivity(
+  result: PlaygroundResult,
+  ai: AiModerationConfig,
+) {
+  if (!ai.enabled) {
+    return {
+      wouldFlag: false,
+      maxPct: 0,
+      triggeringCategory: undefined as string | undefined,
+      flagThresholdPct: 100,
+      disabled: true,
+    };
+  }
+
+  const flagThresholdPct = resolveFlagThresholdPct(ai.sensitivity);
+  let maxPct = 0;
+  let maxCategory: string | undefined;
+
+  for (const [cat, score] of Object.entries(result.categoryScores)) {
+    const pct = score * 100;
+    if (pct > maxPct) {
+      maxPct = pct;
+      maxCategory = cat;
+    }
+  }
+
+  const wouldFlag = maxPct >= flagThresholdPct;
+
+  return {
+    wouldFlag,
+    maxPct,
+    triggeringCategory: wouldFlag ? maxCategory : undefined,
+    flagThresholdPct,
+    disabled: false,
+  };
 }
 
 // ─── Thanh độ nhạy AI (read-only) ───────────────────────────────────────────
@@ -710,22 +688,32 @@ const SensitivityScale: FC<{ value: number }> = ({ value }) => {
   );
 };
 
-export const AiModerationSection = ({
-  config,
-  update,
+export const ModerationPlaygroundSection = ({
+  aiModeration = DEFAULT_AI_MODERATION,
+  savedAiModeration = DEFAULT_AI_MODERATION,
+  policyDirty = false,
 }: {
-  config: PolicyConfig;
-  update: ConfigUpdater;
+  aiModeration?: AiModerationConfig;
+  savedAiModeration?: AiModerationConfig;
+  policyDirty?: boolean;
 }) => {
-  const ai = config.aiModeration ?? DEFAULT_AI_MODERATION;
-  const setAi = (patch: Partial<typeof ai>) =>
-    update({ aiModeration: { ...ai, ...patch } });
-
   const [playText, setPlayText] = useState("");
   const [playImageUrl, setPlayImageUrl] = useState("");
   const [playLoading, setPlayLoading] = useState(false);
   const [playResult, setPlayResult] = useState<PlaygroundResult | null>(null);
   const [playError, setPlayError] = useState<string | null>(null);
+
+  const sensitivityPreview = useMemo(
+    () => (playResult ? evaluatePlaygroundAtSensitivity(playResult, aiModeration) : null),
+    [playResult, aiModeration],
+  );
+
+  const savedSensitivity = savedAiModeration?.sensitivity ?? DEFAULT_AI_MODERATION.sensitivity;
+  const savedFlagThreshold = resolveFlagThresholdPct(savedSensitivity);
+  const savedAiEnabled = savedAiModeration?.enabled ?? DEFAULT_AI_MODERATION.enabled;
+  const previewDiffersFromSaved =
+    policyDirty &&
+    (aiModeration.sensitivity !== savedSensitivity || aiModeration.enabled !== savedAiEnabled);
 
   const runTest = async () => {
     setPlayLoading(true);
@@ -746,11 +734,220 @@ export const AiModerationSection = ({
   };
 
   return (
-    <>
-      <PolicyCard
-        title="AI moderation"
-        description="Detect toxic, spam, NSFW, hate speech, scam — cấu hình độ nhạy và hành động tự động"
-      >
+    <PolicyCard
+      title="Moderation Playground"
+      description="Kiểm tra nội dung qua Google Gemini AI — nhập văn bản hoặc URL ảnh để xem điểm số thô từng hạng mục"
+    >
+      <div className="rounded-md border border-border bg-muted/30 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground space-y-1.5">
+        <p className="text-sm text-foreground">
+          <strong>Cấu hình AI đã lưu:</strong>{" "}
+          {savedAiEnabled ? (
+            <>
+              Bật · độ nhạy{" "}
+              <span className="font-semibold tabular-nums">{savedSensitivity}%</span>
+              {" "}
+              (ngưỡng chặn khi điểm ≥{" "}
+              <span className="font-semibold tabular-nums">{savedFlagThreshold.toFixed(0)}%</span>)
+            </>
+          ) : (
+            <span className="font-semibold text-amber-700 dark:text-amber-400">Tắt</span>
+          )}
+        </p>
+        {previewDiffersFromSaved ? (
+          <p className="text-amber-800 dark:text-amber-300">
+            Đang chỉnh chưa lưu trên tab AI: độ nhạy{" "}
+            <span className="font-semibold tabular-nums">{aiModeration.sensitivity}%</span>
+            {aiModeration.enabled ? (
+              <>
+                {" "}
+                (ngưỡng ≥{" "}
+                <span className="font-semibold tabular-nums">
+                  {resolveFlagThresholdPct(aiModeration.sensitivity).toFixed(0)}%
+                </span>
+                )
+              </>
+            ) : (
+              " · AI tắt"
+            )}
+            . Khối kết quả bên dưới dùng giá trị đang chỉnh, không phải bản đã lưu.
+          </p>
+        ) : null}
+        <p>
+          <strong className="text-foreground">Playground</strong> trả về điểm AI thô (0–100%) — các thanh %{" "}
+          <strong className="text-foreground">không đổi</strong> khi kéo độ nhạy.
+          Khối <strong className="text-foreground">&quot;Theo cấu hình tab AI&quot;</strong> mới đổi: độ nhạy cao → chặn sớm hơn.
+        </p>
+        <p>
+          Ví dụ điểm harassment 70%: độ nhạy <strong className="text-foreground">0% (thoáng)</strong> → cho qua;{" "}
+          <strong className="text-foreground">80% (nghiêm)</strong> → chặn (vì ngưỡng chặn = 20% điểm).
+        </p>
+      </div>
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">Nội dung văn bản</label>
+          <Textarea
+            className="min-h-[80px] resize-none"
+            placeholder="Nhập nội dung cần kiểm tra..."
+            value={playText}
+            onChange={(e) => setPlayText(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">URL hình ảnh (tùy chọn)</label>
+          <Input
+            type="url"
+            placeholder="https://example.com/image.jpg"
+            value={playImageUrl}
+            onChange={(e) => setPlayImageUrl(e.target.value)}
+          />
+        </div>
+        <button
+          onClick={runTest}
+          disabled={playLoading || (!playText.trim() && !playImageUrl.trim())}
+          className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {playLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+          {playLoading ? "Đang kiểm tra..." : "Kiểm tra"}
+        </button>
+
+        {playError && (
+          <p className="text-sm text-destructive">{playError}</p>
+        )}
+
+        {playResult && (
+          <div className="rounded-md border border-border p-4 space-y-4 mt-2">
+            <div className="flex items-center gap-2">
+              {playResult.flagged ? (
+                <>
+                  <XCircle className="w-5 h-5 text-red-500" />
+                  <span className="font-semibold text-red-500">Gemini gắn cờ vi phạm (kết quả thô)</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                  <span className="font-semibold text-emerald-600">Gemini: nội dung an toàn (kết quả thô)</span>
+                </>
+              )}
+            </div>
+
+            {sensitivityPreview && (
+              <div
+                className={`rounded-md border px-3 py-2.5 text-sm ${
+                  sensitivityPreview.disabled
+                    ? "border-border bg-muted/40 text-muted-foreground"
+                    : sensitivityPreview.wouldFlag
+                      ? "border-red-300 bg-red-50 text-red-800 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200"
+                      : "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200"
+                }`}
+              >
+                <p className="font-medium">Theo cấu hình tab AI hiện tại</p>
+                {sensitivityPreview.disabled ? (
+                  <p className="mt-1 text-xs">AI moderation đang tắt — app sẽ không chặn theo AI.</p>
+                ) : (
+                  <>
+                    <p
+                      className={`mt-2 text-sm font-semibold ${
+                        sensitivityPreview.wouldFlag ? "text-red-700 dark:text-red-300" : "text-emerald-700 dark:text-emerald-300"
+                      }`}
+                    >
+                      {sensitivityPreview.wouldFlag
+                        ? "Kết quả: Bài này sẽ bị chặn"
+                        : "Kết quả: Bài này sẽ không bị chặn"}
+                    </p>
+                    <p className="mt-1.5 text-xs leading-relaxed">
+                      Độ nhạy {aiModeration.sensitivity}% → ngưỡng chặn khi điểm ≥{" "}
+                      <span className="font-semibold tabular-nums">
+                        {sensitivityPreview.flagThresholdPct.toFixed(0)}%
+                      </span>
+                      . Điểm cao nhất:{" "}
+                      <span className="font-semibold tabular-nums">{sensitivityPreview.maxPct.toFixed(1)}%</span>
+                      {sensitivityPreview.wouldFlag && sensitivityPreview.triggeringCategory ? (
+                        <>
+                          {" "}
+                          — vượt ngưỡng tại{" "}
+                          <span className="font-medium">{formatCategory(sensitivityPreview.triggeringCategory)}</span>
+                        </>
+                      ) : null}
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="grid gap-2">
+              {Object.entries(playResult.categoryScores)
+                .sort(([, a], [, b]) => b - a)
+                .map(([cat, score]) => {
+                  const flagged = playResult.categories[cat];
+                  const pct = Math.min(score * 100, 100);
+                  const overPolicyThreshold =
+                    sensitivityPreview &&
+                    !sensitivityPreview.disabled &&
+                    pct >= sensitivityPreview.flagThresholdPct;
+                  return (
+                    <div key={cat} className="space-y-0.5">
+                      <div className="flex items-center justify-between text-xs gap-2">
+                        <span
+                          className={`font-medium ${
+                            overPolicyThreshold
+                              ? "text-red-600"
+                              : flagged
+                                ? "text-amber-600"
+                                : "text-foreground"
+                          }`}
+                        >
+                          {formatCategory(cat)}
+                          {overPolicyThreshold && (
+                            <span className="ml-1 text-[10px] font-semibold text-red-500">vượt ngưỡng</span>
+                          )}
+                          {flagged && !overPolicyThreshold && (
+                            <span className="ml-1 text-red-500">●</span>
+                          )}
+                        </span>
+                        <span className="text-muted-foreground tabular-nums shrink-0">
+                          {pct.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="relative h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        {sensitivityPreview && !sensitivityPreview.disabled ? (
+                          <div
+                            className="absolute top-0 bottom-0 w-0.5 bg-foreground/40 z-10"
+                            style={{ left: `${sensitivityPreview.flagThresholdPct}%` }}
+                            title={`Ngưỡng chặn ${sensitivityPreview.flagThresholdPct.toFixed(0)}%`}
+                          />
+                        ) : null}
+                        <div
+                          className={`h-full rounded-full transition-all ${scoreColor(score)}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+      </div>
+    </PolicyCard>
+  );
+};
+
+export const AiModerationSection = ({
+  config,
+  update,
+}: {
+  config: PolicyConfig;
+  update: ConfigUpdater;
+}) => {
+  const ai = config.aiModeration ?? DEFAULT_AI_MODERATION;
+  const setAi = (patch: Partial<typeof ai>) =>
+    update({ aiModeration: { ...ai, ...patch } });
+
+  return (
+    <PolicyCard
+      title="AI moderation"
+      description="Bật/tắt AI kiểm duyệt và cấu hình độ nhạy"
+    >
         <ToggleRow
           label="Bật AI kiểm duyệt"
           checked={ai.enabled}
@@ -765,113 +962,7 @@ export const AiModerationSection = ({
           onChange={(sensitivity) => setAi({ sensitivity })}
         />
         <SensitivityScale value={ai.sensitivity} />
-        <div className="grid sm:grid-cols-2 gap-2 pt-2">
-          {(
-            [
-              ["toxic", "Detect toxic"],
-              ["spam", "Detect spam"],
-              ["nsfw", "Detect NSFW"],
-              ["hateSpeech", "Detect hate speech"],
-              ["scam", "Detect scam"],
-            ] as const
-          ).map(([key, label]) => (
-            <ToggleRow
-              key={key}
-              label={label}
-              checked={ai.detect[key]}
-              onCheckedChange={(v) => setAi({ detect: { ...ai.detect, [key]: v } })}
-            />
-          ))}
-        </div>
-        <div className="border-t border-border pt-3 space-y-0">
-          <p className="text-xs font-semibold text-muted-foreground mb-2">Hành động tự động</p>
-          <ToggleRow label="Auto hide bài" checked={ai.autoHidePost} onCheckedChange={(v) => setAi({ autoHidePost: v })} />
-          <ToggleRow label="Auto warning" checked={ai.autoWarning} onCheckedChange={(v) => setAi({ autoWarning: v })} />
-          <ToggleRow label="Auto ban" checked={ai.autoBan} onCheckedChange={(v) => setAi({ autoBan: v })} />
-        </div>
-      </PolicyCard>
-
-      <PolicyCard
-        title="Moderation Playground"
-        description="Kiểm tra nội dung qua Google Gemini AI — nhập văn bản hoặc URL ảnh để xem kết quả phân tích"
-      >
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Nội dung văn bản</label>
-            <Textarea
-              className="min-h-[80px] resize-none"
-              placeholder="Nhập nội dung cần kiểm tra..."
-              value={playText}
-              onChange={(e) => setPlayText(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">URL hình ảnh (tùy chọn)</label>
-            <Input
-              type="url"
-              placeholder="https://example.com/image.jpg"
-              value={playImageUrl}
-              onChange={(e) => setPlayImageUrl(e.target.value)}
-            />
-          </div>
-          <button
-            onClick={runTest}
-            disabled={playLoading || (!playText.trim() && !playImageUrl.trim())}
-            className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {playLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
-            {playLoading ? "Đang kiểm tra..." : "Kiểm tra"}
-          </button>
-
-          {playError && (
-            <p className="text-sm text-destructive">{playError}</p>
-          )}
-
-          {playResult && (
-            <div className="rounded-md border border-border p-4 space-y-4 mt-2">
-              <div className="flex items-center gap-2">
-                {playResult.flagged ? (
-                  <>
-                    <XCircle className="w-5 h-5 text-red-500" />
-                    <span className="font-semibold text-red-500">Nội dung bị gắn cờ vi phạm</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                    <span className="font-semibold text-emerald-600">Nội dung an toàn</span>
-                  </>
-                )}
-              </div>
-              <div className="grid gap-2">
-                {Object.entries(playResult.categoryScores)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([cat, score]) => {
-                    const flagged = playResult.categories[cat];
-                    const pct = Math.min(score * 100, 100);
-                    return (
-                      <div key={cat} className="space-y-0.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className={`font-medium ${flagged ? "text-red-600" : "text-foreground"}`}>
-                            {formatCategory(cat)}
-                            {flagged && <span className="ml-1 text-red-500">●</span>}
-                          </span>
-                          <span className="text-muted-foreground tabular-nums">{(score * 100).toFixed(2)}%</span>
-                        </div>
-                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${scoreColor(score)}`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-        </div>
-      </PolicyCard>
-    </>
+    </PolicyCard>
   );
 };
 
@@ -966,9 +1057,24 @@ export const PostPolicySection = ({ config, update }: { config: PolicyConfig; up
         value={p.allowedFileTypes}
         onChange={(allowedFileTypes) => set({ allowedFileTypes })}
       />
-      <SettingRow label="Rate limit đăng bài (/ phút)">
-        <PolicyNumberInput className="w-20 h-8" value={p.postsPerMinute} onChange={(postsPerMinute) => set({ postsPerMinute })} />
-      </SettingRow>
+      <RateLimitSettingRow
+        label="Rate limit đăng bài"
+        count={p.postsPerMinute}
+        windowValue={p.postRateLimitWindowValue}
+        windowUnit={p.postRateLimitWindowUnit}
+        onCountChange={(postsPerMinute) => set({ postsPerMinute })}
+        onWindowValueChange={(postRateLimitWindowValue) => set({ postRateLimitWindowValue })}
+        onWindowUnitChange={(postRateLimitWindowUnit) => set({ postRateLimitWindowUnit })}
+      />
+      <RateLimitSettingRow
+        label="Rate limit sửa bài"
+        count={p.editsPerMinute}
+        windowValue={p.editRateLimitWindowValue}
+        windowUnit={p.editRateLimitWindowUnit}
+        onCountChange={(editsPerMinute) => set({ editsPerMinute })}
+        onWindowValueChange={(editRateLimitWindowValue) => set({ editRateLimitWindowValue })}
+        onWindowUnitChange={(editRateLimitWindowUnit) => set({ editRateLimitWindowUnit })}
+      />
       <p className="text-xs text-muted-foreground">
         Ví dụ: tối đa {p.maxImagesPerPost} ảnh/post, video &lt; {p.maxVideoMb}MB
       </p>
@@ -991,87 +1097,7 @@ export const ChatPolicySection = ({ config, update }: { config: PolicyConfig; up
   );
 };
 
-// ─── 8. Recommendation ──────────────────────────────────────────────────────
-
-export const RecommendationSection = ({
-  config,
-  update,
-  weightTotal,
-}: {
-  config: PolicyConfig;
-  update: ConfigUpdater;
-  weightTotal: number;
-}) => {
-  const r = config.recommendation;
-  const set = (patch: Partial<typeof r>) => update({ recommendation: { ...r, ...patch } });
-  const setWeight = (key: keyof typeof r.weights, value: number) =>
-    set({ weights: { ...r.weights, [key]: value } });
-
-  return (
-    <PolicyCard
-      title="Chính sách thuật toán đề xuất"
-      description="Ưu tiên nội dung và trọng số feed — tổng weight nên bằng 100%"
-    >
-      <ToggleRow
-        label="Ưu tiên bài hot"
-        hint="Đẩy bài có nhiều lượt thích, bình luận, chia sẻ lên đầu feed."
-        checked={r.prioritizeHot}
-        onCheckedChange={(v) => set({ prioritizeHot: v })}
-      />
-      <ToggleRow
-        label="Ưu tiên bạn bè"
-        hint="Đẩy bài của bạn bè và người mà người dùng hay tương tác lên trước."
-        checked={r.prioritizeFriends}
-        onCheckedChange={(v) => set({ prioritizeFriends: v })}
-      />
-      <ToggleRow
-        label="Ưu tiên topic quan tâm"
-        hint="(Chưa áp dụng) Sẽ ưu tiên chủ đề người dùng quan tâm — cần dữ liệu chủ đề."
-        checked={r.prioritizeTopics}
-        onCheckedChange={(v) => set({ prioritizeTopics: v })}
-      />
-      <ToggleRow
-        label="Giảm nội dung toxic"
-        hint="(Chưa áp dụng) Sẽ hạ thứ hạng bài có nội dung độc hại — cần điểm toxic."
-        checked={r.reduceToxicContent}
-        onCheckedChange={(v) => set({ reduceToxicContent: v })}
-      />
-      <div className="space-y-4 pt-2">
-        <WeightSlider
-          label="Engagement"
-          hint="Mức ưu tiên bài có nhiều tương tác (thích, bình luận, chia sẻ)."
-          value={r.weights.engagement}
-          onChange={(v) => setWeight("engagement", v)}
-        />
-        <WeightSlider
-          label="Friends"
-          hint="Mức ưu tiên bài của bạn bè / người dùng hay tương tác cùng."
-          value={r.weights.friends}
-          onChange={(v) => setWeight("friends", v)}
-        />
-        <WeightSlider
-          label="Trending"
-          hint="Bài đang được quan tâm nhiều — tính gộp chung với nhóm tương tác."
-          value={r.weights.trending}
-          onChange={(v) => setWeight("trending", v)}
-        />
-        <WeightSlider
-          label="New content"
-          hint="Mức ưu tiên bài mới đăng gần đây (độ mới)."
-          value={r.weights.newContent}
-          onChange={(v) => setWeight("newContent", v)}
-        />
-        <p
-          className={`text-xs font-medium ${weightTotal === 100 ? "text-success" : "text-amber-600"}`}
-        >
-          Tổng trọng số: {weightTotal}% {weightTotal !== 100 ? "(nên chỉnh về 100%)" : ""}
-        </p>
-      </div>
-    </PolicyCard>
-  );
-};
-
-// ─── 9. Audit ─────────────────────────────────────────────────────────────────
+// ─── Audit ─────────────────────────────────────────────────────────────────
 
 export const AuditSection = ({ config }: { config: PolicyConfig }) => {
   const [selected, setSelected] = useState<PolicyAuditEntry | null>(null);
@@ -1334,11 +1360,9 @@ export const SECTION_META: {
   title?: string;
   icon: FC<{ className?: string }>;
 }[] = [
+  { key: "playground", label: "Playground", title: "Moderation Playground", icon: FlaskConical },
   { key: "keywords", label: "Từ khóa", icon: FileText },
-  { key: "violations", label: "Xử phạt", icon: Scale },
   { key: "ai", label: "AI moderation", icon: Brain },
   { key: "posts", label: "Bài viết", icon: FileText },
-
-  { key: "recommendation", label: "Đề xuất", icon: TrendingUp },
   { key: "audit", label: "Audit log", icon: History },
 ];

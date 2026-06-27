@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { normalizePolicyConfig } from "./defaults";
 import { appendAuditEntry } from "./storage";
 import {
@@ -11,6 +11,7 @@ import type { PolicyConfig } from "./types";
 export const usePolicyConfig = () => {
   const [config, setConfig] = useState<PolicyConfig | null>(null);
   const savedRef = useRef<PolicyConfig | null>(null);
+  const [savedConfig, setSavedConfig] = useState<PolicyConfig | null>(null);
   const [dirty, setDirty] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,6 +30,7 @@ export const usePolicyConfig = () => {
         const normalized = normalizePolicyConfig(remote);
         setConfig(normalized);
         savedRef.current = normalized;
+        setSavedConfig(normalized);
         setApiReady(true);
         setDirty(false);
       } catch (err) {
@@ -82,6 +84,7 @@ export const usePolicyConfig = () => {
       const final = normalizePolicyConfig(saved);
       setConfig(final);
       savedRef.current = final;
+      setSavedConfig(final);
       setDirty(false);
       setLastSaved(new Date());
     },
@@ -95,25 +98,27 @@ export const usePolicyConfig = () => {
     const fresh = normalizePolicyConfig(await resetPolicyToDefault());
     setConfig(fresh);
     savedRef.current = fresh;
+    setSavedConfig(fresh);
     setDirty(false);
     setLastSaved(new Date());
   }, [apiReady]);
 
-  const weightTotal = useMemo(() => {
-    if (!config) return 0;
-    const w = config.recommendation.weights;
-    return w.engagement + w.friends + w.trending + w.newContent;
-  }, [config]);
+  const revertChanges = useCallback(() => {
+    if (!savedRef.current) return;
+    setConfig(savedRef.current);
+    setDirty(false);
+  }, []);
 
   return {
     config,
+    savedConfig,
     update,
     replace,
     save,
     resetToDefaults,
+    revertChanges,
     dirty,
     lastSaved,
-    weightTotal,
     loading,
     apiReady,
     loadError,

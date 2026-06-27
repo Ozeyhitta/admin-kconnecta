@@ -10,12 +10,12 @@ import {
   useCreateContext,
   useCreatePath,
   useGetResourceLabel,
-  useHasDashboard,
   useResourceContext,
 } from "ra-core";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { cn } from "@/lib/utils";
+import { getHomePath } from "@/lib/authSession";
 
 export type CreateProps = CreateViewProps & CreateBaseProps;
 
@@ -94,19 +94,15 @@ export const CreateView = ({
     resource,
     type: "list",
   });
-  const hasDashboard = useHasDashboard();
-
   return (
     <>
       {!disableBreadcrumb && (
         <Breadcrumb>
-          {hasDashboard && (
-            <BreadcrumbItem>
-              <Link to="/">
-                <Translate i18nKey="ra.page.dashboard">Home</Translate>
-              </Link>
-            </BreadcrumbItem>
-          )}
+          <BreadcrumbItem>
+            <Link to={getHomePath()}>
+              <Translate i18nKey="ra.page.dashboard">Home</Translate>
+            </Link>
+          </BreadcrumbItem>
           <BreadcrumbItem>
             <Link to={listLink}>{listLabel}</Link>
           </BreadcrumbItem>

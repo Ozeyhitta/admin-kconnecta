@@ -410,7 +410,7 @@ export default function NotificationsPage() {
           <div className="mb-4 flex gap-1.5 rounded-lg bg-muted p-1">
             <button
               onClick={() => setActiveTab("review")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
                 activeTab === "review"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -424,7 +424,7 @@ export default function NotificationsPage() {
             </button>
             <button
               onClick={() => setActiveTab("reports")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
                 activeTab === "reports"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -580,7 +580,7 @@ export default function NotificationsPage() {
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => { setTargetType("all"); setSelectedUsers([]); }}
-              className={`flex flex-1 items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+              className={`flex flex-1 items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors cursor-pointer ${
                 targetType === "all"
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border hover:bg-muted text-muted-foreground"
@@ -591,7 +591,7 @@ export default function NotificationsPage() {
             </button>
             <button
               onClick={() => setTargetType("specific")}
-              className={`flex flex-1 items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+              className={`flex flex-1 items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors cursor-pointer ${
                 targetType === "specific"
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border hover:bg-muted text-muted-foreground"

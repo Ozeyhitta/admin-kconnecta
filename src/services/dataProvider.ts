@@ -7,6 +7,7 @@ import { postsDataProvider } from "./postsDataProvider";
 import { commentsDataProvider } from "./commentsDataProvider";
 import { conversationsDataProvider } from "./conversationsDataProvider";
 import { postReportsDataProvider } from "./postReportsDataProvider";
+import { supportRequestsDataProvider } from "./supportRequestsDataProvider";
 import { isDemoNumericId, isUuid } from "./idUtils";
 
 const fakeData = generateData();
@@ -21,6 +22,7 @@ export const dataProvider: DataProvider = {
     if (resource === "comments") return commentsDataProvider.getList(resource, params);
     if (resource === "conversations") return conversationsDataProvider.getList(resource, params);
     if (resource === "post-reports") return postReportsDataProvider.getList(resource, params);
+    if (resource === "support-requests") return supportRequestsDataProvider.getList(resource, params);
     return fakeProvider.getList(resource, params);
   },
 
@@ -35,6 +37,7 @@ export const dataProvider: DataProvider = {
     if (resource === "comments") return commentsDataProvider.getOne(resource, params);
     if (resource === "conversations") return conversationsDataProvider.getOne(resource, params);
     if (resource === "post-reports") return postReportsDataProvider.getOne(resource, params);
+    if (resource === "support-requests") return supportRequestsDataProvider.getOne(resource, params);
     return fakeProvider.getOne(resource, params);
   },
 
