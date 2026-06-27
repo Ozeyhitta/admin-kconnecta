@@ -22,12 +22,29 @@ public class CommentAdminResponse {
     private boolean deleted;
     private String status;
     private String moderationFailReason;
+    private UUID moderationLockedBy;
+    private String moderationLockedByUsername;
+    private LocalDateTime moderationLockedAt;
+    private boolean moderationLockedByMe;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public static CommentAdminResponse from(PostComment c) {
+        return from(c, null, null, false);
+    }
+
+    public static CommentAdminResponse from(
+            PostComment c,
+            UUID viewerAdminId,
+            java.util.Map<UUID, String> lockerUsernames,
+            boolean lockActive) {
         var user = c.getUser();
         var parent = c.getParentComment();
+        UUID lockedBy = lockActive ? c.getModerationLockedBy() : null;
+        String lockerUsername = lockedBy != null && lockerUsernames != null
+                ? lockerUsernames.get(lockedBy)
+                : null;
+        boolean lockedByMe = lockActive && viewerAdminId != null && lockedBy != null && lockedBy.equals(viewerAdminId);
         return CommentAdminResponse.builder()
                 .id(c.getId())
                 .postId(c.getPost() != null ? c.getPost().getId() : null)
@@ -40,6 +57,10 @@ public class CommentAdminResponse {
                 .deleted(c.isDeleted())
                 .status(c.getStatus())
                 .moderationFailReason(c.getModerationFailReason())
+                .moderationLockedBy(lockedBy)
+                .moderationLockedByUsername(lockerUsername)
+                .moderationLockedAt(lockActive ? c.getModerationLockedAt() : null)
+                .moderationLockedByMe(lockedByMe)
                 .createdAt(c.getCreatedAt())
                 .updatedAt(c.getUpdatedAt())
                 .build();

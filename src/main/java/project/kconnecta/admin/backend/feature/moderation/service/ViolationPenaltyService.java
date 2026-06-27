@@ -15,6 +15,7 @@ import project.kconnecta.admin.backend.feature.moderation.repository.ChatModerat
 import project.kconnecta.admin.backend.feature.moderation.repository.UserViolationLogRepository;
 import project.kconnecta.admin.backend.feature.notification.service.NotificationAdminService;
 import project.kconnecta.admin.backend.feature.policy.service.PolicyAdminService;
+import project.kconnecta.admin.backend.integration.UserBackendSessionClient;
 import project.kconnecta.admin.backend.feature.user.repository.AccountRepository;
 import project.kconnecta.admin.backend.feature.user.repository.UserRepository;
 import tools.jackson.databind.JsonNode;
@@ -45,6 +46,7 @@ public class ViolationPenaltyService {
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
     private final UserViolationLogRepository userViolationLogRepository;
+    private final UserBackendSessionClient userBackendSessionClient;
 
     @Transactional
     public void applyForNewViolations(UUID userId, List<ViolationResult> violations) {
@@ -187,6 +189,7 @@ public class ViolationPenaltyService {
                     account.setLockReason("Khóa tạm " + safeDays + " ngày do vi phạm lần "
                             + offenseCount + ": " + violationLabel + ".");
                     accountRepository.save(account);
+                    userBackendSessionClient.revokeAllSessions(userId);
                 });
         notifyUser(userId, "Tài khoản của bạn đã vi phạm chính sách " + violationLabel
                 + " lần " + offenseCount + ". Tài khoản bị khóa tạm " + safeDays + " ngày.");
@@ -201,6 +204,7 @@ public class ViolationPenaltyService {
                     account.setLockReason("Khóa vĩnh viễn do vi phạm lần "
                             + offenseCount + ": " + violationLabel + ".");
                     accountRepository.save(account);
+                    userBackendSessionClient.revokeAllSessions(userId);
                 });
         notifyUser(userId, "Tài khoản của bạn đã bị khóa do vi phạm chính sách "
                 + violationLabel + " lần " + offenseCount + ".");

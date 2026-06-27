@@ -49,4 +49,11 @@ public class PostComment {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    /** Admin đang giữ khóa duyệt tay (chỉ áp dụng khi status = PENDING). */
+    @Column(name = "moderation_locked_by")
+    private UUID moderationLockedBy;
+
+    @Column(name = "moderation_locked_at")
+    private LocalDateTime moderationLockedAt;
 }

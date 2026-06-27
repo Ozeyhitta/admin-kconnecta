@@ -16,6 +16,7 @@ import project.kconnecta.admin.backend.exception.ResourceNotFoundException;
 import project.kconnecta.admin.backend.feature.activitylog.dto.response.UserActivityLogResponse;
 import project.kconnecta.admin.backend.feature.activitylog.repository.UserActivityLogRepository;
 import project.kconnecta.admin.backend.feature.activitylog.service.ActivityLogWriterService;
+import project.kconnecta.admin.backend.integration.UserBackendSessionClient;
 import project.kconnecta.admin.backend.feature.user.repository.UserRepository;
 import project.kconnecta.admin.backend.feature.comment.repository.CommentAdminRepository;
 import project.kconnecta.admin.backend.feature.post.repository.PostAdminRepository;
@@ -39,6 +40,7 @@ public class AdminUserServiceImpl implements AdminUserService {
     private final UserActivityLogRepository activityLogRepository;
     private final ActivityLogWriterService activityLogWriter;
     private final UserRepository userRepository;
+    private final UserBackendSessionClient userBackendSessionClient;
 
     @Override
     public Page<AdminUserResponseDTO> getUsers(int page, int size, String sortBy, String sortDir,
@@ -119,6 +121,10 @@ public class AdminUserServiceImpl implements AdminUserService {
             account.setLockReason(null);
         }
         Account saved = accountRepository.saveAndFlush(account);
+        if (status != AccountStatus.ACTIVE) {
+            userRepository.findByAccount_Id(saved.getId())
+                    .ifPresent(user -> userBackendSessionClient.revokeAllSessions(user.getId()));
+        }
         if (status == AccountStatus.BLOCKED) {
             userRepository.findByAccount_Id(saved.getId()).ifPresent(user ->
                     activityLogWriter.log(

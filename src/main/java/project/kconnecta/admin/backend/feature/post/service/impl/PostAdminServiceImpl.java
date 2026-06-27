@@ -33,7 +33,7 @@ public class PostAdminServiceImpl implements PostAdminService {
                                             String search, PostStatus status, UUID authorId) {
         Sort.Direction direction = Sort.Direction.fromString(sortDir.toUpperCase());
         Set<String> validFields = Set.of("createdAt", "updatedAt", "publishedAt", "status", "privacy");
-        String safeField = validFields.contains(sortBy) ? sortBy : "createdAt";
+        String safeField = validFields.contains(sortBy) ? sortBy : "updatedAt";
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, safeField));
 
         String pattern = (search != null && !search.isBlank())

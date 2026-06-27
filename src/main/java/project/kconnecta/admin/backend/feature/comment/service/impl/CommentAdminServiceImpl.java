@@ -16,17 +16,24 @@ import project.kconnecta.admin.backend.entity.PostComment;
 import project.kconnecta.admin.backend.exception.ResourceNotFoundException;
 import project.kconnecta.admin.backend.feature.comment.dto.response.CommentAdminResponse;
 import project.kconnecta.admin.backend.feature.comment.repository.CommentAdminRepository;
+import project.kconnecta.admin.backend.feature.comment.service.CommentModerationLockService;
 import project.kconnecta.admin.backend.feature.moderation.service.ViolationPenaltyService;
+import project.kconnecta.admin.backend.feature.user.repository.UserRepository;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class CommentAdminServiceImpl implements CommentAdminService {
 
     private final CommentAdminRepository commentAdminRepository;
+    private final CommentModerationLockService moderationLockService;
+    private final UserRepository userRepository;
     private final RestTemplate restTemplate;
     private final ViolationPenaltyService violationPenaltyService;
 
@@ -38,7 +45,8 @@ public class CommentAdminServiceImpl implements CommentAdminService {
 
     @Override
     public Page<CommentAdminResponse> getComments(int page, int size, String sortBy, String sortDir,
-                                                  String search, UUID postId, UUID authorId, String status) {
+                                                  String search, UUID postId, UUID authorId, String status,
+                                                  UUID viewerAdminId) {
         Sort.Direction direction = Sort.Direction.fromString(sortDir.toUpperCase());
         Set<String> validFields = Set.of("createdAt", "updatedAt");
         String safeField = validFields.contains(sortBy) ? sortBy : "createdAt";
@@ -49,14 +57,17 @@ public class CommentAdminServiceImpl implements CommentAdminService {
                 : null;
         String statusFilter = (status != null && !status.isBlank()) ? status.trim().toUpperCase() : null;
 
-        return commentAdminRepository
-                .findAllFiltered(pattern, postId, authorId, statusFilter, pageable)
-                .map(CommentAdminResponse::from);
+        Page<PostComment> comments = commentAdminRepository
+                .findAllFiltered(pattern, postId, authorId, statusFilter, pageable);
+        Map<UUID, String> lockerUsernames = resolveLockerUsernames(comments.getContent());
+        return comments.map(c -> toResponse(c, viewerAdminId, lockerUsernames));
     }
 
     @Override
-    public CommentAdminResponse getCommentById(UUID id) {
-        return CommentAdminResponse.from(findComment(id));
+    public CommentAdminResponse getCommentById(UUID id, UUID viewerAdminId) {
+        PostComment comment = findComment(id);
+        Map<UUID, String> lockerUsernames = resolveLockerUsernames(java.util.List.of(comment));
+        return toResponse(comment, viewerAdminId, lockerUsernames);
     }
 
     @Override
@@ -69,30 +80,90 @@ public class CommentAdminServiceImpl implements CommentAdminService {
     }
 
     @Override
-    public void approveComment(UUID id) {
-        restTemplate.exchange(
-                userServiceUrl + "/api/internal/comments/" + id + "/approve",
-                HttpMethod.POST,
-                new HttpEntity<>(internalHeaders()),
-                Void.class
-        );
+    @Transactional
+    public void acquireModerationLock(UUID id, UUID adminId) {
+        moderationLockService.acquireLock(id, adminId);
     }
 
     @Override
-    public void rejectComment(UUID id, String reason) {
+    @Transactional
+    public void renewModerationLock(UUID id, UUID adminId) {
+        moderationLockService.renewLock(id, adminId);
+    }
+
+    @Override
+    @Transactional
+    public void releaseModerationLock(UUID id, UUID adminId) {
+        moderationLockService.releaseLock(id, adminId);
+    }
+
+    @Override
+    @Transactional
+    public void approveComment(UUID id, UUID adminId) {
+        moderationLockService.requireLockForAction(id, adminId);
+        try {
+            restTemplate.exchange(
+                    userServiceUrl + "/api/internal/comments/" + id + "/approve",
+                    HttpMethod.POST,
+                    new HttpEntity<>(internalHeaders()),
+                    Void.class
+            );
+        } finally {
+            moderationLockService.clearLock(id);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void rejectComment(UUID id, String reason, UUID adminId) {
         PostComment comment = findComment(id);
+        moderationLockService.requireLockForAction(id, adminId);
         HttpHeaders headers = internalHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         Map<String, String> body = Map.of("reason", reason != null ? reason : "");
-        restTemplate.exchange(
-                userServiceUrl + "/api/internal/comments/" + id + "/reject",
-                HttpMethod.POST,
-                new HttpEntity<>(body, headers),
-                Void.class
-        );
-        violationPenaltyService.applyForContentViolation(
-                comment.getUser().getId(), ViolationSource.COMMENT, comment.getId(),
-                "Bình luận vi phạm" + (reason != null && !reason.isBlank() ? ": " + reason : ""));
+        try {
+            restTemplate.exchange(
+                    userServiceUrl + "/api/internal/comments/" + id + "/reject",
+                    HttpMethod.POST,
+                    new HttpEntity<>(body, headers),
+                    Void.class
+            );
+            violationPenaltyService.applyForContentViolation(
+                    comment.getUser().getId(), ViolationSource.COMMENT, comment.getId(),
+                    "Bình luận vi phạm" + (reason != null && !reason.isBlank() ? ": " + reason : ""));
+        } finally {
+            moderationLockService.clearLock(id);
+        }
+    }
+
+    private Map<UUID, String> resolveLockerUsernames(java.util.List<PostComment> comments) {
+        Set<UUID> lockerIds = new HashSet<>();
+        for (PostComment comment : comments) {
+            if (moderationLockService.isLockActive(comment)) {
+                lockerIds.add(comment.getModerationLockedBy());
+            }
+        }
+        if (lockerIds.isEmpty()) {
+            return Map.of();
+        }
+        return userRepository.findAllById(lockerIds).stream()
+                .collect(Collectors.toMap(
+                        u -> u.getId(),
+                        u -> u.getUsername(),
+                        (a, b) -> a,
+                        HashMap::new
+                ));
+    }
+
+    private CommentAdminResponse toResponse(
+            PostComment comment,
+            UUID viewerAdminId,
+            Map<UUID, String> lockerUsernames) {
+        return CommentAdminResponse.from(
+                comment,
+                viewerAdminId,
+                lockerUsernames,
+                moderationLockService.isLockActive(comment));
     }
 
     private HttpHeaders internalHeaders() {
