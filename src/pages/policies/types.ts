@@ -97,11 +97,17 @@ export interface RecommendationConfig {
   prioritizeFriends: boolean;
   prioritizeTopics: boolean;
   reduceToxicContent: boolean;
-  weights: {
-    engagement: number;
+  feedWeights: {
     friends: number;
-    trending: number;
+    engagement: number;
     newContent: number;
+    topics: number;
+  };
+  reelWeights: {
+    friends: number;
+    engagement: number;
+    newContent: number;
+    topics: number;
   };
 }
 

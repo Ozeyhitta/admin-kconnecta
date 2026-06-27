@@ -129,14 +129,6 @@ const EXACT_LABELS: Record<string, string> = {
   "privacy.allowAccountDeletion": "Quyền riêng tư - Cho phép xóa tài khoản",
   "privacy.cookiePolicyEnabled": "Quyền riêng tư - Chính sách cookie",
   "privacy.sessionMaxHours": "Quyền riêng tư - Phiên tối đa (giờ)",
-  "recommendation.prioritizeHot": "Đề xuất - Ưu tiên hot",
-  "recommendation.prioritizeFriends": "Đề xuất - Ưu tiên bạn bè",
-  "recommendation.prioritizeTopics": "Đề xuất - Ưu tiên chủ đề",
-  "recommendation.reduceToxicContent": "Đề xuất - Giảm nội dung độc hại",
-  "recommendation.weights.engagement": "Đề xuất - Trọng số tương tác",
-  "recommendation.weights.friends": "Đề xuất - Trọng số bạn bè",
-  "recommendation.weights.trending": "Đề xuất - Trọng số xu hướng",
-  "recommendation.weights.newContent": "Đề xuất - Trọng số nội dung mới",
 };
 
 export const SECTION_PREFIX_LABELS: Record<string, string> = {

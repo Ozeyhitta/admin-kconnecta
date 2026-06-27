@@ -1097,7 +1097,11 @@ export const ChatPolicySection = ({ config, update }: { config: PolicyConfig; up
   );
 };
 
+<<<<<<< Updated upstream
 // ─── Audit ─────────────────────────────────────────────────────────────────
+=======
+// ─── 8. Audit ─────────────────────────────────────────────────────────────────
+>>>>>>> Stashed changes
 
 export const AuditSection = ({ config }: { config: PolicyConfig }) => {
   const [selected, setSelected] = useState<PolicyAuditEntry | null>(null);
