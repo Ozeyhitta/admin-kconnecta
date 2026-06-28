@@ -12,8 +12,9 @@ import { comments } from "./pages/comments";
 import { conversations } from "./pages/conversations";
 import { postReports } from "./pages/postReports";
 import { supportRequests } from "./pages/supportRequests";
-import { AuthenticatedDashboard } from "./pages/dashboard/AuthenticatedDashboard";
+import { Dashboard } from "./pages/dashboard/Dashboard";
 import { RootRedirect } from "@/components/admin/root-redirect";
+import { SessionCheckingView } from "@/components/admin/session-checking-view";
 import StatsPage from "./pages/stats/StatsPage";
 import PostTrendsPage from "./pages/postTrends/PostTrendsPage";
 import NotificationsPage from "./pages/notifications/NotificationsPage";
@@ -28,10 +29,11 @@ function App() {
       authProvider={authProvider}
       i18nProvider={i18nProvider}
       requireAuth
+      loading={SessionCheckingView}
     >
       <CustomRoutes>
         <Route path="/" element={<RootRedirect />} />
-        <Route path="/home" element={<AuthenticatedDashboard />} />
+        <Route path="/home" element={<Dashboard />} />
         <Route path="/stats" element={<StatsPage />} />
         <Route path="/post-trends" element={<PostTrendsPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />

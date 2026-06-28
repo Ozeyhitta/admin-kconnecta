@@ -4,6 +4,7 @@ import {
   clearAuthSession,
   hasStoredAuth,
   redirectToLogin,
+  validateAuthSession,
 } from "@/lib/authSession";
 import { authDebug } from "@/lib/authDebug";
 
@@ -71,8 +72,18 @@ export const authProvider: AuthProvider = {
     return Promise.resolve();
   },
 
-  checkAuth: () => {
-    return hasStoredAuth() ? Promise.resolve() : Promise.reject();
+  checkAuth: async () => {
+    if (!hasStoredAuth()) {
+      return Promise.reject(new Error());
+    }
+
+    const status = await validateAuthSession();
+    if (status === "ok" || status === "backend_down") {
+      return Promise.resolve();
+    }
+
+    clearAuthSession();
+    return Promise.reject(new Error());
   },
 
   getPermissions: () => {
