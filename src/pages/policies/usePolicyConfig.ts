@@ -103,15 +103,12 @@ export const usePolicyConfig = () => {
     setLastSaved(new Date());
   }, [apiReady]);
 
-<<<<<<< Updated upstream
   const revertChanges = useCallback(() => {
     if (!savedRef.current) return;
     setConfig(savedRef.current);
     setDirty(false);
   }, []);
 
-=======
->>>>>>> Stashed changes
   return {
     config,
     savedConfig,
