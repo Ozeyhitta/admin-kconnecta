@@ -15,6 +15,7 @@ export function usePostTrends(range: TrendRange) {
   const [loading, setLoading] = React.useState(() => !hasCachedPostTrends(range));
   const [refreshing, setRefreshing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const requestIdRef = React.useRef(0);
 
   React.useEffect(() => {
     const cached = getCachedPostTrends(range);
@@ -30,6 +31,7 @@ export function usePostTrends(range: TrendRange) {
   }, [range]);
 
   const fetchData = React.useCallback(async (background = false) => {
+    const requestId = ++requestIdRef.current;
     const cached = hasCachedPostTrends(range);
     const softLoad = background || cached;
 
@@ -43,21 +45,28 @@ export function usePostTrends(range: TrendRange) {
       const r = await apiClient.get<PostTrendsResponse>("/api/v1/admin/analytics/post-trends", {
         params: { range },
       });
+      if (requestId !== requestIdRef.current) return;
       setCachedPostTrends(range, r.data);
       setData(r.data);
       setError(null);
     } catch {
+      if (requestId !== requestIdRef.current) return;
       if (!softLoad) {
         setData(null);
         setError("Không tải được dữ liệu phân tích xu hướng.");
       }
     } finally {
+      if (requestId !== requestIdRef.current) return;
       setLoading(false);
       setRefreshing(false);
     }
   }, [range]);
 
-  useIntervalPoll(() => fetchData(), ADMIN_CHARTS_POLL_MS, [fetchData]);
+  React.useEffect(() => {
+    void fetchData(!hasCachedPostTrends(range));
+  }, [fetchData, range]);
+
+  useIntervalPoll(() => fetchData(true), ADMIN_CHARTS_POLL_MS, [fetchData]);
 
   const refresh = React.useCallback(() => void fetchData(true), [fetchData]);
 

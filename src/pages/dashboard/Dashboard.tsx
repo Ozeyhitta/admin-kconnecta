@@ -1,5 +1,6 @@
 import { Translate } from "ra-core";
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { Breadcrumb, BreadcrumbPage } from "@/components/admin";
 import { StatsDateFilter } from "@/components/admin/stats-date-filter";
 import { createDefaultStatsDateRange, type StatsDateRange } from "@/lib/statsDateRange";
@@ -16,7 +17,7 @@ import { NewUsersAnalytics } from "./NewUsersAnalytics";
 
 function useDebouncedValue<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     clearTimeout(timer.current);
@@ -30,7 +31,22 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export const Dashboard = () => {
-  const [dateRange, setDateRange] = useState<StatsDateRange>(() => createDefaultStatsDateRange());
+  const [searchParams] = useSearchParams();
+  const [dateRange, setDateRange] = useState<StatsDateRange>(() => {
+    const fallback = createDefaultStatsDateRange();
+    const from = searchParams.get("statsFrom");
+    const to = searchParams.get("statsTo");
+    if (!from || !to) return fallback;
+    return {
+      ...fallback,
+      from,
+      to,
+      preset: (searchParams.get("statsPreset") as StatsDateRange["preset"]) || "custom",
+      compareMode:
+        (searchParams.get("statsCompare") as StatsDateRange["compareMode"])
+        || fallback.compareMode,
+    };
+  });
 
   // Debounce filter changes by 300 ms to prevent simultaneous API storms
   // when user rapidly switches presets or types custom dates.
@@ -51,7 +67,7 @@ export const Dashboard = () => {
         <SystemOverviewCards />
       </div>
 
-      <div className="mb-8">
+      <div className="mb-8 flex flex-col gap-8">
         {/* Filter gets immediate value — instant UI feedback */}
         <StatsDateFilter value={dateRange} onChange={setDateRange} />
         {/* Analytics components get debounced value — fewer API calls */}
@@ -59,7 +75,7 @@ export const Dashboard = () => {
       </div>
 
       <div className="mb-8">
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-10">
           <NewUsersAnalytics dateRange={debouncedDateRange} />
           <ActivityHourCard dateRange={debouncedDateRange} />
           <ActivityDayCard dateRange={debouncedDateRange} />

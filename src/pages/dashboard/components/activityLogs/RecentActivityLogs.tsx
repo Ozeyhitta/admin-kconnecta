@@ -2,7 +2,12 @@ import * as React from "react";
 import { Link } from "react-router";
 import { Download, ExternalLink, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { apiClient, resolveApiBaseUrl } from "@/services/axiosInstance";
+import { resolveApiBaseUrl } from "@/services/axiosInstance";
+import {
+  cachedApiGet,
+  DASHBOARD_CACHE_TTL,
+  invalidateApiGetCache,
+} from "@/services/apiGetCache";
 import { getAdminToken } from "@/lib/currentAdminUser";
 import { ADMIN_ACTIVITY_POLL_MS, useIntervalPoll } from "@/lib/adminStatsPoll";
 import { type StatsDateRange } from "@/lib/statsDateRange";
@@ -99,7 +104,7 @@ export const RecentActivityLogs = ({ compact = true, pageSize = 10 }: Props) => 
   const fetchLogs = React.useCallback(async () => {
     setError(null);
     try {
-      const r = await apiClient.get<ActivityLogPageResponse>("/api/v1/admin/activity-logs", {
+      const r = await cachedApiGet<ActivityLogPageResponse>("/api/v1/admin/activity-logs", {
         params: {
           page: 0,
           size: pageSize,
@@ -113,7 +118,7 @@ export const RecentActivityLogs = ({ compact = true, pageSize = 10 }: Props) => 
           ...(filters.to          ? { to: filters.to }                 : {}),
           ...(filters.abnormalOnly ? { abnormalOnly: true }            : {}),
         },
-      });
+      }, DASHBOARD_CACHE_TTL);
       setData(r.data);
     } catch {
       setError("Không thể tải hoạt động gần đây. Vui lòng thử lại.");
@@ -128,7 +133,10 @@ export const RecentActivityLogs = ({ compact = true, pageSize = 10 }: Props) => 
   const items = data?.items ?? data?.content ?? [];
   const total = data?.pagination?.totalElements ?? data?.totalElements ?? items.length;
 
-  const handleManualRefresh = () => { void fetchLogs(); };
+  const handleManualRefresh = () => {
+    invalidateApiGetCache("/api/v1/admin/activity-logs");
+    void fetchLogs();
+  };
 
   const handleExport = async () => {
     const token = getAdminToken();

@@ -10,7 +10,8 @@ import {
   ShowButton,
 } from "@/components/admin";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, User } from "lucide-react";
+import { ArrowLeft, ShieldCheck, User } from "lucide-react";
+import { useLocation, useNavigate } from "react-router";
 import { FullNameField } from "./FullNameField";
 import { isCurrentAdminUser } from "@/lib/currentAdminUser";
 import { LockUserButton } from "./LockUserButton";
@@ -71,8 +72,30 @@ const RoleBadge = () => {
 
 
 export const CustomerList = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const returnTo = (
+    location.state
+    && typeof location.state === "object"
+    && "returnTo" in location.state
+    && typeof location.state.returnTo === "string"
+  )
+    ? location.state.returnTo
+    : null;
+
   return (
-    <List
+    <>
+      {returnTo && (
+        <button
+          type="button"
+          onClick={() => navigate(returnTo)}
+          className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Quay lại chi tiết trên Trang chủ
+        </button>
+      )}
+      <List
       perPage={20}
       sort={{ field: "createdAt", order: "DESC" }}
       pagination={false}
@@ -145,7 +168,8 @@ export const CustomerList = () => {
           <ListPagination className="justify-start mt-2" />
         </div>
       </div>
-    </List>
+      </List>
+    </>
   );
 };
 

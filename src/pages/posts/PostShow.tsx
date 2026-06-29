@@ -1,20 +1,25 @@
 import * as React from "react";
+import Hls from "hls.js";
 import { useDelete, useNotify, useRefresh, useShowController, useUpdate } from "ra-core";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import {
   ArrowLeft,
   Calendar,
+  Clock,
   Eye,
   EyeOff,
+  FileText,
   Globe,
   Heart,
   Lock,
   MapPin,
   MessageSquare,
+  Radio,
   Share2,
   Star,
   Trash2,
   Users,
+  Video,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -50,8 +55,35 @@ interface PostReport {
   createdAt?: string | null;
 }
 
+interface LiveSession {
+  id: string;
+  title?: string | null;
+  description?: string | null;
+  status?: string | null;
+  recordingStatus?: string | null;
+  playbackUrl?: string | null;
+  hlsPlaybackUrl?: string | null;
+  thumbnailUrl?: string | null;
+  recordingDurationSec?: number | null;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  viewerCount?: number;
+  peakViewerCount?: number;
+  totalReactionCount?: number;
+  createdAt?: string | null;
+}
+
+interface PostMedia {
+  id?: string;
+  mediaType: "IMAGE" | "VIDEO" | "DOCUMENT";
+  fileUrl: string;
+  thumbnailUrl?: string | null;
+  sortOrder?: number | null;
+}
+
 interface Comment {
   id: string;
+  postId?: string;
   authorUsername: string;
   authorFullName: string;
   authorAvatarUrl: string;
@@ -63,6 +95,9 @@ interface Comment {
 
 const fmt = new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium", timeStyle: "short" });
 const fmtNum = new Intl.NumberFormat("vi-VN");
+
+const isShareRecordId = (id: unknown): boolean =>
+  typeof id === "string" && id.startsWith("share:");
 
 const PRIVACY_META: Record<string, { label: string; icon: React.FC<{ className?: string }> }> = {
   PUBLIC: { label: "Công khai", icon: Globe },
@@ -98,21 +133,157 @@ const StatChip = ({
   </div>
 );
 
-const CommentsSection = ({ postId, refresh }: { postId: string; refresh: number }) => {
+const getMediaFileName = (url: string): string => {
+  try {
+    const path = new URL(url).pathname;
+    return decodeURIComponent(path.slice(path.lastIndexOf("/") + 1)) || "Tệp đính kèm";
+  } catch {
+    return "Tệp đính kèm";
+  }
+};
+
+const PostMediaGallery = ({
+  media,
+  legacyImageUrl,
+}: {
+  media?: PostMedia[] | null;
+  legacyImageUrl?: string | null;
+}) => {
+  const items = [...(media ?? [])]
+    .filter((item) => Boolean(item?.fileUrl))
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
+  if (items.length === 0 && legacyImageUrl) {
+    items.push({ mediaType: "IMAGE", fileUrl: legacyImageUrl, sortOrder: 0 });
+  }
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className={items.length > 1 ? "grid grid-cols-1 gap-2 sm:grid-cols-2" : "grid gap-2"}>
+      {items.map((item, index) => {
+        const key = item.id ?? `${item.fileUrl}-${index}`;
+        if (item.mediaType === "VIDEO") {
+          return (
+            <video
+              key={key}
+              controls
+              playsInline
+              preload="metadata"
+              poster={item.thumbnailUrl ?? undefined}
+              src={item.fileUrl}
+              className="max-h-[32rem] w-full rounded-lg border bg-black object-contain"
+            />
+          );
+        }
+        if (item.mediaType === "DOCUMENT") {
+          return (
+            <a
+              key={key}
+              href={item.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex min-w-0 items-center gap-3 rounded-lg border bg-muted/30 p-4 transition-colors hover:bg-muted"
+            >
+              <FileText className="h-8 w-8 shrink-0 text-primary" />
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium">{getMediaFileName(item.fileUrl)}</span>
+                <span className="block text-xs text-muted-foreground">Mở tệp Cloudinary</span>
+              </span>
+            </a>
+          );
+        }
+        return (
+          <img
+            key={key}
+            src={item.fileUrl}
+            alt={`Ảnh bài đăng ${index + 1}`}
+            loading="lazy"
+            className="max-h-[32rem] w-full rounded-lg border bg-muted/20 object-contain"
+          />
+        );
+      })}
+    </div>
+  );
+};
+
+const CommentsSection = ({
+  postId,
+  refresh,
+  highlightCommentId,
+}: {
+  postId: string;
+  refresh: number;
+  highlightCommentId?: string | null;
+}) => {
   const [comments, setComments] = React.useState<Comment[] | null>(null);
   const [commentToDelete, setCommentToDelete] = React.useState<string | null>(null);
   const [deletingComment, setDeletingComment] = React.useState(false);
+  const [flashCommentId, setFlashCommentId] = React.useState<string | null>(null);
   const notify = useNotify();
 
   React.useEffect(() => {
     if (!postId) return;
-    apiClient
-      .get<{ content: Comment[] }>("/api/v1/admin/comments", {
-        params: { postId, page: 0, size: 20, sortBy: "createdAt", sortDir: "asc" },
-      })
-      .then((r) => setComments(r.data.content))
-      .catch(() => setComments([]));
-  }, [postId, refresh]);
+    let cancelled = false;
+
+    const loadComments = async () => {
+      try {
+        const listPromise = apiClient.get<{ content: Comment[] }>("/api/v1/admin/comments", {
+          params: {
+            postId,
+            page: 0,
+            size: highlightCommentId ? 100 : 20,
+            sortBy: "createdAt",
+            sortDir: "asc",
+          },
+        });
+
+        const highlightPromise = highlightCommentId
+          ? apiClient.get<Comment>(`/api/v1/admin/comments/${highlightCommentId}`).catch(() => null)
+          : Promise.resolve(null);
+
+        const [listRes, highlightRes] = await Promise.all([listPromise, highlightPromise]);
+        if (cancelled) return;
+
+        let next = listRes.data.content ?? [];
+        const highlighted = highlightRes?.data;
+        if (highlighted) {
+          const belongsToPost = !highlighted.postId || highlighted.postId === postId;
+          if (belongsToPost && !next.some((comment) => comment.id === highlighted.id)) {
+            next = [...next, highlighted].sort(
+              (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+            );
+          }
+        }
+
+        setComments(next);
+      } catch {
+        if (!cancelled) setComments([]);
+      }
+    };
+
+    void loadComments();
+    return () => {
+      cancelled = true;
+    };
+  }, [postId, refresh, highlightCommentId]);
+
+  React.useEffect(() => {
+    if (!highlightCommentId || !comments?.length) return;
+    const el = document.getElementById(`comment-${highlightCommentId}`);
+    if (!el) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setFlashCommentId(highlightCommentId);
+    });
+
+    const timer = window.setTimeout(() => setFlashCommentId(null), 3000);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [comments, highlightCommentId]);
 
   const handleDelete = async (id: string) => {
     setDeletingComment(true);
@@ -145,7 +316,15 @@ const CommentsSection = ({ postId, refresh }: { postId: string; refresh: number 
   return (
     <div className="divide-y">
       {comments.map((c) => (
-        <div key={c.id} className={`flex gap-2.5 py-3 ${c.deleted ? "opacity-50" : ""}`}>
+        <div
+          key={c.id}
+          id={`comment-${c.id}`}
+          className={[
+            "flex gap-2.5 py-3 scroll-mt-24 transition-colors",
+            c.deleted ? "opacity-50" : "",
+            flashCommentId === c.id ? "rounded-lg bg-pink-50 ring-2 ring-pink-400 -mx-1 px-1" : "",
+          ].join(" ").trim()}
+        >
           <Avatar className="mt-0.5 h-7 w-7 shrink-0">
             <AvatarImage src={c.authorAvatarUrl} />
             <AvatarFallback className="text-xs">
@@ -249,13 +428,197 @@ const ReportsSection = ({ postId, refresh }: { postId: string; refresh: number }
   );
 };
 
+const LIVE_STATUS_META: Record<string, { label: string; className: string }> = {
+  DRAFT: { label: "Bản nháp", className: "border-gray-300 bg-gray-50 text-gray-600" },
+  SCHEDULED: { label: "Đã lên lịch", className: "border-blue-300 bg-blue-50 text-blue-700" },
+  LIVE: { label: "Đang phát trực tiếp", className: "border-red-300 bg-red-50 text-red-600" },
+  ENDED: { label: "Đã kết thúc", className: "border-gray-300 bg-gray-50 text-gray-600" },
+  CANCELED: { label: "Đã hủy", className: "border-gray-300 bg-gray-50 text-gray-500" },
+};
+
+const RECORDING_STATUS_LABEL: Record<string, string> = {
+  NONE: "Không ghi hình",
+  RECORDING: "Đang ghi hình",
+  PROCESSING: "Đang xử lý bản ghi",
+  READY: "Bản ghi sẵn sàng",
+  FAILED: "Ghi hình thất bại",
+};
+
+const formatDuration = (seconds?: number | null): string | null => {
+  if (!seconds || seconds <= 0) return null;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+};
+
+const LivePlaybackVideo = ({ url, poster }: { url: string; poster?: string | null }) => {
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+
+  React.useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    let hls: Hls | null = null;
+    const isHls = /\.m3u8(?:$|\?)/i.test(url);
+    if (isHls && video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = url;
+    } else if (isHls && Hls.isSupported()) {
+      hls = new Hls();
+      hls.loadSource(url);
+      hls.attachMedia(video);
+    } else {
+      video.src = url;
+    }
+
+    return () => {
+      hls?.destroy();
+      video.removeAttribute("src");
+      video.load();
+    };
+  }, [url]);
+
+  return (
+    <video
+      ref={videoRef}
+      controls
+      playsInline
+      poster={poster ?? undefined}
+      className="max-h-96 w-full rounded-lg border bg-black object-contain"
+    />
+  );
+};
+
+const LiveSessionSection = ({ postId }: { postId: string }) => {
+  const [session, setSession] = React.useState<LiveSession | null | undefined>(undefined);
+
+  React.useEffect(() => {
+    if (!postId) return;
+    let cancelled = false;
+    apiClient
+      .get<LiveSession>(`/api/v1/admin/posts/${postId}/live-session`)
+      .then((r) => {
+        if (!cancelled) setSession(r.data);
+      })
+      .catch(() => {
+        if (!cancelled) setSession(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [postId]);
+
+  // undefined = still loading, null = not a livestream post → render nothing.
+  if (session === undefined || session === null) return null;
+
+  const statusMeta = session.status
+    ? LIVE_STATUS_META[session.status] ?? { label: session.status, className: "border-gray-300 bg-gray-50 text-gray-600" }
+    : null;
+  const recordingLabel = session.recordingStatus
+    ? RECORDING_STATUS_LABEL[session.recordingStatus] ?? session.recordingStatus
+    : null;
+  const duration = formatDuration(session.recordingDurationSec);
+  const playbackUrl = session.playbackUrl || session.hlsPlaybackUrl;
+
+  return (
+    <Card className="border-red-200">
+      <CardContent className="space-y-4 pt-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
+            <Radio className="h-3 w-3" /> Livestream
+          </span>
+          {statusMeta ? (
+            <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${statusMeta.className}`}>
+              {statusMeta.label}
+            </span>
+          ) : null}
+        </div>
+
+        {playbackUrl ? (
+          <LivePlaybackVideo url={playbackUrl} poster={session.thumbnailUrl} />
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 py-10 text-center">
+            <Video className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              {session.status === "LIVE"
+                ? "Phiên đang phát trực tiếp — bản ghi sẽ có sau khi kết thúc."
+                : session.recordingStatus === "PROCESSING" || session.recordingStatus === "RECORDING"
+                  ? "Bản ghi đang được xử lý, vui lòng quay lại sau."
+                  : session.recordingStatus === "FAILED"
+                    ? "Ghi hình thất bại — không có bản ghi để phát lại."
+                    : "Không có bản ghi phát lại cho phiên này."}
+            </p>
+            {session.hlsPlaybackUrl ? (
+              <a
+                href={session.hlsPlaybackUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium text-primary underline"
+              >
+                Mở luồng HLS
+              </a>
+            ) : null}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t pt-3 text-xs sm:grid-cols-4">
+          <LiveStat icon={Users} label="Xem cao nhất" value={fmtNum.format(session.peakViewerCount ?? 0)} />
+          <LiveStat icon={Heart} label="Lượt thả tim" value={fmtNum.format(session.totalReactionCount ?? 0)} />
+          {recordingLabel ? <LiveStat icon={Video} label="Bản ghi" value={recordingLabel} /> : null}
+          {duration ? <LiveStat icon={Clock} label="Thời lượng" value={duration} /> : null}
+          {session.startedAt ? (
+            <LiveStat icon={Calendar} label="Bắt đầu" value={fmt.format(new Date(session.startedAt))} />
+          ) : null}
+          {session.endedAt ? (
+            <LiveStat icon={Calendar} label="Kết thúc" value={fmt.format(new Date(session.endedAt))} />
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const LiveStat = ({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.FC<{ className?: string }>;
+  label: string;
+  value: string;
+}) => (
+  <div className="flex flex-col gap-0.5">
+    <span className="inline-flex items-center gap-1 text-muted-foreground">
+      <Icon className="h-3 w-3" /> {label}
+    </span>
+    <span className="font-medium tabular-nums">{value}</span>
+  </div>
+);
+
 export const PostShow = () => {
   const { record, isLoading } = useShowController();
+  const location = useLocation();
   const [update] = useUpdate();
   const [deleteOne] = useDelete();
   const notify = useNotify();
   const refresh = useRefresh();
   const navigate = useNavigate();
+  const returnTo = (
+    location.state
+    && typeof location.state === "object"
+    && "returnTo" in location.state
+    && typeof location.state.returnTo === "string"
+  )
+    ? location.state.returnTo
+    : null;
+  const handleBack = () => {
+    if (returnTo) {
+      navigate(returnTo);
+      return;
+    }
+    navigate(-1);
+  };
 
   const [stats, setStats] = React.useState<PostStats | undefined>();
   const [statsLoading, setStatsLoading] = React.useState(true);
@@ -264,8 +627,13 @@ export const PostShow = () => {
   const [updatingVisibility, setUpdatingVisibility] = React.useState(false);
   const [deleteDialog, setDeleteDialog] = React.useState(false);
 
+  const highlightCommentId = React.useMemo(() => {
+    const match = location.hash.match(/^#comment-(.+)$/);
+    return match?.[1] ?? null;
+  }, [location.hash]);
+
   React.useEffect(() => {
-    if (!record?.id) return;
+    if (!record?.id || isShareRecordId(record.id)) return;
     setStatsLoading(true);
     apiClient
       .get<PostStats>(`/api/v1/admin/posts/${record.id}/stats`)
@@ -323,6 +691,10 @@ export const PostShow = () => {
 
   if (!record) return null;
 
+  if (isShareRecordId(record.id)) {
+    return <ShareDetailView record={record} onBack={handleBack} returnTo={returnTo} />;
+  }
+
   const privacyMeta = PRIVACY_META[record.privacy] ?? { label: record.privacy, icon: Globe };
   const PrivacyIcon = privacyMeta.icon;
   const isHidden = record.status === "HIDDEN";
@@ -330,10 +702,11 @@ export const PostShow = () => {
   return (
     <div className="space-y-4 pb-8">
       <button
-        onClick={() => navigate(-1)}
+        onClick={handleBack}
         className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> Quay lại danh sách
+        <ArrowLeft className="h-4 w-4" />
+        {returnTo ? "Quay lại chi tiết tổng hoạt động" : "Quay lại danh sách"}
       </button>
 
       {isHidden ? (
@@ -350,7 +723,7 @@ export const PostShow = () => {
           <Card>
             <CardContent className="space-y-4 pt-5">
               <div className="flex items-start gap-3">
-                <Link to={`/customers/${record.authorId}/show`}>
+                <Link to={`/customers/${record.authorAccountId}/show`}>
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={record.authorAvatarUrl} />
                     <AvatarFallback>
@@ -360,7 +733,7 @@ export const PostShow = () => {
                 </Link>
                 <div className="min-w-0 flex-1">
                   <Link
-                    to={`/customers/${record.authorId}/show`}
+                    to={`/customers/${record.authorAccountId}/show`}
                     className="text-sm font-semibold hover:underline"
                   >
                     {record.authorFullName ?? record.authorUsername ?? "-"}
@@ -385,16 +758,7 @@ export const PostShow = () => {
                 <p className="text-sm italic text-muted-foreground">Không có nội dung văn bản</p>
               )}
 
-              {record.imageUrl ? (
-                <img
-                  src={record.imageUrl}
-                  alt="Ảnh bài đăng"
-                  className="max-h-96 w-full rounded-lg border object-cover"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).style.display = "none";
-                  }}
-                />
-              ) : null}
+              <PostMediaGallery media={record.media} legacyImageUrl={record.imageUrl} />
 
               <div className="flex flex-wrap items-center gap-3 border-t pt-1 text-xs text-muted-foreground">
                 {record.locationText ? (
@@ -425,6 +789,8 @@ export const PostShow = () => {
             </CardContent>
           </Card>
 
+          <LiveSessionSection postId={record.id} />
+
           <Card>
             <CardContent className="pt-4">
               <div className="mb-3 flex items-center justify-between">
@@ -438,7 +804,11 @@ export const PostShow = () => {
                   Làm mới
                 </button>
               </div>
-              <CommentsSection postId={record.id} refresh={commentRefresh} />
+              <CommentsSection
+                postId={record.id}
+                refresh={commentRefresh}
+                highlightCommentId={highlightCommentId}
+              />
             </CardContent>
           </Card>
           <Card>
@@ -496,7 +866,7 @@ export const PostShow = () => {
                 <span className="break-all font-mono text-xs">{record.id}</span>
               </InfoRow>
               <InfoRow label="Tác giả">
-                <Link to={`/customers/${record.authorId}/show`} className="font-medium hover:underline">
+                <Link to={`/customers/${record.authorAccountId}/show`} className="font-medium hover:underline">
                   {record.authorFullName ?? record.authorUsername ?? "-"}
                 </Link>
               </InfoRow>
@@ -548,7 +918,8 @@ export const PostShow = () => {
           <DialogHeader>
             <DialogTitle>Xóa vĩnh viễn bài đăng?</DialogTitle>
             <DialogDescription>
-              Hành động này không thể hoàn tác. Bài đăng và toàn bộ dữ liệu liên quan sẽ bị xóa khỏi cơ sở dữ liệu.
+              Hành động này không thể hoàn tác. Bài đăng, dữ liệu liên quan và các tệp media do KConnecta quản lý
+              trên Cloudinary sẽ bị xóa.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -577,3 +948,176 @@ const InfoRow = ({ label, children }: { label: string; children: React.ReactNode
     <span className="text-right font-medium">{children}</span>
   </div>
 );
+
+// Detail view for a shared-post row: the share (who/when/caption) plus the original
+// post summary, with a link through to the original's full detail page.
+const ShareDetailView = ({
+  record,
+  onBack,
+  returnTo,
+}: {
+  record: Record<string, any>;
+  onBack: () => void;
+  returnTo: string | null;
+}) => {
+  const navigate = useNavigate();
+  const [deleteOne] = useDelete();
+  const notify = useNotify();
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+
+  const original = (record.original ?? {}) as Record<string, any>;
+  const sharerName = record.sharerFullName ?? record.sharerUsername ?? "—";
+  const originalAuthor = original.authorFullName ?? original.authorUsername ?? "—";
+  const caption = (record.sharedContent ?? "").trim();
+  const originalText = (original.content ?? "").trim();
+  const reportCount = Number(original.reportCount ?? 0);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteOne("posts", { id: record.id, previousData: record }, { returnPromise: true });
+      notify("Đã xóa lượt chia sẻ", { type: "success" });
+      navigate("/posts");
+    } catch {
+      notify("Xóa thất bại", { type: "error" });
+    } finally {
+      setDeleting(false);
+      setDeleteOpen(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4 pb-8">
+      <button
+        onClick={onBack}
+        className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        {returnTo ? "Quay lại chi tiết tổng hoạt động" : "Quay lại danh sách"}
+      </button>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
+          <Card>
+            <CardContent className="space-y-3 pt-5">
+              <span className="inline-flex w-fit items-center gap-1 rounded-md border border-yellow-300 bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-700">
+                <Share2 className="h-3 w-3" /> Lượt chia sẻ
+              </span>
+              <div className="flex items-start gap-3">
+                <Link to={`/customers/${record.sharerAccountId}/show`}>
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={record.sharerAvatarUrl} />
+                    <AvatarFallback>{sharerName.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <Link to={`/customers/${record.sharerAccountId}/show`} className="text-sm font-semibold hover:underline">
+                    {sharerName}
+                  </Link>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Calendar className="h-3 w-3" />
+                    <span>{record.createdAt ? fmt.format(new Date(record.createdAt)) : "-"}</span>
+                  </div>
+                </div>
+              </div>
+              {caption ? (
+                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{caption}</p>
+              ) : (
+                <p className="text-sm italic text-muted-foreground">Không có chú thích</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="space-y-3 pt-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bài gốc</p>
+              <div className="flex items-start gap-3">
+                <Link to={`/customers/${original.authorAccountId}/show`}>
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={original.authorAvatarUrl} />
+                    <AvatarFallback>{originalAuthor.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <Link to={`/customers/${original.authorAccountId}/show`} className="text-sm font-semibold hover:underline">
+                    {originalAuthor}
+                  </Link>
+                  {original.authorUsername ? (
+                    <p className="text-xs text-muted-foreground">@{original.authorUsername}</p>
+                  ) : null}
+                </div>
+              </div>
+              {originalText ? (
+                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{originalText}</p>
+              ) : (
+                <p className="text-sm italic text-muted-foreground">Không có nội dung văn bản</p>
+              )}
+              <PostMediaGallery media={original.media} legacyImageUrl={original.imageUrl} />
+              {reportCount > 0 ? (
+                <p className="text-xs text-orange-600">{fmtNum.format(reportCount)} báo cáo trên bài gốc</p>
+              ) : null}
+              {original.id ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/posts/${original.id}/show`)}
+                >
+                  Mở chi tiết bài gốc
+                </Button>
+              ) : null}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="space-y-3 pt-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Thao tác</p>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="w-full"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> Xóa lượt chia sẻ
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Chỉ xóa lượt chia sẻ này; bài gốc được giữ nguyên.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="space-y-2.5 pt-4 text-sm">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Thông tin</p>
+              <InfoRow label="Người chia sẻ">
+                <Link to={`/customers/${record.sharerAccountId}/show`} className="font-medium hover:underline">
+                  {sharerName}
+                </Link>
+              </InfoRow>
+              <InfoRow label="Thời gian">
+                {record.createdAt ? fmt.format(new Date(record.createdAt)) : "-"}
+              </InfoRow>
+              <InfoRow label="ID">
+                <span className="break-all font-mono text-xs">{record.id}</span>
+              </InfoRow>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <Confirm
+        isOpen={deleteOpen}
+        title="Xóa lượt chia sẻ?"
+        content="Chỉ lượt chia sẻ này bị xóa, bài gốc vẫn được giữ. Hành động không thể hoàn tác."
+        cancel="Hủy"
+        confirm="Xóa"
+        confirmColor="warning"
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={() => void handleDelete()}
+        loading={deleting}
+      />
+    </div>
+  );
+};

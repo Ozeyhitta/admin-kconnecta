@@ -15,9 +15,10 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiClient } from "@/services/axiosInstance";
+import { cachedApiGet, DASHBOARD_CACHE_TTL } from "@/services/apiGetCache";
 import { ADMIN_CHARTS_POLL_MS, useIntervalPoll } from "@/lib/adminStatsPoll";
-import { toStatsApiParams, describeStatsRange, type StatsDateRange } from "@/lib/statsDateRange";
+import { toStatsApiParams, describeStatsRange, formatDateInput, type StatsDateRange } from "@/lib/statsDateRange";
+import { DashboardSectionHeader } from "./components/DashboardSectionHeader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -358,21 +359,33 @@ const NewUsersInsightsBox = ({ insights, loading }: { insights: Insight[] | null
 
 export const NewUsersAnalytics = ({ dateRange }: { dateRange: StatsDateRange }) => {
   const [groupBy, setGroupBy]     = React.useState<GroupBy>("day");
+  const [localFrom, setLocalFrom] = React.useState(dateRange.from);
+  const [localTo, setLocalTo]     = React.useState(dateRange.to);
   const [data, setData]           = React.useState<AnalyticsResponse | null>(null);
   const [loading, setLoading]     = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
+
+  React.useEffect(() => {
+    setLocalFrom(dateRange.from);
+    setLocalTo(dateRange.to);
+  }, [dateRange.from, dateRange.to]);
+
+  const queryRange = React.useMemo(
+    (): StatsDateRange => ({ ...dateRange, from: localFrom, to: localTo }),
+    [dateRange, localFrom, localTo],
+  );
 
   // Reset to skeleton only when filter/groupBy changes (not on background polls)
   React.useEffect(() => {
     setData(null);
     setLoading(true);
-  }, [groupBy, dateRange]);
+  }, [groupBy, localFrom, localTo]);
 
   const fetchData = React.useCallback(async () => {
     try {
-      const r = await apiClient.get<AnalyticsResponse>("/api/v1/admin/stats/new-users-analytics", {
-        params: { groupBy, ...toStatsApiParams(dateRange) },
-      });
+      const r = await cachedApiGet<AnalyticsResponse>("/api/v1/admin/stats/new-users-analytics", {
+        params: { groupBy, ...toStatsApiParams(queryRange) },
+      }, DASHBOARD_CACHE_TTL);
       setData(r.data);
     } catch {
       /* keep previous data on background refresh failure */
@@ -380,7 +393,7 @@ export const NewUsersAnalytics = ({ dateRange }: { dateRange: StatsDateRange }) 
       setLoading(false);
       setRefreshing(false);
     }
-  }, [groupBy, dateRange]);
+  }, [groupBy, queryRange]);
 
   const handleManualRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -389,27 +402,52 @@ export const NewUsersAnalytics = ({ dateRange }: { dateRange: StatsDateRange }) 
 
   useIntervalPoll(fetchData, ADMIN_CHARTS_POLL_MS, [fetchData]);
 
-  const rangeLabel = describeStatsRange(dateRange);
+  const rangeLabel = describeStatsRange(queryRange);
+  const today = formatDateInput(new Date());
+  const maxTo = dateRange.to > today ? today : dateRange.to;
 
   return (
-    <Card>
-      <CardContent className="pt-4">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-1 gap-2">
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Người dùng mới đăng ký
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {rangeLabel} · Tính từ ngày tạo tài khoản
-            </p>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
+    <section className="space-y-4">
+      <DashboardSectionHeader
+        title="Người dùng mới đăng ký"
+        subtitle={`${rangeLabel} · Tính từ ngày tạo tài khoản`}
+      />
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex flex-wrap items-end justify-end gap-2 mb-4">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="new-users-from" className="text-xs font-medium text-muted-foreground">
+                Từ ngày
+              </label>
+              <input
+                id="new-users-from"
+                type="date"
+                value={localFrom}
+                min={dateRange.from}
+                max={localTo}
+                onChange={(e) => e.target.value && setLocalFrom(e.target.value)}
+                className="h-8 rounded-md border bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="new-users-to" className="text-xs font-medium text-muted-foreground">
+                Đến ngày
+              </label>
+              <input
+                id="new-users-to"
+                type="date"
+                value={localTo}
+                min={localFrom}
+                max={maxTo}
+                onChange={(e) => e.target.value && setLocalTo(e.target.value)}
+                className="h-8 rounded-md border bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
             <button
               onClick={handleManualRefresh}
               disabled={loading || refreshing}
               title="Làm mới dữ liệu"
-              className="cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors"
+              className="cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors h-8"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
             </button>
@@ -417,7 +455,7 @@ export const NewUsersAnalytics = ({ dateRange }: { dateRange: StatsDateRange }) 
               <button
                 key={g}
                 onClick={() => setGroupBy(g)}
-                className={`cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                className={`cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors h-8 ${
                   groupBy === g ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
                 }`}
               >
@@ -425,7 +463,6 @@ export const NewUsersAnalytics = ({ dateRange }: { dateRange: StatsDateRange }) 
               </button>
             ))}
           </div>
-        </div>
 
         {/* Summary cards */}
         <NewUsersSummaryCards summary={data?.summary ?? null} loading={loading} />
@@ -442,6 +479,7 @@ export const NewUsersAnalytics = ({ dateRange }: { dateRange: StatsDateRange }) 
         <NewUsersInsightsBox insights={data?.insights ?? null} loading={loading} />
       </CardContent>
     </Card>
+    </section>
   );
 };
 

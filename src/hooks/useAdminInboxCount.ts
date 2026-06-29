@@ -25,7 +25,9 @@ export function useAdminInboxCount() {
 
   useIntervalPoll(fetchCount, ADMIN_INBOX_POLL_MS, [fetchCount]);
 
-  useEffect(() => subscribeAdminInboxSeen(() => setCount(0)), []);
+  useEffect(() => {
+    subscribeAdminInboxSeen(() => setCount(0));
+  }, []);
 
   const acknowledgeInbox = useCallback(() => {
     markAdminInboxSeen();

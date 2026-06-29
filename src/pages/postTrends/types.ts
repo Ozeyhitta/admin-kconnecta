@@ -12,6 +12,10 @@ export interface AnalyticsSummary {
   totalPosts: number;
   totalInteractions: number;
   totalReports: number;
+  totalLikes?: number;
+  totalComments?: number;
+  totalShares?: number;
+  postsWithPositiveInteraction?: number;
   totalTopics: number;
   totalAlerts: number;
   topTopic: string | null;
@@ -42,6 +46,8 @@ export interface TopicTrend {
   trendLabel: string;
   reportCount: number;
   commentCount: number;
+  likeCount?: number;
+  shareCount?: number;
 }
 
 export interface TopPost {

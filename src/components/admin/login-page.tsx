@@ -1,19 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Eye, EyeOff, Lock, Mail, ServerCrash } from "lucide-react";
 import { useLogin, useNotify } from "ra-core";
-import { useNavigate, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { Notification } from "@/components/admin/notification";
-import { SessionCheckingView } from "@/components/admin/session-checking-view";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { consumeLoginNotice, authDebug } from "@/lib/authDebug";
-import {
-  clearAuthSession,
-  getHomePath,
-  hasStoredAuth,
-  validateAuthSession,
-} from "@/lib/authSession";
+import { getHomePath } from "@/lib/authSession";
 import { checkAdminApiHealth } from "@/lib/adminApiHealth";
 import { resolveApiBaseUrl } from "@/services/axiosInstance";
 import logoV1 from "@/assets/LogoKConnecta_V1.png";
@@ -22,12 +16,10 @@ export const LoginPage = (props: { redirectTo?: string }) => {
   const { redirectTo } = props;
   const login = useLogin();
   const notify = useNotify();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const [apiNotice, setApiNotice] = useState(false);
   const [checkingApi, setCheckingApi] = useState(false);
-  const [restoringSession, setRestoringSession] = useState(() => hasStoredAuth());
 
   const verifyApiAndMaybeWarn = async (fromStaleNotice: boolean) => {
     setCheckingApi(true);
@@ -52,36 +44,6 @@ export const LoginPage = (props: { redirectTo?: string }) => {
     const hadStaleNotice = consumeLoginNotice() === "api_unreachable";
     void verifyApiAndMaybeWarn(hadStaleNotice);
   }, []);
-
-  useEffect(() => {
-    if (!hasStoredAuth()) {
-      setRestoringSession(false);
-      return;
-    }
-
-    let cancelled = false;
-    void (async () => {
-      const status = await validateAuthSession();
-      if (cancelled) return;
-
-      if (status === "ok") {
-        navigate(redirectTo ?? getHomePath(), { replace: true });
-        return;
-      }
-
-      setRestoringSession(false);
-      if (status === "invalid") {
-        clearAuthSession();
-      }
-      if (status === "backend_down") {
-        setApiNotice(true);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [navigate, redirectTo]);
 
   const statusBanner = useMemo(() => {
     if (apiNotice) {
@@ -134,15 +96,11 @@ export const LoginPage = (props: { redirectTo?: string }) => {
     }
   };
 
-  if (restoringSession) {
-    return <SessionCheckingView />;
-  }
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <div className="w-full max-w-[420px]">
         <div className="mb-8 flex flex-col items-center text-center">
-          <img src={logoV1} alt="KConnecta Logo V1" className="mb-4 h-14 w-auto" />
+          <img src={logoV1} alt="KConnecta Logo V1" className="mb-4 h-14 w-auto dark:invert dark:hue-rotate-180" />
           <h1 className="text-xl font-bold tracking-wide">HỆ THỐNG QUẢN TRỊ</h1>
         </div>
 

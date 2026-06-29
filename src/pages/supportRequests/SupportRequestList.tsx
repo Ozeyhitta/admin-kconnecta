@@ -21,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, PlayCircle, CheckCircle2, MessageSquare, Send } from "lucide-react";
+import { Loader2, CheckCircle2, ImageIcon, MessageSquare, Send } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -43,9 +43,81 @@ const CATEGORY_META: Record<string, { label: string; className: string }> = {
 };
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
-  PENDING: { label: "Chờ xử lý", className: "border-yellow-300 bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300" },
+  PENDING: { label: "Đang xử lý", className: "border-blue-300 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" },
   IN_PROGRESS: { label: "Đang xử lý", className: "border-blue-300 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" },
-  RESOLVED: { label: "Đã xử lý", className: "border-green-300 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300" },
+  RESOLVED: { label: "Hoàn thành", className: "border-green-300 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300" },
+};
+
+const EvidencePreviewDialog = ({
+  urls,
+  open,
+  onOpenChange,
+  initialIndex = 0,
+}: {
+  urls: string[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  initialIndex?: number;
+}) => {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const safeIndex = Math.min(selectedIndex, Math.max(urls.length - 1, 0));
+  const selectedUrl = urls[safeIndex];
+
+  const handleOpenChange = (next: boolean) => {
+    if (next) setSelectedIndex(initialIndex);
+    onOpenChange(next);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-4xl" aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>
+            Ảnh minh chứng
+            {urls.length > 1 ? ` (${safeIndex + 1}/${urls.length})` : ""}
+          </DialogTitle>
+        </DialogHeader>
+
+        {selectedUrl ? (
+          <div className="space-y-3">
+            <div className="flex min-h-64 items-center justify-center overflow-hidden rounded-lg border bg-black/5">
+              <img
+                src={selectedUrl}
+                alt={`Ảnh minh chứng ${safeIndex + 1}`}
+                className="max-h-[70vh] max-w-full object-contain"
+              />
+            </div>
+
+            {urls.length > 1 ? (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {urls.map((url, index) => (
+                  <button
+                    key={`${url}-${index}`}
+                    type="button"
+                    onClick={() => setSelectedIndex(index)}
+                    className={[
+                      "h-16 w-16 shrink-0 cursor-pointer overflow-hidden rounded-md border-2 bg-muted",
+                      index === safeIndex ? "border-primary" : "border-transparent",
+                    ].join(" ")}
+                    aria-label={`Xem ảnh minh chứng ${index + 1}`}
+                  >
+                    <img
+                      src={url}
+                      alt=""
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <p className="py-8 text-center text-sm text-muted-foreground">Không có ảnh minh chứng</p>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
 };
 
 const RequesterCell = () => {
@@ -90,25 +162,48 @@ const StatusCell = () => {
 
 const MessageCell = () => {
   const record = useRecordContext();
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
   const subject = (record?.subject ?? "").trim();
   const message = (record?.message ?? "").trim();
+  const attachmentUrls: string[] = Array.isArray(record?.attachmentUrls) ? record.attachmentUrls : [];
+  const attachmentCount = attachmentUrls.length;
   if (!subject && !message) {
     return <span className="text-xs italic text-muted-foreground">Không có nội dung</span>;
   }
   return (
-    <TooltipProvider delayDuration={200}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="min-w-0 cursor-help">
-            <span className="block truncate text-sm font-medium" title={subject}>{subject}</span>
-            <span className="line-clamp-2 block break-words text-xs leading-snug text-muted-foreground">{message}</span>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="left" className="max-w-md text-xs leading-relaxed whitespace-pre-wrap">
-          {message || subject}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <>
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="min-w-0 cursor-help">
+              <span className="block truncate text-sm font-medium" title={subject}>{subject}</span>
+              <span className="line-clamp-2 block break-words text-xs leading-snug text-muted-foreground">{message}</span>
+              {attachmentCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setEvidenceOpen(true);
+                  }}
+                  className="mt-0.5 inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-emerald-700 hover:underline"
+                >
+                  <ImageIcon className="h-3 w-3" />
+                  {attachmentCount} ảnh minh chứng
+                </button>
+              ) : null}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="left" className="max-w-md text-xs leading-relaxed whitespace-pre-wrap">
+            {message || subject}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <EvidencePreviewDialog
+        urls={attachmentUrls}
+        open={evidenceOpen}
+        onOpenChange={setEvidenceOpen}
+      />
+    </>
   );
 };
 
@@ -121,7 +216,7 @@ const StatusActions = () => {
   const [respondOpen, setRespondOpen] = useState(false);
   if (!record) return null;
 
-  const canRespond = record.status === "PENDING";
+  const canRespond = record.status !== "RESOLVED";
 
   const setStatus = async (status: string, successMsg: string) => {
     setBusy(true);
@@ -154,24 +249,13 @@ const StatusActions = () => {
                 <MessageSquare className="h-4 w-4" />
               </Button>
             )}
-            {record.status !== "IN_PROGRESS" && record.status !== "RESOLVED" && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8 px-2 text-blue-600"
-                onClick={() => setStatus("IN_PROGRESS", "Đã chuyển sang Đang xử lý")}
-                title="Đang xử lý"
-              >
-                <PlayCircle className="h-4 w-4" />
-              </Button>
-            )}
             {record.status !== "RESOLVED" && (
               <Button
                 size="sm"
                 variant="ghost"
                 className="h-8 px-2 text-green-600"
-                onClick={() => setStatus("RESOLVED", "Đã đánh dấu Đã xử lý")}
-                title="Đã xử lý"
+                onClick={() => setStatus("RESOLVED", "Đã đánh dấu Hoàn thành")}
+                title="Hoàn thành"
               >
                 <CheckCircle2 className="h-4 w-4" />
               </Button>
@@ -183,7 +267,7 @@ const StatusActions = () => {
       <SupportRespondDialog
         open={respondOpen}
         onClose={() => setRespondOpen(false)}
-        record={record}
+        record={record as SupportRecord}
         onSuccess={() => {
           setRespondOpen(false);
           refresh();
@@ -204,6 +288,7 @@ interface SupportRecord {
   subject?: string;
   message?: string;
   status?: string;
+  attachmentUrls?: string[];
 }
 
 const SupportRespondDialog = ({
@@ -221,6 +306,8 @@ const SupportRespondDialog = ({
   const [reply, setReply] = useState("");
   const [markResolved, setMarkResolved] = useState(true);
   const [sending, setSending] = useState(false);
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const [evidenceIndex, setEvidenceIndex] = useState(0);
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
@@ -256,6 +343,7 @@ const SupportRespondDialog = ({
 
   const requesterName = record.fullName ?? record.username ?? "Người dùng";
   const categoryMeta = record.category ? CATEGORY_META[record.category] : null;
+  const attachmentUrls = Array.isArray(record.attachmentUrls) ? record.attachmentUrls : [];
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -296,6 +384,35 @@ const SupportRespondDialog = ({
             {record.message ? (
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">{record.message}</p>
             ) : null}
+            {attachmentUrls.length > 0 ? (
+              <div className="space-y-2 border-t pt-3">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                  <ImageIcon className="h-3.5 w-3.5" />
+                  Ảnh minh chứng ({attachmentUrls.length})
+                </p>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                  {attachmentUrls.map((url, index) => (
+                    <button
+                      key={`${url}-${index}`}
+                      type="button"
+                      onClick={() => {
+                        setEvidenceIndex(index);
+                        setEvidenceOpen(true);
+                      }}
+                      className="group relative aspect-square overflow-hidden rounded-md border bg-muted"
+                      title={`Xem ảnh minh chứng ${index + 1}`}
+                    >
+                      <img
+                        src={url}
+                        alt={`Ảnh minh chứng ${index + 1}`}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -318,7 +435,7 @@ const SupportRespondDialog = ({
               checked={markResolved}
               onCheckedChange={(checked) => setMarkResolved(checked === true)}
             />
-            Đánh dấu yêu cầu là đã xử lý
+            Đánh dấu yêu cầu là hoàn thành
           </label>
         </div>
 
@@ -336,6 +453,12 @@ const SupportRespondDialog = ({
           </Button>
         </DialogFooter>
       </DialogContent>
+      <EvidencePreviewDialog
+        urls={attachmentUrls}
+        open={evidenceOpen}
+        onOpenChange={setEvidenceOpen}
+        initialIndex={evidenceIndex}
+      />
     </Dialog>
   );
 };
@@ -445,9 +568,8 @@ const TopFilters = () => {
             label={false}
             className="w-full sm:w-44"
             choices={[
-              { id: "PENDING", name: "Chờ xử lý" },
               { id: "IN_PROGRESS", name: "Đang xử lý" },
-              { id: "RESOLVED", name: "Đã xử lý" },
+              { id: "RESOLVED", name: "Hoàn thành" },
             ]}
           />
         </div>

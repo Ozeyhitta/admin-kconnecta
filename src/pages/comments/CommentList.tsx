@@ -281,7 +281,7 @@ export const CommentList = () => {
         <TopFilters />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto">
-            <DataTable className="min-w-[1100px] [&_[data-slot=table-container]]:overflow-visible [&_[data-slot=table]]:table-fixed [&_[data-slot=table]]:w-full">
+            <DataTable className="min-w-[1320px] [&_[data-slot=table-container]]:overflow-visible [&_[data-slot=table]]:table-fixed [&_[data-slot=table]]:w-full">
               <DataTable.Col
                 source="id"
                 label="ID"
@@ -304,7 +304,9 @@ export const CommentList = () => {
               <DataTable.Col
                 source="content"
                 label="Nội dung"
-                cellClassName="min-w-0 overflow-hidden py-2 align-middle whitespace-normal"
+                className="min-w-[16rem]"
+                headerClassName="pr-3"
+                cellClassName="min-w-0 overflow-hidden py-2 pr-3 align-middle whitespace-normal"
               >
                 <ContentCell />
               </DataTable.Col>

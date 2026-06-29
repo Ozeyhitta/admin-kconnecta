@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { ADMIN_STATS_POLL_MS, useIntervalPoll } from "@/lib/adminStatsPoll";
 import { describeStatsRange, toStatsApiParams, type StatsDateRange } from "@/lib/statsDateRange";
 import {
@@ -16,9 +17,33 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiClient } from "@/services/axiosInstance";
-import { RecentActivityLogs } from "./components/activityLogs/RecentActivityLogs";
+import { cachedApiGet, DASHBOARD_CACHE_TTL } from "@/services/apiGetCache";
+import { InteractionDetailDialog } from "@/pages/stats/components/InteractionDetailDialog";
+import { ActivityOverviewDetailDialog } from "./components/ActivityOverviewDetailDialog";
+import { NewUsersDetailDialog } from "./components/NewUsersDetailDialog";
+import { LoginDetailDialog } from "./components/LoginDetailDialog";
+import { DashboardSectionHeader } from "./components/DashboardSectionHeader";
+import {
+  INTERACTION_TYPE_TO_ACTION,
+  type InteractionBreakdownItem,
+  type InteractionChartSelection,
+  type StatsActiveFilters,
+} from "@/pages/stats/types";
+import { dashboardModalReturnHref } from "./lib/dashboardModalReturn";
 
+const DEFAULT_ACTIVITY_FILTERS: StatsActiveFilters = {
+  interactionType: "all",
+  userSegment: "all",
+  interactionSource: "all",
+};
+
+const CLICKABLE_ACTIVITY_TYPES = new Set([
+  "Bài đăng",
+  "Bình luận",
+  "Cảm xúc",
+  "Chia sẻ",
+  "Kết bạn",
+]);
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface OverviewStats {
@@ -96,6 +121,7 @@ interface StatCardProps {
   growthPercent?: number;
   growthInterpretation?: string;
   previousValue?: number;
+  onClick?: () => void;
 }
 
 const StatCard = ({
@@ -108,8 +134,11 @@ const StatCard = ({
   growthPercent,
   growthInterpretation,
   previousValue,
-}: StatCardProps) => (
-  <Card className="flex-1 min-w-[150px] p-4">
+  onClick,
+}: StatCardProps) => {
+  const clickable = Boolean(onClick) && !loading;
+
+  const content = (
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0 flex-1">
         <p className="text-sm text-muted-foreground truncate">{title}</p>
@@ -132,19 +161,28 @@ const StatCard = ({
         {!loading && description && (
           <p className="text-xs text-muted-foreground mt-1 leading-snug">{description}</p>
         )}
+        {clickable && (
+          <p className="text-[11px] text-primary mt-1.5">Nhấn để xem chi tiết</p>
+        )}
       </div>
       <Icon className={`h-7 w-7 mt-0.5 opacity-60 shrink-0 ${iconColor}`} />
     </div>
-  </Card>
-);
+  );
 
-// ─── SectionHeader ────────────────────────────────────────────────────────────
+  if (clickable) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex-1 min-w-[150px] rounded-xl border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted/40 cursor-pointer"
+      >
+        {content}
+      </button>
+    );
+  }
 
-const SectionHeader = ({ title }: { title: string }) => (
-  <h2 className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider">
-    {title}
-  </h2>
-);
+  return <Card className="flex-1 min-w-[150px] p-4">{content}</Card>;
+};
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
@@ -157,11 +195,74 @@ const EmptyState = () => (
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [stats, setStats]       = useState<OverviewStats | undefined>();
   const [loading, setLoading]   = useState(true);
   const [isFetching, setIsFetching] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [totalDetailOpen, setTotalDetailOpen] = useState(false);
+  const [newUsersDetailOpen, setNewUsersDetailOpen] = useState(false);
+  const [loginDetailOpen, setLoginDetailOpen] = useState(false);
+  const [selection, setSelection] = useState<InteractionChartSelection | null>(null);
   const rangeLabel  = describeStatsRange(dateRange);
   const isFirstLoad = useRef(true);
+
+  useEffect(() => {
+    const modal = searchParams.get("modal");
+    if (!modal) return;
+    if (modal === "activity-overview") {
+      setTotalDetailOpen(true);
+    } else if (modal === "new-users") {
+      setNewUsersDetailOpen(true);
+    } else if (modal === "login-detail") {
+      setLoginDetailOpen(true);
+    } else if (modal === "interaction-detail") {
+      const type = searchParams.get("interactionType");
+      const actionType = searchParams.get("actionType");
+      if (type && actionType) {
+        setSelection({ kind: "type", type, actionType });
+        setDetailOpen(true);
+      }
+    } else {
+      return;
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("modal");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const openTypeDetail = useCallback((title: string) => {
+    const actionType = INTERACTION_TYPE_TO_ACTION[title];
+    if (!actionType) return;
+    setSelection({ kind: "type", type: title, actionType });
+    setDetailOpen(true);
+  }, []);
+
+  const handleOverviewTypeDrillDown = useCallback((item: InteractionBreakdownItem) => {
+    openTypeDetail(item.type);
+  }, [openTypeDetail]);
+
+  const openTotalDetail = useCallback(() => {
+    setTotalDetailOpen(true);
+  }, []);
+
+  const openNewUsersDetail = useCallback(() => {
+    setNewUsersDetailOpen(true);
+  }, []);
+
+  const openLoginDetail = useCallback(() => {
+    setLoginDetailOpen(true);
+  }, []);
+
+  const activityCardClick = useCallback((title: string) => {
+    if (title === "Tổng hoạt động") {
+      openTotalDetail();
+      return;
+    }
+    if (CLICKABLE_ACTIVITY_TYPES.has(title)) {
+      openTypeDetail(title);
+    }
+  }, [openTotalDetail, openTypeDetail]);
 
   useEffect(() => {
     if (isFirstLoad.current) return;
@@ -173,9 +274,9 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
   const fetchOverview = useCallback(async () => {
     setIsFetching(true);
     try {
-      const res = await apiClient.get<OverviewStats>("/api/v1/admin/stats/overview", {
+      const res = await cachedApiGet<OverviewStats>("/api/v1/admin/stats/overview", {
         params: toStatsApiParams(dateRange),
-      });
+      }, DASHBOARD_CACHE_TTL);
       setStats(res.data);
     } catch { /* keep previous values on background refresh failure */ }
     finally {
@@ -204,12 +305,12 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
   const showActivityNote = !loading && stats && activityTotal > detailSum;
 
   return (
-    <div className="mb-4 space-y-5">
+    <div className="mb-4 space-y-10">
 
       {/* ── Chỉ số chính ──────────────────────────────────────────────── */}
-      <section>
-        <div className="flex items-center gap-2 mb-2">
-          <SectionHeader title={`Trong khoảng ${rangeLabel}`} />
+      <section className="space-y-5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <DashboardSectionHeader title={`Trong khoảng ${rangeLabel}`} />
           {isFetching && !loading && (
             <span className="text-xs text-muted-foreground animate-pulse">Đang cập nhật...</span>
           )}
@@ -226,6 +327,7 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
               loading={loading}
               iconColor="text-teal-500"
               description="Số tài khoản đăng ký mới trong khoảng thời gian đã chọn."
+              onClick={openNewUsersDetail}
             />
             <StatCard
               icon={LogIn}
@@ -234,6 +336,7 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
               loading={loading}
               iconColor="text-indigo-500"
               description="Tổng số lượt đăng nhập trong khoảng thời gian đã chọn."
+              onClick={openLoginDetail}
             />
             <StatCard
               icon={Activity}
@@ -242,6 +345,7 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
               loading={loading}
               iconColor="text-purple-500"
               description="Tổng số hành động được ghi nhận trong khoảng thời gian đã chọn."
+              onClick={openTotalDetail}
             />
           </div>
         )}
@@ -249,8 +353,8 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
 
       {/* ── Tăng trưởng ───────────────────────────────────────────────── */}
       {showComparison && (
-        <section>
-          <SectionHeader title="Tăng trưởng so với kỳ trước" />
+        <section className="space-y-4">
+          <DashboardSectionHeader title="Tăng trưởng so với kỳ trước" />
 
           {!loading && !hasData ? (
             <EmptyState />
@@ -269,6 +373,7 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
                     ? interpretGrowth(stats.newUsersThisWeek, stats.newUsersLastWeek, "người dùng mới")
                     : undefined
                 }
+                onClick={openNewUsersDetail}
               />
               <StatCard
                 icon={FileText}
@@ -283,6 +388,7 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
                     ? interpretGrowth(stats.postsThisWeek, stats.postsLastWeek, "bài đăng")
                     : undefined
                 }
+                onClick={() => openTypeDetail("Bài đăng")}
               />
             </div>
           )}
@@ -290,8 +396,8 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
       )}
 
       {/* ── Hoạt động chi tiết ────────────────────────────────────────── */}
-      <section>
-        <SectionHeader title={`Hoạt động trong khoảng ${rangeLabel}`} />
+      <section className="space-y-4">
+        <DashboardSectionHeader title={`Hoạt động trong khoảng ${rangeLabel}`} />
 
         {!loading && !hasData ? (
           <EmptyState />
@@ -305,6 +411,7 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
                 loading={loading}
                 iconColor="text-orange-500"
                 description="Tổng số hành động của người dùng được ghi nhận trong khoảng thời gian đã chọn."
+                onClick={() => activityCardClick("Tổng hoạt động")}
               />
               <StatCard
                 icon={FileText}
@@ -312,6 +419,7 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
                 value={stats?.postsToday}
                 loading={loading}
                 iconColor="text-sky-500"
+                onClick={() => activityCardClick("Bài đăng")}
               />
               <StatCard
                 icon={MessageSquare}
@@ -319,6 +427,7 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
                 value={stats?.commentsToday}
                 loading={loading}
                 iconColor="text-pink-500"
+                onClick={() => activityCardClick("Bình luận")}
               />
               <StatCard
                 icon={Heart}
@@ -326,6 +435,7 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
                 value={stats?.reactionsToday}
                 loading={loading}
                 iconColor="text-red-400"
+                onClick={() => activityCardClick("Cảm xúc")}
               />
               <StatCard
                 icon={Share2}
@@ -333,6 +443,7 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
                 value={stats?.sharesToday}
                 loading={loading}
                 iconColor="text-yellow-500"
+                onClick={() => activityCardClick("Chia sẻ")}
               />
               <StatCard
                 icon={UserPlus2}
@@ -340,6 +451,7 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
                 value={stats?.friendRequestsToday}
                 loading={loading}
                 iconColor="text-primary"
+                onClick={() => activityCardClick("Kết bạn")}
               />
             </div>
 
@@ -352,10 +464,43 @@ export const StatsOverview = ({ dateRange }: { dateRange: StatsDateRange }) => {
         )}
       </section>
 
-      {/* ── Hoạt động gần đây ─────────────────────────────────────────── */}
-      <section>
-        <RecentActivityLogs dateRange={dateRange} compact />
-      </section>
+      <InteractionDetailDialog
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        dateRange={dateRange}
+        activeFilters={DEFAULT_ACTIVITY_FILTERS}
+        selection={selection}
+        returnTo={
+          selection?.kind === "type"
+            ? dashboardModalReturnHref("interaction-detail", dateRange, {
+                interactionType: selection.type,
+                actionType: selection.actionType,
+              })
+            : undefined
+        }
+      />
+
+      <ActivityOverviewDetailDialog
+        open={totalDetailOpen}
+        onOpenChange={setTotalDetailOpen}
+        dateRange={dateRange}
+        onTypeDrillDown={handleOverviewTypeDrillDown}
+      />
+
+      <NewUsersDetailDialog
+        open={newUsersDetailOpen}
+        onOpenChange={setNewUsersDetailOpen}
+        dateRange={dateRange}
+        returnTo={dashboardModalReturnHref("new-users", dateRange)}
+      />
+
+      <LoginDetailDialog
+        open={loginDetailOpen}
+        onOpenChange={setLoginDetailOpen}
+        dateRange={dateRange}
+        totalLogins={stats?.loginsToday}
+        returnTo={dashboardModalReturnHref("login-detail", dateRange)}
+      />
 
     </div>
   );

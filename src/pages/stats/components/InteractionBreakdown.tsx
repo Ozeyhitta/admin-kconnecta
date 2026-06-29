@@ -12,6 +12,8 @@ interface InteractionBreakdownProps {
   emptyMessage?: string;
   activeInteractionType?: string;
   onTypeClick?: (item: InteractionBreakdownItem) => void;
+  /** Ghi chú khi nhấn loại (mặc định: lọc biểu đồ). */
+  typeClickHint?: string;
 }
 
 export const InteractionBreakdown = ({
@@ -21,6 +23,7 @@ export const InteractionBreakdown = ({
   emptyMessage = "Chưa có tương tác trong kỳ này",
   activeInteractionType = "all",
   onTypeClick,
+  typeClickHint,
 }: InteractionBreakdownProps) => {
   if (loading) {
     return (
@@ -121,7 +124,7 @@ export const InteractionBreakdown = ({
 
       <p className="text-xs text-muted-foreground text-right pt-1">
         Tổng: {fmt.format(total)}
-        {onTypeClick && " · Nhấn loại để lọc biểu đồ"}
+        {onTypeClick && ` · ${typeClickHint ?? "Nhấn loại để lọc biểu đồ"}`}
       </p>
       {commentNotes.length > 0 && (
         <div className="text-xs text-muted-foreground italic border-t pt-2 leading-relaxed space-y-1">

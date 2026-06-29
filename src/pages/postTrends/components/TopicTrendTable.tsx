@@ -93,8 +93,7 @@ export function TopicTrendTable({ topics, loading, onTopicSelect }: TopicTrendTa
         >
           <option value="all">Mọi nguồn</option>
           <option value="HASHTAG">Hashtag</option>
-          <option value="KEYWORD">Từ khóa</option>
-          <option value="UNCATEGORIZED">Không phân loại</option>
+          <option value="UNCATEGORIZED">Chưa gắn #</option>
         </select>
         <select
           value={sortKey}

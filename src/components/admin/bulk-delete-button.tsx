@@ -84,8 +84,8 @@ export const BulkDeleteButton = <
         confirm="Xóa"
         confirmColor="warning"
         onClose={() => setConfirmOpen(false)}
-        onConfirm={(e) => {
-          handleDelete(e);
+        onConfirm={() => {
+          handleDelete();
           setConfirmOpen(false);
         }}
         loading={isPending}

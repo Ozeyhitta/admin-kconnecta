@@ -1,15 +1,29 @@
-import type { PostTrendsResponse, TopicTrend, TopPost } from "./types";
+import type { TopicTrend, TopPost } from "./types";
 
 export const fmt = new Intl.NumberFormat("vi-VN");
 
 export const formatDay = (iso: string) =>
-  new Date(iso).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
+  new Date(`${iso}T12:00:00`).toLocaleDateString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    day: "2-digit",
+    month: "2-digit",
+  });
+
+export const formatFullDay = (iso: string) =>
+  new Date(`${iso}T12:00:00`).toLocaleDateString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
 export const formatDateTime = (iso: string | undefined) => {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -24,17 +38,22 @@ export const reportRatePercent = (reports: number, interactions: number): number
 };
 
 export function exportTopicsCsv(topics: TopicTrend[]) {
-  const header = ["Chủ đề", "Số bài", "Điểm", "Tăng trưởng %", "Phân loại", "Báo cáo", "Bình luận"];
+  const header = [
+    "Hashtag", "Số bài", "Like", "Bình luận", "Chia sẻ", "Báo cáo",
+    "Điểm", "Tăng trưởng %", "Phân loại",
+  ];
   const rows = topics.map((t) => [
     t.topic,
     t.postCount,
+    t.likeCount ?? 0,
+    t.commentCount,
+    t.shareCount ?? 0,
+    t.reportCount,
     t.topicScore,
     t.growthRate.toFixed(1),
     t.trendLabel,
-    t.reportCount,
-    t.commentCount,
   ]);
-  downloadCsv("chu-de-xu-huong.csv", [header, ...rows]);
+  downloadCsv("hashtag-xu-huong.csv", [header, ...rows]);
 }
 
 export function exportPostsCsv(posts: TopPost[]) {
@@ -74,26 +93,4 @@ function downloadCsv(filename: string, rows: (string | number)[][]) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-export function buildTopicInsight(data: PostTrendsResponse | null): string {
-  if (!data?.summary) return "";
-  const s = data.summary;
-  if (s.totalPosts === 0) return "Chưa có bài viết có tương tác trong kỳ.";
-
-  const parts = [
-    `${fmt.format(s.totalPosts)} bài có tương tác.`,
-    `${s.hashtagCoveragePercent.toFixed(0)}% có #hashtag (${fmt.format(s.postsWithHashtag)} bài).`,
-    `${fmt.format(s.postsWithKeywordOnly)} bài được gán từ khóa tự động.`,
-    `${fmt.format(s.postsUncategorized)} bài chưa phân loại được.`,
-  ];
-
-  if (s.topHashtagTopic) {
-    parts.push(`Hashtag dẫn đầu: #${s.topHashtagTopic} (${fmt.format(s.topHashtagTopicScore)} điểm).`);
-  }
-  if (s.topKeywordTopic) {
-    parts.push(`Từ khóa dẫn đầu: ⌗${s.topKeywordTopic} (${fmt.format(s.topKeywordTopicScore)} điểm).`);
-  }
-
-  return parts.join(" ");
 }

@@ -103,6 +103,9 @@ export const InteractionTrendChart = ({
 
     inst.current ??= echarts.init(ref.current);
 
+    // Resize after potential parent animation (e.g. tab switch, dialog open)
+    const resizeTimer = setTimeout(() => inst.current?.resize(), 0);
+
     const detachInteraction = attachChartDayInteraction(
       inst.current,
       () => chartDataRef.current ?? [],
@@ -116,9 +119,13 @@ export const InteractionTrendChart = ({
 
     const onResize = () => inst.current?.resize();
     window.addEventListener("resize", onResize);
+    const ro = new ResizeObserver(() => { inst.current?.resize(); });
+    ro.observe(ref.current);
     return () => {
+      clearTimeout(resizeTimer);
       detachInteraction();
       window.removeEventListener("resize", onResize);
+      ro.disconnect();
       inst.current?.dispose();
       inst.current = null;
     };

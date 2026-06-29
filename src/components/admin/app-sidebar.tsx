@@ -54,7 +54,7 @@ export function AppSidebar() {
                 <img
                   src={logoV1}
                   alt="KConnecta"
-                  className="h-8 w-auto group-data-[collapsible=icon]:hidden"
+                  className="h-8 w-auto group-data-[collapsible=icon]:hidden dark:invert dark:hue-rotate-180"
                 />
               </Link>
             </SidebarMenuButton>

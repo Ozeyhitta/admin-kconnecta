@@ -9,7 +9,7 @@ export const CHART_PALETTE = [
 ];
 
 export const TREND_FORMULA =
-  "Điểm xu hướng = like×1 + comment×2 + share×3 − report×5. Chủ đề từ #hashtag hoặc từ khóa tự trích khi bài không có #.";
+  "Điểm xu hướng = like×1 + bình luận×2 + chia sẻ×3 − báo cáo×5 (cùng trọng số tương tác news feed user). Chủ đề lấy từ #hashtag trong bảng post_topics — giống app user, không tự trích từ khóa.";
 
 export const TOPIC_SOURCE_META: Record<
   string,

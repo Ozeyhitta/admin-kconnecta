@@ -1,14 +1,26 @@
 import * as React from "react";
+import { useSearchParams } from "react-router";
 import * as echarts from "echarts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiClient } from "@/services/axiosInstance";
+import { cachedApiGet, DASHBOARD_CACHE_TTL } from "@/services/apiGetCache";
 import { ADMIN_CHARTS_POLL_MS, useIntervalPoll } from "@/lib/adminStatsPoll";
-import { toStatsApiParams, describeStatsRange, type StatsDateRange } from "@/lib/statsDateRange";
+import { toStatsApiParams, describeStatsRange, formatDateInput, type StatsDateRange } from "@/lib/statsDateRange";
 import { getChartTheme } from "@/lib/chartColors";
 import { attachChartDayInteraction } from "@/pages/stats/lib/chartDayInteraction";
 import { InteractionDetailDialog } from "@/pages/stats/components/InteractionDetailDialog";
-import type { AnalyticsChartPoint, InteractionChartSelection, StatsActiveFilters } from "@/pages/stats/types";
+import {
+  ActivityHourDetailDialog,
+  type HourChartSelection,
+} from "@/pages/dashboard/components/ActivityHourDetailDialog";
+import { dashboardModalReturnHref } from "./lib/dashboardModalReturn";
+import { DashboardSectionHeader } from "@/pages/dashboard/components/DashboardSectionHeader";
+import {
+  INTERACTION_TYPE_TO_ACTION,
+  type AnalyticsChartPoint,
+  type InteractionChartSelection,
+  type StatsActiveFilters,
+} from "@/pages/stats/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,22 +94,53 @@ function dayInsight(data: DayData[], period: Period): string {
 // ─── ActivityHourCard ─────────────────────────────────────────────────────────
 
 export const ActivityHourCard = ({ dateRange }: { dateRange: StatsDateRange }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const chartRef  = React.useRef<HTMLDivElement>(null);
   const chartInst = React.useRef<echarts.ECharts | null>(null);
   const [hourData, setHourData] = React.useState<HourData[] | null>(null);
+  const [selectedDay, setSelectedDay] = React.useState(dateRange.to);
+  const [detailOpen, setDetailOpen] = React.useState(false);
+  const [hourSelection, setHourSelection] = React.useState<HourChartSelection | null>(null);
+  const [typeDetailOpen, setTypeDetailOpen] = React.useState(false);
+  const [typeSelection, setTypeSelection] = React.useState<InteractionChartSelection | null>(null);
+
+  React.useEffect(() => {
+    if (searchParams.get("modal") !== "activity-hour") return;
+    const hour = Number(searchParams.get("hour"));
+    const selectedDate = searchParams.get("selectedDate");
+    if (selectedDate) setSelectedDay(selectedDate);
+    if (Number.isFinite(hour)) {
+      setHourSelection({ hour, count: Number(searchParams.get("count") ?? 0) });
+      setDetailOpen(true);
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("modal");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const handleHourTypeDrillDown = React.useCallback((type: string) => {
+    const actionType = INTERACTION_TYPE_TO_ACTION[type];
+    if (!actionType) return;
+    setTypeSelection({ kind: "type", type, actionType });
+    setTypeDetailOpen(true);
+  }, []);
+
+  React.useEffect(() => {
+    setSelectedDay(dateRange.to);
+  }, [dateRange.from, dateRange.to]);
 
   const fetchData = React.useCallback(async () => {
     try {
-      const r = await apiClient.get<HourData[]>("/api/v1/admin/stats/activity-by-hour", {
-        params: toStatsApiParams(dateRange),
-      });
+      const r = await cachedApiGet<HourData[]>("/api/v1/admin/stats/activity-by-hour", {
+        params: { from: selectedDay, to: selectedDay },
+      }, DASHBOARD_CACHE_TTL);
       setHourData(r.data);
     } catch {
       setHourData([]);
     }
-  }, [dateRange]);
+  }, [selectedDay]);
 
-  React.useEffect(() => { setHourData(null); }, [dateRange]);
+  React.useEffect(() => { setHourData(null); }, [selectedDay]);
   useIntervalPoll(fetchData, ADMIN_CHARTS_POLL_MS, [fetchData]);
 
   const counts = React.useMemo(() =>
@@ -107,11 +150,67 @@ export const ActivityHourCard = ({ dateRange }: { dateRange: StatsDateRange }) =
   [hourData]);
 
   const total    = React.useMemo(() => counts?.reduce((a, b) => a + b, 0) ?? 0, [counts]);
-  const peakHour = React.useMemo(() => counts ? counts.indexOf(Math.max(...counts)) : -1, [counts]);
+  const peakHour = React.useMemo(() => {
+    if (!counts || total === 0) return -1;
+    return counts.indexOf(Math.max(...counts));
+  }, [counts, total]);
+
+  const hourChartPoints = React.useMemo((): AnalyticsChartPoint[] => {
+    if (!counts) return [];
+    return counts.map((count, hour) => ({
+      date: String(hour),
+      label: `${hour}h`,
+      count,
+    }));
+  }, [counts]);
+
+  const openHourDetail = React.useCallback((point: AnalyticsChartPoint) => {
+    const hour = Number(point.date);
+    if (Number.isNaN(hour)) return;
+    setHourSelection({ hour, count: point.count });
+    setDetailOpen(true);
+  }, []);
+
+  const onHourClick = total > 0 ? openHourDetail : undefined;
+  const hourReturnTo = hourSelection
+    ? dashboardModalReturnHref("activity-hour", dateRange, {
+        selectedDate: selectedDay,
+        hour: String(hourSelection.hour),
+        count: String(hourSelection.count),
+      })
+    : undefined;
+  const hourChartPointsRef = React.useRef(hourChartPoints);
+  const onHourClickRef = React.useRef(onHourClick);
+  hourChartPointsRef.current = hourChartPoints;
+  onHourClickRef.current = onHourClick;
+
+  const countsKey = counts === null ? "" : JSON.stringify({ counts, peakHour, selectedDay });
 
   React.useEffect(() => {
-    if (!counts || !chartRef.current) return;
+    if (!countsKey || !chartRef.current) return;
+
     chartInst.current ??= echarts.init(chartRef.current);
+
+    const detachInteraction = attachChartDayInteraction(
+      chartInst.current,
+      () => hourChartPointsRef.current,
+      () => onHourClickRef.current,
+    );
+
+    const onResize = () => chartInst.current?.resize();
+    window.addEventListener("resize", onResize);
+    return () => {
+      detachInteraction();
+      window.removeEventListener("resize", onResize);
+      chartInst.current?.dispose();
+      chartInst.current = null;
+    };
+  }, [countsKey]);
+
+  React.useEffect(() => {
+    if (!counts || !chartInst.current) return;
+
+    const clickable = !!onHourClickRef.current;
 
     chartInst.current.setOption({
       tooltip: {
@@ -125,15 +224,17 @@ export const ActivityHourCard = ({ dateRange }: { dateRange: StatsDateRange }) =
             : h < 14 ? "Buổi trưa"
             : h < 18 ? "Buổi chiều"
             : "Buổi tối";
+          const clickHtml = clickable ? CLICK_HINT : "";
           return `<b>${h}:00 – ${h + 1}:00</b> (${session})<br/>`
-            + `${fmt.format(val)} hoạt động · ${pct}% trong ngày`;
+            + `${fmt.format(val)} hoạt động · ${pct}% trong ngày${clickHtml}`;
         },
       },
       grid: { left: "2%", right: "2%", bottom: "3%", top: "4%", containLabel: true },
       xAxis: {
         type: "category",
         data: Array.from({ length: 24 }, (_, h) => `${h}h`),
-        axisLabel: { interval: 1, fontSize: 10 },
+        axisLabel: { interval: 1, fontSize: 11, padding: [6, 2, 0, 2] },
+        triggerEvent: clickable,
       },
       yAxis: {
         type: "value",
@@ -142,7 +243,9 @@ export const ActivityHourCard = ({ dateRange }: { dateRange: StatsDateRange }) =
       },
       series: [{
         type: "bar",
-        barMaxWidth: 28,
+        triggerEvent: clickable,
+        barMaxWidth: 36,
+        barMinWidth: 14,
         data: counts.map((c, i) => ({
           value: c,
           itemStyle: {
@@ -160,31 +263,48 @@ export const ActivityHourCard = ({ dateRange }: { dateRange: StatsDateRange }) =
         })),
       }],
     }, true);
-
-    const onResize = () => chartInst.current?.resize();
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      chartInst.current?.dispose();
-      chartInst.current = null;
-    };
-  }, [counts, peakHour, total]);
+  }, [countsKey, counts, peakHour, total]);
 
   const insight    = React.useMemo(() => counts ? hourInsight(counts) : "", [counts]);
   const rangeLabel = describeStatsRange(dateRange);
+  const selectedDayLabel = new Date(`${selectedDay}T12:00:00`).toLocaleDateString("vi-VN", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  const today = formatDateInput(new Date());
 
   return (
+    <>
+    <section className="space-y-4">
+      <DashboardSectionHeader
+        title="Hoạt động theo giờ trong ngày"
+        subtitle={`${rangeLabel} · Tổng của: đăng bài, bình luận, cảm xúc, chia sẻ, kết bạn`}
+      />
     <Card>
       <CardContent className="pt-4">
-        {/* Header */}
-        <div className="mb-1">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Hoạt động theo giờ trong ngày
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {rangeLabel} · Tổng của: đăng bài, bình luận, cảm xúc, chia sẻ, kết bạn
-          </p>
+        <div className="mb-2 flex flex-wrap items-end justify-end gap-3">
+          <div className="flex flex-col gap-1 shrink-0">
+            <label htmlFor="activity-hour-day" className="text-xs font-medium text-muted-foreground">
+              Chọn ngày
+            </label>
+            <input
+              id="activity-hour-day"
+              type="date"
+              value={selectedDay}
+              min={dateRange.from}
+              max={dateRange.to > today ? today : dateRange.to}
+              onChange={(e) => e.target.value && setSelectedDay(e.target.value)}
+              className="h-8 rounded-md border bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
         </div>
+
+        <p className="text-xs text-muted-foreground mb-2">
+          Đang xem: <span className="font-medium text-foreground">{selectedDayLabel}</span>
+          {total > 0 && " · Nhấn cột để xem chi tiết"}
+        </p>
 
         {/* KPI row */}
         {counts !== null && total > 0 && (
@@ -212,7 +332,7 @@ export const ActivityHourCard = ({ dateRange }: { dateRange: StatsDateRange }) =
         {counts === null ? (
           <Skeleton className="w-full h-[220px]" />
         ) : total === 0 ? (
-          <p className="text-sm text-muted-foreground py-16 text-center">Chưa có dữ liệu</p>
+          <p className="text-sm text-muted-foreground py-16 text-center">Chưa có dữ liệu trong ngày đã chọn</p>
         ) : (
           <div ref={chartRef} style={{ width: "100%", height: 220 }} />
         )}
@@ -223,12 +343,37 @@ export const ActivityHourCard = ({ dateRange }: { dateRange: StatsDateRange }) =
         )}
       </CardContent>
     </Card>
+    </section>
+
+    <ActivityHourDetailDialog
+      open={detailOpen}
+      onOpenChange={setDetailOpen}
+      dateRange={dateRange}
+      selectedDate={selectedDay}
+      selection={hourSelection}
+      hourCounts={counts}
+      peakHour={peakHour}
+      rangeTotal={total}
+      onTypeDrillDown={handleHourTypeDrillDown}
+      returnTo={hourReturnTo}
+    />
+
+    <InteractionDetailDialog
+      open={typeDetailOpen}
+      onOpenChange={setTypeDetailOpen}
+      dateRange={dateRange}
+      activeFilters={DEFAULT_ACTIVITY_FILTERS}
+      selection={typeSelection}
+      returnTo={hourReturnTo}
+    />
+    </>
   );
 };
 
 // ─── ActivityDayCard ──────────────────────────────────────────────────────────
 
 export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const chartRef  = React.useRef<HTMLDivElement>(null);
   const chartInst = React.useRef<echarts.ECharts | null>(null);
   const [period, setPeriod]   = React.useState<Period>("day");
@@ -236,11 +381,24 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
   const [detailOpen, setDetailOpen] = React.useState(false);
   const [selection, setSelection] = React.useState<InteractionChartSelection | null>(null);
 
+  React.useEffect(() => {
+    if (searchParams.get("modal") !== "activity-day") return;
+    const date = searchParams.get("selectedDate");
+    if (date) {
+      setPeriod("day");
+      setSelection({ kind: "day", date, label: searchParams.get("dayLabel") ?? date });
+      setDetailOpen(true);
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("modal");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   const fetchData = React.useCallback(async () => {
     try {
-      const r = await apiClient.get<DayData[]>("/api/v1/admin/stats/activity-by-day", {
+      const r = await cachedApiGet<DayData[]>("/api/v1/admin/stats/activity-by-day", {
         params: { period, ...toStatsApiParams(dateRange) },
-      });
+      }, DASHBOARD_CACHE_TTL);
       setRawData(r.data);
     } catch {
       setRawData([]);
@@ -292,6 +450,12 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
   }, []);
 
   const onDayClick = period === "day" ? openDayDetail : undefined;
+  const dayReturnTo = selection?.kind === "day"
+    ? dashboardModalReturnHref("activity-day", dateRange, {
+        selectedDate: selection.date,
+        dayLabel: selection.label,
+      })
+    : undefined;
   const chartPointsRef = React.useRef(chartPoints);
   const onDayClickRef = React.useRef(onDayClick);
   chartPointsRef.current = chartPoints;
@@ -405,20 +569,15 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
 
   return (
     <>
+    <section className="space-y-4">
+      <DashboardSectionHeader
+        title="Xu hướng hoạt động"
+        subtitle={`${rangeLabel} · Tổng hoạt động mỗi ${periodLabel}`}
+      />
     <Card>
       <CardContent className="pt-4">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-1 gap-2">
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Xu hướng hoạt động
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {rangeLabel} · Tổng hoạt động mỗi {periodLabel}
-            </p>
-          </div>
-          <div className="flex gap-1 shrink-0">
-            {(["day", "week", "month"] as Period[]).map(p => (
+        <div className="flex justify-end gap-1 shrink-0 mb-4">
+          {(["day", "week", "month"] as Period[]).map(p => (
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
@@ -429,7 +588,6 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
                 {p === "day" ? "Ngày" : p === "week" ? "Tuần" : "Tháng"}
               </button>
             ))}
-          </div>
         </div>
 
         {/* KPI row */}
@@ -487,6 +645,7 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
         )}
       </CardContent>
     </Card>
+    </section>
 
     <InteractionDetailDialog
       open={detailOpen}
@@ -496,6 +655,7 @@ export const ActivityDayCard = ({ dateRange }: { dateRange: StatsDateRange }) =>
       selection={selection}
       chartData={dayChartPoints}
       averageInteractionsPerDay={avg}
+      returnTo={dayReturnTo}
     />
     </>
   );

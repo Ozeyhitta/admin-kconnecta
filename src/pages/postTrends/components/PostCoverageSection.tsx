@@ -1,4 +1,4 @@
-import { Hash, Sparkles, HelpCircle, Percent } from "lucide-react";
+import { Hash, HelpCircle, Percent } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { AnalyticsSummary } from "../types";
@@ -42,7 +42,7 @@ export function PostCoverageSection({ summary, loading }: PostCoverageSectionPro
       <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
         Phân loại nội dung bài viết
       </h2>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <CoverageCard
           title="Có #hashtag"
           value={s ? `${s.hashtagCoveragePercent.toFixed(0)}%` : "—"}
@@ -52,25 +52,17 @@ export function PostCoverageSection({ summary, loading }: PostCoverageSectionPro
           loading={loading}
         />
         <CoverageCard
-          title="Hashtag thật"
-          value={s ? fmt.format(s.postsWithHashtag) : "—"}
-          sub={s?.topHashtagTopic ? `Top: #${s.topHashtagTopic}` : "Chưa có hashtag nổi bật"}
+          title="Hashtag nổi bật"
+          value={s?.topHashtagTopic ? `#${s.topHashtagTopic}` : "—"}
+          sub={s?.topHashtagTopic ? `${fmt.format(s.topHashtagTopicScore)} điểm tương tác` : "Chưa có hashtag dẫn đầu"}
           icon={Hash}
           iconColor="text-violet-500"
           loading={loading}
         />
         <CoverageCard
-          title="Từ khóa tự trích"
-          value={s ? fmt.format(s.postsWithKeywordOnly) : "—"}
-          sub={s?.topKeywordTopic ? `Top: ⌗${s.topKeywordTopic}` : "Từ nội dung không có #"}
-          icon={Sparkles}
-          iconColor="text-amber-500"
-          loading={loading}
-        />
-        <CoverageCard
-          title="Không phân loại"
+          title="Chưa gắn hashtag"
           value={s ? fmt.format(s.postsUncategorized) : "—"}
-          sub={s ? `${fmt.format(s.uncategorizedPostCount)} bài trong nhóm #khác` : undefined}
+          sub="Bài không có # — không vào nhóm chủ đề feed user"
           icon={HelpCircle}
           iconColor="text-slate-500"
           loading={loading}

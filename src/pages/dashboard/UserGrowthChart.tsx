@@ -2,7 +2,7 @@ import * as React from "react";
 import * as echarts from "echarts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiClient } from "@/services/axiosInstance";
+import { cachedApiGet, DASHBOARD_CACHE_TTL } from "@/services/apiGetCache";
 import { ADMIN_CHARTS_POLL_MS, useIntervalPoll } from "@/lib/adminStatsPoll";
 import { toStatsApiParams, type StatsDateRange } from "@/lib/statsDateRange";
 
@@ -35,9 +35,9 @@ const UserGrowthChart = ({ dateRange }: { dateRange: StatsDateRange }) => {
 
   const fetchData = React.useCallback(async () => {
     try {
-      const r = await apiClient.get<DataPoint[]>("/api/v1/admin/stats/new-users", {
+      const r = await cachedApiGet<DataPoint[]>("/api/v1/admin/stats/new-users", {
         params: { period, ...toStatsApiParams(dateRange) },
-      });
+      }, DASHBOARD_CACHE_TTL);
       setData(r.data);
     } catch {
       setData([]);

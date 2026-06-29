@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useShowController, useNotify, useRefresh } from "ra-core";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import {
   ShieldCheck, User, FileText, MessageSquare, Heart,
   Share2, UserPlus2, LogIn, Activity, ArrowLeft,
@@ -40,6 +40,12 @@ interface ActivityLog {
 
 const fmt = new Intl.NumberFormat("vi-VN");
 
+const userActivityLogsHref = (username: string, actionType?: string) => {
+  const params = new URLSearchParams({ username });
+  if (actionType) params.set("actionType", actionType);
+  return `/activity-logs?${params.toString()}`;
+};
+
 const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -68,22 +74,41 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 const StatItem = ({
-  icon: Icon, iconColor, label, value, loading,
+  icon: Icon, iconColor, label, value, loading, onClick,
 }: {
   icon: React.FC<{ className?: string }>;
   iconColor: string;
   label: string;
   value: number | undefined;
   loading: boolean;
-}) => (
-  <div className="flex flex-col items-center gap-1 p-3 rounded-lg bg-muted/50 flex-1 min-w-[90px]">
+  onClick?: () => void;
+}) => {
+  const content = (
+    <>
     <Icon className={`h-5 w-5 ${iconColor}`} />
     {loading ? <Skeleton className="h-6 w-10" /> : (
       <span className="text-lg font-bold tabular-nums">{value !== undefined ? fmt.format(value) : "—"}</span>
     )}
     <span className="text-xs text-muted-foreground text-center leading-tight">{label}</span>
-  </div>
-);
+    </>
+  );
+  const className = "flex flex-col items-center gap-1 p-3 rounded-lg bg-muted/50 flex-1 min-w-[90px]";
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={`${className} cursor-pointer transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+        title={`Xem nhật ký ${label.toLocaleLowerCase("vi-VN")}`}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return <div className={className}>{content}</div>;
+};
 
 const ResetEmailDialog = ({
   open, onClose, userId, onSuccess,
@@ -235,6 +260,7 @@ const ResetPasswordDialog = ({
 export const CustomerShow = () => {
   const { record, isLoading } = useShowController();
   const navigate = useNavigate();
+  const location = useLocation();
   const refresh = useRefresh();
 
   const [stats, setStats] = React.useState<UserStats | undefined>();
@@ -261,6 +287,14 @@ export const CustomerShow = () => {
   }, [record?.id]);
 
   const isSelfAccount = isCurrentAdminUser(record);
+  const returnTo = (
+    location.state
+    && typeof location.state === "object"
+    && "returnTo" in location.state
+    && typeof location.state.returnTo === "string"
+  )
+    ? location.state.returnTo
+    : null;
 
   if (isLoading) {
     return (
@@ -275,15 +309,22 @@ export const CustomerShow = () => {
   if (!record) return null;
 
   const status = statusMeta[record.status] ?? { label: record.status, variant: "outline" as const, icon: User };
+  const username = record.username;
+  const openUserActivity = (actionType?: string) => (
+    username
+      ? () => navigate(userActivityLogsHref(username, actionType))
+      : undefined
+  );
 
   return (
     <div className="space-y-4 pb-8">
       <button
         type="button"
-        onClick={() => navigate(-1)}
+        onClick={() => returnTo ? navigate(returnTo) : navigate(-1)}
         className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> Quay lại danh sách
+        <ArrowLeft className="h-4 w-4" />
+        {returnTo ? "Quay lại chi tiết trên Trang chủ" : "Quay lại danh sách"}
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -385,13 +426,62 @@ export const CustomerShow = () => {
                 Thống kê hoạt động
               </p>
               <div className="flex flex-wrap gap-2">
-                <StatItem icon={FileText} iconColor="text-sky-500" label="Bài đăng" value={stats?.totalPosts} loading={statsLoading} />
-                <StatItem icon={MessageSquare} iconColor="text-pink-500" label="Bình luận" value={stats?.totalComments} loading={statsLoading} />
-                <StatItem icon={Heart} iconColor="text-red-400" label="Cảm xúc" value={stats?.totalReactions} loading={statsLoading} />
-                <StatItem icon={Share2} iconColor="text-yellow-500" label="Chia sẻ" value={stats?.totalShares} loading={statsLoading} />
-                <StatItem icon={UserPlus2} iconColor="text-primary" label="Kết bạn" value={stats?.totalFriendRequests} loading={statsLoading} />
-                <StatItem icon={LogIn} iconColor="text-indigo-500" label="Đăng nhập" value={stats?.totalLogins} loading={statsLoading} />
-                <StatItem icon={Activity} iconColor="text-orange-500" label="Tổng HĐ" value={stats?.totalActivity} loading={statsLoading} />
+                <StatItem
+                  icon={FileText}
+                  iconColor="text-sky-500"
+                  label="Bài đăng"
+                  value={stats?.totalPosts}
+                  loading={statsLoading}
+                  onClick={openUserActivity("POST_CREATED")}
+                />
+                <StatItem
+                  icon={MessageSquare}
+                  iconColor="text-pink-500"
+                  label="Bình luận"
+                  value={stats?.totalComments}
+                  loading={statsLoading}
+                  onClick={openUserActivity("COMMENT_ADDED")}
+                />
+                <StatItem
+                  icon={Heart}
+                  iconColor="text-red-400"
+                  label="Cảm xúc"
+                  value={stats?.totalReactions}
+                  loading={statsLoading}
+                  onClick={openUserActivity("REACTION_ADDED")}
+                />
+                <StatItem
+                  icon={Share2}
+                  iconColor="text-yellow-500"
+                  label="Chia sẻ"
+                  value={stats?.totalShares}
+                  loading={statsLoading}
+                  onClick={openUserActivity("POST_SHARED")}
+                />
+                <StatItem
+                  icon={UserPlus2}
+                  iconColor="text-primary"
+                  label="Kết bạn"
+                  value={stats?.totalFriendRequests}
+                  loading={statsLoading}
+                  onClick={openUserActivity("FRIEND_REQUEST_SENT")}
+                />
+                <StatItem
+                  icon={LogIn}
+                  iconColor="text-indigo-500"
+                  label="Đăng nhập"
+                  value={stats?.totalLogins}
+                  loading={statsLoading}
+                  onClick={openUserActivity("LOGIN")}
+                />
+                <StatItem
+                  icon={Activity}
+                  iconColor="text-orange-500"
+                  label="Tổng HĐ"
+                  value={stats?.totalActivity}
+                  loading={statsLoading}
+                  onClick={openUserActivity()}
+                />
                 <StatItem
                   icon={TrendingUp}
                   iconColor="text-violet-500"
@@ -402,6 +492,7 @@ export const CustomerShow = () => {
                       : 0
                   }
                   loading={statsLoading}
+                  onClick={openUserActivity()}
                 />
               </div>
             </CardContent>

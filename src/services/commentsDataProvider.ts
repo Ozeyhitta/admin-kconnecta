@@ -34,6 +34,6 @@ export const commentsDataProvider: CommentMethods = {
 
   delete: async (_resource, params) => {
     await apiClient.delete(`/api/v1/admin/comments/${params.id}`);
-    return { data: { id: params.id } };
+    return { data: { id: params.id } as any };
   },
 };

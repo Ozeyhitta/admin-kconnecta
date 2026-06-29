@@ -162,7 +162,7 @@ function collectAnomalySigns(
 
 function classifyAnomalyLevel(
   signs: string[],
-  lowData: boolean,
+  _lowData: boolean,
   dau: DauMauAnalytics | null | undefined,
   interactions: InteractionAnalytics | null | undefined,
 ): InsightLevel {

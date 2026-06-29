@@ -1,30 +1,60 @@
 import * as React from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
+import { ArrowLeft } from "lucide-react";
 import { List } from "@/components/admin";
 import { ActivityLogSummaryCards } from "@/pages/dashboard/components/activityLogs/ActivityLogSummaryCards";
 import { ActivityLogFilterBar } from "@/pages/dashboard/components/activityLogs/ActivityLogFilters";
 import { ActivityLogList } from "@/pages/dashboard/components/activityLogs/ActivityLogList";
 import { ActivityLogDetailDrawer } from "@/pages/dashboard/components/activityLogs/ActivityLogDetailDrawer";
-import { apiClient, resolveApiBaseUrl } from "@/services/axiosInstance";
+import { resolveApiBaseUrl } from "@/services/axiosInstance";
+import { cachedApiGet, DETAIL_CACHE_TTL } from "@/services/apiGetCache";
 import { getAdminToken } from "@/lib/currentAdminUser";
 import { getPageContent, getPageTotalPages } from "@/services/pagination";
 import type { ActivityLogFilters as Filters, ActivityLogItem, ActivityLogPageResponse } from "@/pages/dashboard/components/activityLogs/types";
 
 const PAGE_SIZE = 20;
 
+function filtersFromSearchParams(searchParams: URLSearchParams): Filters {
+  const value = (key: string) => searchParams.get(key) || undefined;
+  return {
+    username: value("username"),
+    actionType: value("actionType"),
+    status: value("status"),
+    severity: value("severity"),
+    from: value("from"),
+    to: value("to"),
+    abnormalOnly: searchParams.get("abnormalOnly") === "true" || undefined,
+    timePreset: value("timePreset"),
+  };
+}
+
 export const ActivityLogListPage = () => {
-  const [filters, setFilters] = React.useState<Filters>({});
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [filters, setFilters] = React.useState<Filters>(
+    () => filtersFromSearchParams(searchParams),
+  );
   const [page, setPage] = React.useState(0);
   const [data, setData] = React.useState<ActivityLogPageResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [selected, setSelected] = React.useState<ActivityLogItem | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const returnTo = (
+    location.state
+    && typeof location.state === "object"
+    && "returnTo" in location.state
+    && typeof location.state.returnTo === "string"
+  )
+    ? location.state.returnTo
+    : null;
 
   const fetchPage = React.useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const r = await apiClient.get<ActivityLogPageResponse>("/api/v1/admin/activity-logs", {
+      const r = await cachedApiGet<ActivityLogPageResponse>("/api/v1/admin/activity-logs", {
         params: {
           page,
           size: PAGE_SIZE,
@@ -38,7 +68,7 @@ export const ActivityLogListPage = () => {
           ...(filters.to ? { to: filters.to } : {}),
           ...(filters.abnormalOnly ? { abnormalOnly: true } : {}),
         },
-      });
+      }, DETAIL_CACHE_TTL);
       setData(r.data);
     } catch {
       setError("Không tải được nhật ký hoạt động.");
@@ -85,6 +115,16 @@ export const ActivityLogListPage = () => {
       actions={false}
     >
       <div className="space-y-4 mb-6">
+        {returnTo && (
+          <button
+            type="button"
+            onClick={() => navigate(returnTo)}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Quay lại chi tiết trên Trang chủ
+          </button>
+        )}
         <ActivityLogSummaryCards summary={data?.summary} loading={loading} />
         <ActivityLogFilterBar filters={filters} onChange={setFilters} />
         <div className="flex justify-end gap-2">

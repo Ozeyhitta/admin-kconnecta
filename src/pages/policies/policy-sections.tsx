@@ -4,7 +4,6 @@ import {
   Pencil,
   Trash2,
   Brain,
-  Shield,
 
   FileText,
   History,
@@ -50,7 +49,6 @@ import {
   RateLimitSettingRow,
   RangeField,
   SettingRow,
-  SeverityBadge,
   SeveritySelect,
   ToggleRow,
 } from "./policy-ui";
