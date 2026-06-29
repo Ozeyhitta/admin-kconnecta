@@ -534,6 +534,15 @@ const LiveSessionSection = ({ postId }: { postId: string }) => {
             </span>
           ) : null}
         </div>
+        
+        {session.title ? (
+          <div className="space-y-1">
+            <h3 className="text-lg font-bold text-foreground leading-snug">{session.title.trim()}</h3>
+            {session.description ? (
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{session.description.trim()}</p>
+            ) : null}
+          </div>
+        ) : null}
 
         {playbackUrl ? (
           <LivePlaybackVideo url={playbackUrl} poster={session.thumbnailUrl} />
