@@ -12,6 +12,7 @@ import project.kconnecta.admin.backend.common.enums.AccountRole;
 import project.kconnecta.admin.backend.common.enums.AccountStatus;
 import project.kconnecta.admin.backend.config.security.AdminPrincipal;
 import project.kconnecta.admin.backend.entity.Account;
+import project.kconnecta.admin.backend.entity.User;
 import project.kconnecta.admin.backend.exception.ResourceNotFoundException;
 import project.kconnecta.admin.backend.feature.activitylog.dto.response.UserActivityLogResponse;
 import project.kconnecta.admin.backend.feature.activitylog.repository.UserActivityLogRepository;
@@ -70,6 +71,13 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     public AdminUserResponseDTO getUserById(UUID id) {
         return AdminUserResponseDTO.from(findAccount(id));
+    }
+
+    @Override
+    public AdminUserResponseDTO getUserByProfileId(UUID profileId) {
+        User user = userRepository.findById(profileId)
+                .orElseThrow(() -> new ResourceNotFoundException("User profile not found: " + profileId));
+        return AdminUserResponseDTO.from(user.getAccount());
     }
 
     @Override
@@ -190,24 +198,42 @@ public class AdminUserServiceImpl implements AdminUserService {
 
     @Override
     public UserStatsResponse getUserStats(UUID id) {
-        findAccount(id);
+        Account account = findAccount(id);
+        UUID userId = resolveUserId(account);
+        if (userId == null) {
+            return UserStatsResponse.builder().build();
+        }
         return UserStatsResponse.builder()
-                .totalPosts(postAdminRepository.countByAuthorId(id))
-                .totalComments(commentAdminRepository.countByUserId(id))
-                .totalReactions(activityLogRepository.countByUserIdAndActionType(id, "REACTION_ADDED"))
-                .totalShares(activityLogRepository.countByUserIdAndActionType(id, "POST_SHARED"))
-                .totalFriendRequests(activityLogRepository.countByUserIdAndActionType(id, "FRIEND_REQUEST_SENT"))
-                .totalLogins(activityLogRepository.countByUserIdAndActionType(id, "LOGIN"))
-                .totalActivity(activityLogRepository.countByUserId(id))
+                .totalPosts(postAdminRepository.countByAuthorId(userId))
+                .totalComments(commentAdminRepository.countByUserId(userId))
+                .totalReactions(activityLogRepository.countByUserIdAndActionType(userId, "REACTION_ADDED"))
+                .totalShares(activityLogRepository.countByUserIdAndActionType(userId, "POST_SHARED"))
+                .totalFriendRequests(activityLogRepository.countByUserIdAndActionType(userId, "FRIEND_REQUEST_SENT"))
+                .totalLogins(activityLogRepository.countByUserIdAndActionType(userId, "LOGIN"))
+                .totalActivity(activityLogRepository.countByUserId(userId))
                 .build();
     }
 
     @Override
     public List<UserActivityLogResponse> getUserActivity(UUID id) {
-        findAccount(id);
-        return activityLogRepository.findTop15ByUserIdOrderByCreatedAtDesc(id).stream()
+        Account account = findAccount(id);
+        UUID userId = resolveUserId(account);
+        if (userId == null) {
+            return List.of();
+        }
+        return activityLogRepository.findTop15ByUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(UserActivityLogResponse::from)
                 .toList();
+    }
+
+    /**
+     * The customers resource is keyed by account id, but posts/comments/activity logs
+     * are keyed by user id (users.account_id links the two). Translate before counting.
+     */
+    private UUID resolveUserId(Account account) {
+        return userRepository.findByAccount_Id(account.getId())
+                .map(User::getId)
+                .orElse(null);
     }
 
     private Account findAccount(UUID id) {

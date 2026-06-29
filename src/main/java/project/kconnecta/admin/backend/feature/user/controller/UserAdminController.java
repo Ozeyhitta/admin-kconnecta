@@ -57,6 +57,11 @@ public class UserAdminController {
         return ResponseEntity.ok(adminUserService.getUsersByIds(ids));
     }
 
+    @GetMapping("/by-profile/{profileId}")
+    public ResponseEntity<AdminUserResponseDTO> getUserByProfileId(@PathVariable UUID profileId) {
+        return ResponseEntity.ok(adminUserService.getUserByProfileId(profileId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<AdminUserResponseDTO> getUserById(@PathVariable UUID id) {
         return ResponseEntity.ok(adminUserService.getUserById(id));

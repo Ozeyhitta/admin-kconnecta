@@ -20,8 +20,12 @@ import project.kconnecta.admin.backend.feature.activitylog.repository.UserActivi
 import project.kconnecta.admin.backend.feature.activitylog.support.ActivityLogMapper;
 import project.kconnecta.admin.backend.feature.user.repository.UserRepository;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +40,7 @@ public class ActivityLogAdminServiceImpl implements ActivityLogAdminService {
 
     private static final Set<String> VALID_SORT_FIELDS = Set.of("createdAt", "username", "actionType", "status", "severity");
     private static final int EXPORT_LIMIT = 5000;
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final UserActivityLogRepository repository;
     private final UserRepository userRepository;
@@ -194,7 +199,7 @@ public class ActivityLogAdminServiceImpl implements ActivityLogAdminService {
                 .targetId(log.getTargetId())
                 .status(ActivityLogMapper.resolveStatus(log))
                 .severity(ActivityLogMapper.resolveSeverity(log))
-                .description(ActivityLogMapper.resolveDescription(log))
+                .description(resolveDescription(log, usersById))
                 .ipAddress(log.getIpAddress())
                 .userAgent(log.getUserAgent())
                 .deviceType(log.getDeviceType())
@@ -209,14 +214,71 @@ public class ActivityLogAdminServiceImpl implements ActivityLogAdminService {
     }
 
     private Map<UUID, User> loadUsers(List<UserActivityLog> logs) {
-        Set<UUID> ids = logs.stream()
-                .map(UserActivityLog::getUserId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+        // Gom cả chủ thể (userId) lẫn đối tượng của hành động kết bạn (targetUserId/requesterId
+        // trong metadata) để phân giải tên trong một truy vấn, tránh N+1.
+        Set<UUID> ids = new HashSet<>();
+        for (UserActivityLog log : logs) {
+            if (log.getUserId() != null) {
+                ids.add(log.getUserId());
+            }
+            UUID friendTargetId = extractFriendTargetId(log);
+            if (friendTargetId != null) {
+                ids.add(friendTargetId);
+            }
+        }
         if (ids.isEmpty()) return Map.of();
         Map<UUID, User> map = new HashMap<>();
         userRepository.findAllById(ids).forEach(u -> map.put(u.getId(), u));
         return map;
+    }
+
+    /**
+     * Description hiển thị. Với hành động kết bạn, bổ sung "đến/từ &lt;tên đối tượng&gt;" để admin
+     * thấy rõ ai gửi lời mời/chấp nhận với ai; các loại khác giữ nguyên mô tả mặc định.
+     */
+    private String resolveDescription(UserActivityLog log, Map<UUID, User> usersById) {
+        String base = ActivityLogMapper.resolveDescription(log);
+        UUID friendTargetId = extractFriendTargetId(log);
+        if (friendTargetId == null) {
+            return base;
+        }
+        String targetName = displayName(usersById.get(friendTargetId));
+        if (targetName == null) {
+            return base;
+        }
+        return "FRIEND_ACCEPTED".equals(log.getActionType())
+                ? "Chấp nhận lời mời kết bạn từ " + targetName
+                : "Gửi lời mời kết bạn đến " + targetName;
+    }
+
+    private static String displayName(User user) {
+        if (user == null) {
+            return null;
+        }
+        if (user.getFullName() != null && !user.getFullName().isBlank()) {
+            return user.getFullName();
+        }
+        return user.getUsername();
+    }
+
+    /** Id của "người còn lại" trong hành động kết bạn (targetUserId khi gửi, requesterId khi chấp nhận), hoặc null. */
+    private static UUID extractFriendTargetId(UserActivityLog log) {
+        String type = log.getActionType();
+        if (!"FRIEND_REQUEST_SENT".equals(type) && !"FRIEND_ACCEPTED".equals(type)) {
+            return null;
+        }
+        String meta = log.getMetadata();
+        if (meta == null || meta.isBlank() || !meta.trim().startsWith("{")) {
+            return null;
+        }
+        try {
+            JsonNode node = OBJECT_MAPPER.readTree(meta);
+            String field = "FRIEND_ACCEPTED".equals(type) ? "requesterId" : "targetUserId";
+            String raw = node.path(field).asText(null);
+            return (raw == null || raw.isBlank()) ? null : UUID.fromString(raw);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private ActivityLogSummaryResponse buildSummary(LocalDateTime from, LocalDateTime to) {

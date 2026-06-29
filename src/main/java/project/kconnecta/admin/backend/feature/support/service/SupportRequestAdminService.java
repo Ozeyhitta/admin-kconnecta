@@ -12,7 +12,7 @@ public interface SupportRequestAdminService {
 
     SupportRequestAdminResponse getRequestById(UUID id);
 
-    /** Cập nhật trạng thái xử lý: PENDING | IN_PROGRESS | RESOLVED. */
+    /** Cập nhật trạng thái xử lý: IN_PROGRESS | RESOLVED. */
     SupportRequestAdminResponse updateStatus(UUID id, String status);
 
     /** Gửi phản hồi cho người dùng qua thông báo và cập nhật trạng thái yêu cầu. */

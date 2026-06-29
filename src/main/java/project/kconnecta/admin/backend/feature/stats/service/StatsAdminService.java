@@ -5,6 +5,7 @@ import project.kconnecta.admin.backend.feature.stats.dto.response.DayCountRespon
 import project.kconnecta.admin.backend.feature.stats.dto.response.EngagementAnalyticsResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.HourCountResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.InteractionDetailResponse;
+import project.kconnecta.admin.backend.feature.stats.dto.response.OnlineUsersDetailResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.OnlineUsersResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.OverviewStatsResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.NewUsersAnalyticsResponse;
@@ -24,6 +25,8 @@ public interface StatsAdminService {
 
     OnlineUsersResponse getOnlineUsers();
 
+    OnlineUsersDetailResponse getOnlineUsersDetail();
+
     List<PeriodCountResponse> getNewUsers(String period, LocalDate from, LocalDate to);
 
     DauMauResponse getDauMau(LocalDate from, LocalDate to);
@@ -38,4 +41,6 @@ public interface StatsAdminService {
 
     InteractionDetailResponse getInteractionDetail(
             LocalDate from, LocalDate to, LocalDate date, String actionType);
+
+    InteractionDetailResponse getActivityHourDetail(LocalDate date, int hour);
 }

@@ -3,6 +3,7 @@ package project.kconnecta.admin.backend.feature.stats.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import project.kconnecta.admin.backend.common.enums.AccountStatus;
+import project.kconnecta.admin.backend.entity.User;
 import project.kconnecta.admin.backend.feature.activitylog.repository.UserActivityLogRepository;
 import project.kconnecta.admin.backend.feature.activitylog.dto.response.ActivityLogItemResponse;
 import project.kconnecta.admin.backend.feature.activitylog.service.ActivityLogAdminService;
@@ -26,6 +27,8 @@ import project.kconnecta.admin.backend.feature.stats.dto.response.NewUsersAnalyt
 import project.kconnecta.admin.backend.feature.stats.dto.response.NewUsersChartPoint;
 import project.kconnecta.admin.backend.feature.stats.dto.response.NewUsersInsight;
 import project.kconnecta.admin.backend.feature.stats.dto.response.NewUsersSummary;
+import project.kconnecta.admin.backend.feature.stats.dto.response.OnlineUserItemResponse;
+import project.kconnecta.admin.backend.feature.stats.dto.response.OnlineUsersDetailResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.OnlineUsersResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.OverviewStatsResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.PeriodCountResponse;
@@ -160,6 +163,30 @@ public class StatsAdminServiceImpl implements StatsAdminService {
         return OnlineUsersResponse.builder()
                 .online(userRepository.countOnlineSince(onlineSince()))
                 .updatedAt(LocalDateTime.now())
+                .build();
+    }
+
+    @Override
+    public OnlineUsersDetailResponse getOnlineUsersDetail() {
+        LocalDateTime since = onlineSince();
+        List<OnlineUserItemResponse> users = userRepository.findOnlineSince(since).stream()
+                .sorted(Comparator.comparing(
+                        User::getLastActiveAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(user -> OnlineUserItemResponse.builder()
+                        .accountId(user.getAccount().getId())
+                        .username(user.getUsername())
+                        .fullName(user.getFullName())
+                        .avatarUrl(user.getAvatarUrl())
+                        .lastActiveAt(user.getLastActiveAt())
+                        .build())
+                .toList();
+
+        return OnlineUsersDetailResponse.builder()
+                .online(users.size())
+                .windowMinutes(ONLINE_WINDOW_MINUTES)
+                .updatedAt(LocalDateTime.now())
+                .users(users)
                 .build();
     }
 
@@ -547,6 +574,34 @@ public class StatsAdminServiceImpl implements StatsAdminService {
                 .breakdown(List.of())
                 .chartData(chartData)
                 .recentLogs(fetchRecentInteractionLogs(range.from(), range.to(), resolvedAction))
+                .build();
+    }
+
+    @Override
+    public InteractionDetailResponse getActivityHourDetail(LocalDate date, int hour) {
+        if (hour < 0 || hour > 23) {
+            throw new IllegalArgumentException("hour must be between 0 and 23");
+        }
+        Map<String, Long> raw = new HashMap<>();
+        for (Object[] row : activityLogRepository.getInteractionBreakdownInHour(date, hour)) {
+            raw.put(row[0].toString(), ((Number) row[1]).longValue());
+        }
+        long total = raw.values().stream().mapToLong(Long::longValue).sum();
+        List<InteractionBreakdownItem> breakdown = buildBreakdownItems(raw, total);
+        LocalDateTime from = date.atTime(hour, 0, 0);
+        LocalDateTime to = date.atTime(hour, 59, 59, 999_999_999);
+        String title = String.format(
+                "Chi tiết %02d:00 – %02d:00 ngày %s",
+                hour,
+                hour + 1,
+                date.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+        return InteractionDetailResponse.builder()
+                .mode("hour")
+                .title(title)
+                .totalCount(total)
+                .breakdown(breakdown)
+                .chartData(List.of())
+                .recentLogs(fetchRecentInteractionLogs(from, to, null))
                 .build();
     }
 

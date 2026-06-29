@@ -38,7 +38,7 @@ public class SupportRequestAdminController {
         return ResponseEntity.ok(supportRequestAdminService.getRequestById(id));
     }
 
-    /** Cập nhật trạng thái xử lý. Body: {"status": "IN_PROGRESS" | "RESOLVED" | "PENDING"}. */
+    /** Cập nhật trạng thái xử lý. Body: {"status": "IN_PROGRESS" | "RESOLVED"}. */
     @PatchMapping("/{id}/status")
     public ResponseEntity<SupportRequestAdminResponse> updateStatus(
             @PathVariable UUID id,

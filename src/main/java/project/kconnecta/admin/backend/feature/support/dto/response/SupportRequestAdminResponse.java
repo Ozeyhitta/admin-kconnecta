@@ -5,6 +5,7 @@ import lombok.Getter;
 import project.kconnecta.admin.backend.entity.SupportRequest;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -22,6 +23,7 @@ public class SupportRequestAdminResponse {
     private String message;
     private String status;
     private LocalDateTime createdAt;
+    private List<String> attachmentUrls;
 
     public static SupportRequestAdminResponse from(SupportRequest s) {
         var user = s.getUser();
@@ -37,6 +39,11 @@ public class SupportRequestAdminResponse {
                 .message(s.getMessage())
                 .status(s.getStatus())
                 .createdAt(s.getCreatedAt())
+                .attachmentUrls(s.getAttachments() == null
+                        ? List.of()
+                        : s.getAttachments().stream()
+                                .map(attachment -> attachment.getImageUrl())
+                                .toList())
                 .build();
     }
 }

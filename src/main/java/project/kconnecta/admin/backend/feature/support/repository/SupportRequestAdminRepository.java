@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -15,6 +16,10 @@ import java.util.UUID;
 
 @Repository
 public interface SupportRequestAdminRepository extends JpaRepository<SupportRequest, UUID> {
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE SupportRequest s SET s.status = 'IN_PROGRESS' WHERE s.status = 'PENDING'")
+    int promotePendingToInProgress();
 
     @Query(value =
             "SELECT s FROM SupportRequest s LEFT JOIN FETCH s.user u LEFT JOIN FETCH u.account " +

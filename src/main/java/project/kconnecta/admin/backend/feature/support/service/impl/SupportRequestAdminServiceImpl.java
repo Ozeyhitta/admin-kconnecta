@@ -20,14 +20,17 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class SupportRequestAdminServiceImpl implements SupportRequestAdminService {
 
-    private static final Set<String> VALID_STATUSES = Set.of("PENDING", "IN_PROGRESS", "RESOLVED");
+    private static final Set<String> VALID_STATUSES = Set.of("IN_PROGRESS", "RESOLVED");
 
     private final SupportRequestAdminRepository supportRequestAdminRepository;
     private final NotificationAdminService notificationAdminService;
 
     @Override
+    @Transactional
     public Page<SupportRequestAdminResponse> getRequests(int page, int size, String sortBy, String sortDir,
                                                          String search, String category, String status) {
+        supportRequestAdminRepository.promotePendingToInProgress();
+
         Sort.Direction direction = Sort.Direction.fromString(sortDir.toUpperCase(Locale.ROOT));
         Set<String> validFields = Set.of("createdAt", "status");
         String safeField = validFields.contains(sortBy) ? sortBy : "createdAt";
@@ -45,8 +48,11 @@ public class SupportRequestAdminServiceImpl implements SupportRequestAdminServic
     }
 
     @Override
+    @Transactional
     public SupportRequestAdminResponse getRequestById(UUID id) {
-        return SupportRequestAdminResponse.from(findRequest(id));
+        SupportRequest request = findRequest(id);
+        promoteToInProgress(request);
+        return SupportRequestAdminResponse.from(request);
     }
 
     @Override
@@ -70,7 +76,8 @@ public class SupportRequestAdminServiceImpl implements SupportRequestAdminServic
         }
 
         SupportRequest request = findRequestForUpdate(id);
-        if (!"PENDING".equals(request.getStatus())) {
+        promoteToInProgress(request);
+        if (!"IN_PROGRESS".equals(request.getStatus())) {
             throw new IllegalArgumentException("Yêu cầu này đã được xử lý, không thể phản hồi thêm");
         }
 
@@ -95,6 +102,12 @@ public class SupportRequestAdminServiceImpl implements SupportRequestAdminServic
     private SupportRequest findRequest(UUID id) {
         return supportRequestAdminRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy yêu cầu hỗ trợ"));
+    }
+
+    private void promoteToInProgress(SupportRequest request) {
+        if ("PENDING".equals(request.getStatus())) {
+            request.setStatus("IN_PROGRESS");
+        }
     }
 
     private SupportRequest findRequestForUpdate(UUID id) {

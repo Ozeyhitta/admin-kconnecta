@@ -24,6 +24,17 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             """, nativeQuery = true)
     long countOnlineSince(@Param("since") LocalDateTime since);
 
+    @Query("""
+            SELECT DISTINCT u FROM User u
+            JOIN FETCH u.account
+            WHERE u.lastActiveAt >= :since
+               OR EXISTS (
+                    SELECT 1 FROM UserActivityLog l
+                    WHERE l.userId = u.id AND l.createdAt >= :since
+               )
+            """)
+    java.util.List<User> findOnlineSince(@Param("since") LocalDateTime since);
+
     Optional<User> findByAccount_Id(UUID accountId);
 
     Optional<User> findByUsername(String username);

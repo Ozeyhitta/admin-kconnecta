@@ -2,8 +2,11 @@ package project.kconnecta.admin.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -45,4 +48,10 @@ public class SupportRequest {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "supportRequest", fetch = FetchType.LAZY)
+    @OrderBy("createdAt ASC")
+    @BatchSize(size = 50)
+    @Builder.Default
+    private List<SupportRequestAttachment> attachments = new ArrayList<>();
 }

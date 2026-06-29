@@ -16,21 +16,18 @@ import project.kconnecta.admin.backend.feature.analytics.dto.response.TopicTrend
 import project.kconnecta.admin.backend.feature.analytics.dto.response.TopicPostsResponse;
 import project.kconnecta.admin.backend.feature.analytics.dto.response.TrendAlertResponse;
 import project.kconnecta.admin.backend.feature.analytics.repository.PostAnalyticsRepository;
+import project.kconnecta.admin.backend.feature.analytics.util.HashtagExtractor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -38,16 +35,17 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
 
     private final PostAnalyticsRepository repository;
 
-    // ── Trend-score weights ─────────────────────────────────────────────────
-    // Original spec: view*0.1 + like*1 + comment*2 + share*3 + save*3 - report*5.
-    // This schema has no `view` and no `save` tables, so those signals are 0 and
-    // the formula collapses to the four available signals below.
+    // ── Trend-score weights (same interaction weights as user home feed engagement) ─
     private static final double LIKE_WEIGHT = 1.0;
     private static final double COMMENT_WEIGHT = 2.0;
     private static final double SHARE_WEIGHT = 3.0;
     private static final double REPORT_WEIGHT = -5.0;
-    private static final double[] WEIGHTS = {LIKE_WEIGHT, COMMENT_WEIGHT, SHARE_WEIGHT, REPORT_WEIGHT};
-    private static final int LIKE = 0, COMMENT = 1, SHARE = 2, REPORT = 3;
+    // Lượt đăng bài là một tín hiệu xu hướng (volume): một bài mới = một đơn vị, ngang một like.
+    // Nhờ vậy hashtag của bài vừa đăng (chưa có tương tác) vẫn lên bảng xếp hạng VÀ biểu đồ;
+    // cửa sổ thời gian khiến bài seed cũ (created_at ngoài kỳ) không bị cộng điểm này.
+    private static final double POST_WEIGHT = 1.0;
+    private static final double[] WEIGHTS = {LIKE_WEIGHT, COMMENT_WEIGHT, SHARE_WEIGHT, REPORT_WEIGHT, POST_WEIGHT};
+    private static final int LIKE = 0, COMMENT = 1, SHARE = 2, REPORT = 3, POST = 4;
 
     // ── Growth classification thresholds (percent) ──────────────────────────
     private static final double STRONG_UP_PCT = 50.0;  // "Tăng mạnh"
@@ -69,30 +67,14 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
     private static final int TOP_TOPICS_LINE = 5;
 
     private static final String FALLBACK_TOPIC = "khác";
-    private static final int MAX_TAGS_PER_POST = 10;
-    private static final int MAX_KEYWORDS_PER_POST = 3;
-    private static final int MIN_KEYWORD_LENGTH = 3;
-    private static final Pattern HASHTAG = Pattern.compile("#([\\p{L}\\p{N}_]+)");
-    private static final Pattern URL_PATTERN = Pattern.compile("https?://\\S+|www\\.\\S+", Pattern.CASE_INSENSITIVE);
-    private static final Pattern TOKEN_SPLIT = Pattern.compile("[^\\p{L}\\p{N}_]+");
 
     private enum TopicSource {
-        HASHTAG, KEYWORD, UNCATEGORIZED;
+        HASHTAG, UNCATEGORIZED;
 
         String code() {
             return name();
         }
     }
-
-    private static final Set<String> STOPWORDS = Set.of(
-            "là", "của", "và", "có", "không", "một", "được", "cho", "với", "này", "đó", "các", "như",
-            "trong", "đã", "để", "khi", "rất", "nhưng", "hay", "hoặc", "về", "tôi", "bạn", "người",
-            "thì", "mà", "ra", "vào", "từ", "nó", "họ", "anh", "em", "chị", "ông", "bà", "cô", "chú",
-            "mình", "tao", "mày", "nói", "làm", "đi", "trên", "dưới", "theo", "sau", "trước",
-            "nên", "vì", "nếu", "thế", "vậy", "đây", "kia", "gì", "sao", "bao", "nhiêu", "mấy",
-            "the", "is", "are", "was", "were", "for", "and", "or", "to", "in", "on", "at", "it",
-            "this", "that", "you", "your", "my", "me", "we", "they", "what", "how", "why", "when"
-    );
 
     @Override
     @Transactional(readOnly = true)
@@ -135,9 +117,14 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
         }
 
         TopicSource sourceFilter = parseSourceFilter(source);
+        LocalDate filterDate = parseDateParam(date);
         List<PostData> matched = loadPostDataList(range).stream()
                 .filter(pd -> postMatchesTopic(pd, normalizedTopic, sourceFilter))
-                .sorted(Comparator.comparingDouble((PostData p) -> p.trendScore).reversed())
+                .filter(pd -> filterDate == null || pd.agg.dailyScore.getOrDefault(filterDate, 0.0) != 0.0)
+                .sorted(filterDate == null
+                        ? Comparator.comparingDouble((PostData p) -> p.trendScore).reversed()
+                        : Comparator.comparingDouble(
+                                (PostData p) -> p.agg.dailyScore.getOrDefault(filterDate, 0.0)).reversed())
                 .toList();
 
         List<TopPostResponse> posts = buildTopPosts(matched, TOPIC_POSTS_LIMIT);
@@ -163,6 +150,8 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
         accumulate(aggregates, repository.aggregateComments(prevFrom, curFrom, last24hFrom), COMMENT, curFromDate);
         accumulate(aggregates, repository.aggregateShares(prevFrom, curFrom, last24hFrom), SHARE, curFromDate);
         accumulate(aggregates, repository.aggregateReports(prevFrom, curFrom, last24hFrom), REPORT, curFromDate);
+        // Tín hiệu đăng bài — đưa cả bài mới (0 tương tác) vào dataset để hashtag của nó xuất hiện.
+        accumulate(aggregates, repository.aggregatePosts(prevFrom, curFrom, last24hFrom), POST, curFromDate);
 
         if (aggregates.isEmpty()) {
             return List.of();
@@ -175,15 +164,31 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
             }
         }
 
+        Map<UUID, List<String>> topicsByPostId = loadTopicsByPostId(postsById.keySet());
+
         List<PostData> posts = new ArrayList<>();
         for (Map.Entry<UUID, PostAgg> e : aggregates.entrySet()) {
             Post post = postsById.get(e.getKey());
             if (post == null) {
                 continue;
             }
-            posts.add(buildPostData(post, e.getValue()));
+            posts.add(buildPostData(post, e.getValue(), topicsByPostId));
         }
         return posts;
+    }
+
+    /** Loads hashtags from {@code post_topics} (user app source of truth). */
+    private Map<UUID, List<String>> loadTopicsByPostId(Set<UUID> postIds) {
+        if (postIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, List<String>> topicsByPostId = new HashMap<>();
+        for (Object[] row : repository.findTopicsByPostIds(postIds)) {
+            UUID postId = toUuid(row[0]);
+            String topic = row[1].toString().toLowerCase(Locale.ROOT);
+            topicsByPostId.computeIfAbsent(postId, k -> new ArrayList<>()).add(topic);
+        }
+        return topicsByPostId;
     }
 
     private static int normalizeDays(String range) {
@@ -208,6 +213,17 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
         try {
             return TopicSource.valueOf(source.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private static LocalDate parseDateParam(String date) {
+        if (date == null || date.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(date.trim());
+        } catch (Exception ex) {
             return null;
         }
     }
@@ -244,10 +260,11 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
         }
     }
 
-    private PostData buildPostData(Post post, PostAgg agg) {
+    private PostData buildPostData(Post post, PostAgg agg, Map<UUID, List<String>> topicsByPostId) {
         double curScore = agg.curScore();
         double growth = growthPercent(curScore, agg.prevScore);
-        TopicAssignmentResult topicResult = resolveTopicAssignments(post.getContent());
+        TopicAssignmentResult topicResult = resolveTopicAssignments(
+                post.getId(), post.getContent(), topicsByPostId);
         return new PostData(
                 post,
                 agg,
@@ -274,6 +291,8 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
                 ta.prevScore += pd.previousScore;
                 ta.reportCount += pd.agg.curRaw[REPORT];
                 ta.commentCount += pd.agg.curRaw[COMMENT];
+                ta.likeCount += pd.agg.curRaw[LIKE];
+                ta.shareCount += pd.agg.curRaw[SHARE];
                 ta.posts.add(pd);
                 pd.agg.dailyScore.forEach((d, v) -> ta.dailyScore.merge(d, v, (a, b) -> a + b));
             }
@@ -296,6 +315,8 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
                             .trendLabel(classify(growth))
                             .reportCount(t.reportCount)
                             .commentCount(t.commentCount)
+                            .likeCount(t.likeCount)
+                            .shareCount(t.shareCount)
                             .build();
                 })
                 .sorted(Comparator.comparingDouble(TopicTrendResponse::getTopicScore).reversed())
@@ -482,10 +503,6 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
                 sorted.stream().filter(e -> e.getValue().source == TopicSource.HASHTAG).toList(),
                 TOP_TOPICS_BAR,
                 TopicSource.HASHTAG);
-        List<ChartDataResponse.TopicScorePoint> barKeywords = buildBarPoints(
-                sorted.stream().filter(e -> e.getValue().source == TopicSource.KEYWORD).toList(),
-                TOP_TOPICS_BAR,
-                TopicSource.KEYWORD);
 
         List<ChartDataResponse.TopicSeries> series = buildSeries(sorted, dates, TOP_TOPICS_LINE, null);
         List<ChartDataResponse.TopicSeries> seriesHashtags = buildSeries(
@@ -497,7 +514,7 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
         return ChartDataResponse.builder()
                 .topicBar(bar)
                 .topicBarHashtags(barHashtags)
-                .topicBarKeywords(barKeywords)
+                .topicBarKeywords(List.of())
                 .topicDaily(ChartDataResponse.TopicDailySeries.builder().dates(dates).series(series).build())
                 .topicDailyHashtags(ChartDataResponse.TopicDailySeries.builder().dates(dates).series(seriesHashtags).build())
                 .build();
@@ -547,19 +564,29 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
                                                   Map<String, TopicAgg> topics, int alertCount, LocalDateTime now) {
         long totalInteractions = 0;
         long totalReports = 0;
+        long totalLikes = 0;
+        long totalComments = 0;
+        long totalShares = 0;
+        long postsWithPositiveInteraction = 0;
         double scoreSum = 0;
         long postsWithHashtag = 0;
-        long postsWithKeywordOnly = 0;
         long postsUncategorized = 0;
 
         for (PostData pd : posts) {
+            long likes = pd.agg.curRaw[LIKE];
+            long comments = pd.agg.curRaw[COMMENT];
+            long shares = pd.agg.curRaw[SHARE];
             totalInteractions += pd.agg.totalInteractions();
             totalReports += pd.agg.curRaw[REPORT];
+            totalLikes += likes;
+            totalComments += comments;
+            totalShares += shares;
+            if (likes + comments + shares > 0) {
+                postsWithPositiveInteraction++;
+            }
             scoreSum += pd.trendScore;
             if (pd.hasHashtag) {
                 postsWithHashtag++;
-            } else if (pd.topicAssignments.stream().anyMatch(a -> a.source() == TopicSource.KEYWORD)) {
-                postsWithKeywordOnly++;
             } else {
                 postsUncategorized++;
             }
@@ -569,19 +596,12 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
         double topTopicScore = 0;
         String topHashtagTopic = null;
         double topHashtagTopicScore = 0;
-        String topKeywordTopic = null;
-        double topKeywordTopicScore = 0;
         int hashtagTopicCount = 0;
-        int keywordTopicCount = 0;
         long uncategorizedPostCount = 0;
         double uncategorizedTopicScore = 0;
 
         for (Map.Entry<String, TopicAgg> e : topics.entrySet()) {
             TopicAgg value = e.getValue();
-            if (topTopic == null || value.score > topTopicScore) {
-                topTopic = e.getKey();
-                topTopicScore = value.score;
-            }
             if (FALLBACK_TOPIC.equals(e.getKey())) {
                 uncategorizedPostCount = value.postCount;
                 uncategorizedTopicScore = value.score;
@@ -593,14 +613,10 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
                     topHashtagTopic = e.getKey();
                     topHashtagTopicScore = value.score;
                 }
-            } else if (value.source == TopicSource.KEYWORD) {
-                keywordTopicCount++;
-                if (topKeywordTopic == null || value.score > topKeywordTopicScore) {
-                    topKeywordTopic = e.getKey();
-                    topKeywordTopicScore = value.score;
-                }
             }
         }
+        topTopic = topHashtagTopic;
+        topTopicScore = topHashtagTopicScore;
 
         double hashtagCoverage = posts.isEmpty() ? 0.0 : (double) postsWithHashtag / posts.size() * 100.0;
 
@@ -609,6 +625,10 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
                 .totalPosts(posts.size())
                 .totalInteractions(totalInteractions)
                 .totalReports(totalReports)
+                .totalLikes(totalLikes)
+                .totalComments(totalComments)
+                .totalShares(totalShares)
+                .postsWithPositiveInteraction(postsWithPositiveInteraction)
                 .totalTopics(topics.size())
                 .totalAlerts(alertCount)
                 .topTopic(topTopic)
@@ -616,15 +636,15 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
                 .avgTrendScore(round1(scoreSum / posts.size()))
                 .generatedAt(now)
                 .postsWithHashtag(postsWithHashtag)
-                .postsWithKeywordOnly(postsWithKeywordOnly)
+                .postsWithKeywordOnly(0)
                 .postsUncategorized(postsUncategorized)
                 .hashtagCoveragePercent(round1(hashtagCoverage))
                 .hashtagTopicCount(hashtagTopicCount)
-                .keywordTopicCount(keywordTopicCount)
+                .keywordTopicCount(0)
                 .topHashtagTopic(topHashtagTopic)
                 .topHashtagTopicScore(round1(topHashtagTopicScore))
-                .topKeywordTopic(topKeywordTopic)
-                .topKeywordTopicScore(round1(topKeywordTopicScore))
+                .topKeywordTopic(null)
+                .topKeywordTopicScore(0)
                 .uncategorizedPostCount(uncategorizedPostCount)
                 .uncategorizedTopicScore(round1(uncategorizedTopicScore))
                 .build();
@@ -639,6 +659,8 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
                 .summary(AnalyticsSummaryResponse.builder()
                         .range(range)
                         .totalPosts(0).totalInteractions(0).totalReports(0)
+                        .totalLikes(0).totalComments(0).totalShares(0)
+                        .postsWithPositiveInteraction(0)
                         .totalTopics(0).totalAlerts(0)
                         .topTopic(null).topTopicScore(0).avgTrendScore(0)
                         .postsWithHashtag(0).postsWithKeywordOnly(0).postsUncategorized(0)
@@ -670,87 +692,23 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
 
     private record TopicAssignment(String topic, TopicSource source) {}
 
-    /** Hashtags first; otherwise keywords from plain text; otherwise #khác. */
-    private TopicAssignmentResult resolveTopicAssignments(String content) {
-        Set<String> hashtags = extractHashtags(content);
-        if (!hashtags.isEmpty()) {
-            List<TopicAssignment> assignments = hashtags.stream()
+    /** Uses {@code post_topics} (user app) with the same hashtag fallback extractor. */
+    private TopicAssignmentResult resolveTopicAssignments(
+            UUID postId, String content, Map<UUID, List<String>> topicsByPostId) {
+        List<String> topics = topicsByPostId.getOrDefault(postId, List.of());
+        if (topics.isEmpty()) {
+            topics = HashtagExtractor.extract(content);
+        }
+        if (!topics.isEmpty()) {
+            List<TopicAssignment> assignments = topics.stream()
                     .map(t -> new TopicAssignment(t, TopicSource.HASHTAG))
                     .toList();
             return new TopicAssignmentResult(assignments, true);
         }
 
-        List<String> keywords = extractKeywords(content);
-        if (!keywords.isEmpty()) {
-            List<TopicAssignment> assignments = keywords.stream()
-                    .map(k -> new TopicAssignment(k, TopicSource.KEYWORD))
-                    .toList();
-            return new TopicAssignmentResult(assignments, false);
-        }
-
         return new TopicAssignmentResult(
                 List.of(new TopicAssignment(FALLBACK_TOPIC, TopicSource.UNCATEGORIZED)),
                 false);
-    }
-
-    private Set<String> extractHashtags(String content) {
-        Set<String> tags = new LinkedHashSet<>();
-        if (content == null) {
-            return tags;
-        }
-        Matcher m = HASHTAG.matcher(content);
-        while (m.find() && tags.size() < MAX_TAGS_PER_POST) {
-            tags.add(m.group(1).toLowerCase(Locale.ROOT));
-        }
-        return tags;
-    }
-
-    private List<String> extractKeywords(String content) {
-        if (content == null || content.isBlank()) {
-            return List.of();
-        }
-        String stripped = HASHTAG.matcher(content).replaceAll(" ");
-        stripped = URL_PATTERN.matcher(stripped).replaceAll(" ");
-        stripped = stripped.strip();
-        if (stripped.isBlank()) {
-            return List.of();
-        }
-
-        Map<String, Integer> freq = new LinkedHashMap<>();
-        for (String token : TOKEN_SPLIT.split(stripped)) {
-            String word = normalizeKeyword(token);
-            if (word == null) {
-                continue;
-            }
-            freq.merge(word, 1, Integer::sum);
-        }
-        if (freq.isEmpty()) {
-            return List.of();
-        }
-
-        return freq.entrySet().stream()
-                .sorted((a, b) -> {
-                    int byFreq = Integer.compare(b.getValue(), a.getValue());
-                    return byFreq != 0 ? byFreq : a.getKey().compareTo(b.getKey());
-                })
-                .limit(MAX_KEYWORDS_PER_POST)
-                .map(Map.Entry::getKey)
-                .toList();
-    }
-
-    private String normalizeKeyword(String raw) {
-        if (raw == null) {
-            return null;
-        }
-        String word = raw.toLowerCase(Locale.ROOT).trim();
-        if (word.length() < MIN_KEYWORD_LENGTH || word.length() > 24) {
-            return null;
-        }
-        if (STOPWORDS.contains(word) || word.chars().allMatch(Character::isDigit)) {
-            return null;
-        }
-        String cleaned = word.replaceAll("[^\\p{L}\\p{N}_]", "");
-        return cleaned.length() < MIN_KEYWORD_LENGTH ? null : cleaned;
     }
 
     private record TopicAssignmentResult(List<TopicAssignment> assignments, boolean hasHashtag) {}
@@ -817,8 +775,8 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
 
     /** Mutable per-post accumulator. */
     private static final class PostAgg {
-        /** Raw current-window counts indexed by LIKE/COMMENT/SHARE/REPORT. */
-        final long[] curRaw = new long[4];
+        /** Raw current-window counts indexed by LIKE/COMMENT/SHARE/REPORT/POST. */
+        final long[] curRaw = new long[5];
         /** Weighted trend_score for the previous window. */
         double prevScore;
         /** Weighted trend_score in the trailing 24h. */
@@ -830,9 +788,11 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
             return curRaw[LIKE] * LIKE_WEIGHT
                     + curRaw[COMMENT] * COMMENT_WEIGHT
                     + curRaw[SHARE] * SHARE_WEIGHT
-                    + curRaw[REPORT] * REPORT_WEIGHT;
+                    + curRaw[REPORT] * REPORT_WEIGHT
+                    + curRaw[POST] * POST_WEIGHT;
         }
 
+        /** Chỉ gồm tương tác thật (không tính lượt đăng) — giữ nguyên cách tính tỉ lệ báo cáo. */
         long totalInteractions() {
             return curRaw[LIKE] + curRaw[COMMENT] + curRaw[SHARE] + curRaw[REPORT];
         }
@@ -845,6 +805,8 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
         double prevScore;
         long reportCount;
         long commentCount;
+        long likeCount;
+        long shareCount;
         TopicSource source = TopicSource.UNCATEGORIZED;
         final Map<LocalDate, Double> dailyScore = new HashMap<>();
         final List<PostData> posts = new ArrayList<>();
@@ -852,9 +814,7 @@ public class PostTrendsAnalyticsServiceImpl implements PostTrendsAnalyticsServic
         void mergeSource(TopicSource incoming) {
             if (incoming == TopicSource.HASHTAG) {
                 source = TopicSource.HASHTAG;
-            } else if (incoming == TopicSource.KEYWORD && source != TopicSource.HASHTAG) {
-                source = TopicSource.KEYWORD;
-            } else if (incoming == TopicSource.UNCATEGORIZED && source == TopicSource.UNCATEGORIZED) {
+            } else if (incoming == TopicSource.UNCATEGORIZED && source != TopicSource.HASHTAG) {
                 source = TopicSource.UNCATEGORIZED;
             }
         }

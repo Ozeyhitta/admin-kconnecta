@@ -93,10 +93,39 @@ public interface PostAnalyticsRepository extends JpaRepository<Post, UUID> {
                                     @Param("last24hFrom") LocalDateTime last24hFrom);
 
     /**
+     * Post-creation signal: one row per PUBLISHED post created in the window. Lets brand-new posts
+     * (zero interactions) still enter the trend dataset so their hashtags surface in the ranking and
+     * chart. Same {@code [post_id, day, cnt_day, cur, prev, last24h]} shape as the interaction
+     * aggregates (cnt_day is always 1 — a post is created once).
+     */
+    @Query(value = """
+            SELECT id                                                                          AS post_id,
+                   CAST(created_at AS date)                                                     AS d,
+                   1                                                                            AS cnt_day,
+                   (CASE WHEN created_at >= :curFrom THEN 1 ELSE 0 END)                         AS cur,
+                   (CASE WHEN created_at >= :prevFrom AND created_at < :curFrom THEN 1 ELSE 0 END) AS prev,
+                   (CASE WHEN created_at >= :last24hFrom THEN 1 ELSE 0 END)                     AS last24h
+            FROM public.posts
+            WHERE created_at >= :prevFrom AND status = 'PUBLISHED'
+            """, nativeQuery = true)
+    List<Object[]> aggregatePosts(@Param("prevFrom") LocalDateTime prevFrom,
+                                  @Param("curFrom") LocalDateTime curFrom,
+                                  @Param("last24hFrom") LocalDateTime last24hFrom);
+
+    /**
      * Loads post metadata + author in ONE query (JOIN FETCH) for the set of posts that had any
      * interaction in the window. This is what prevents the N+1 that a per-post author lookup
      * would otherwise cause.
      */
     @Query("SELECT p FROM Post p LEFT JOIN FETCH p.author WHERE p.id IN :ids")
     List<Post> findAllWithAuthorByIdIn(@Param("ids") Collection<UUID> ids);
+
+    /** Topics synced by the user app into {@code post_topics} (feed topic affinity source of truth). */
+    @Query(value = """
+            SELECT post_id, topic
+            FROM public.post_topics
+            WHERE post_id IN (:ids)
+            ORDER BY post_id, topic
+            """, nativeQuery = true)
+    List<Object[]> findTopicsByPostIds(@Param("ids") Collection<UUID> ids);
 }

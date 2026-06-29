@@ -20,16 +20,22 @@ public interface PostAdminRepository extends JpaRepository<Post, UUID> {
             "SELECT p FROM Post p LEFT JOIN FETCH p.author " +
             "WHERE (:pattern IS NULL OR LOWER(p.content) LIKE :pattern) " +
             "  AND (:status IS NULL OR p.status = :status) " +
-            "  AND (:authorId IS NULL OR p.author.id = :authorId)",
+            "  AND (:authorId IS NULL OR p.author.id = :authorId) " +
+            "  AND (CAST(:createdFrom AS LocalDateTime) IS NULL OR p.createdAt >= :createdFrom) " +
+            "  AND (CAST(:createdToExclusive AS LocalDateTime) IS NULL OR p.createdAt < :createdToExclusive)",
            countQuery =
             "SELECT COUNT(p) FROM Post p " +
             "WHERE (:pattern IS NULL OR LOWER(p.content) LIKE :pattern) " +
             "  AND (:status IS NULL OR p.status = :status) " +
-            "  AND (:authorId IS NULL OR p.author.id = :authorId)")
+            "  AND (:authorId IS NULL OR p.author.id = :authorId) " +
+            "  AND (CAST(:createdFrom AS LocalDateTime) IS NULL OR p.createdAt >= :createdFrom) " +
+            "  AND (CAST(:createdToExclusive AS LocalDateTime) IS NULL OR p.createdAt < :createdToExclusive)")
     Page<Post> findAllFiltered(
             @Param("pattern") String pattern,
             @Param("status") PostStatus status,
             @Param("authorId") UUID authorId,
+            @Param("createdFrom") java.time.LocalDateTime createdFrom,
+            @Param("createdToExclusive") java.time.LocalDateTime createdToExclusive,
             Pageable pageable);
 
     @Query("SELECT p FROM Post p LEFT JOIN FETCH p.author WHERE p.id = :id")

@@ -19,6 +19,8 @@ public interface AdminUserService {
 
     AdminUserResponseDTO getUserById(UUID id);
 
+    AdminUserResponseDTO getUserByProfileId(UUID profileId);
+
     List<AdminUserResponseDTO> getUsersByIds(List<UUID> ids);
 
     AdminUserResponseDTO updateStatus(UUID id, AccountStatus status, Integer lockDays);

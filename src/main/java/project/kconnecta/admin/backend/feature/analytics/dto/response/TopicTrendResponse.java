@@ -17,4 +17,6 @@ public class TopicTrendResponse {
     String trendLabel;
     long reportCount;
     long commentCount;
+    long likeCount;
+    long shareCount;
 }

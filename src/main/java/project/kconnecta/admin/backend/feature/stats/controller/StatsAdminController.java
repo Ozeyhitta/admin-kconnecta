@@ -13,6 +13,7 @@ import project.kconnecta.admin.backend.feature.stats.dto.response.EngagementAnal
 import project.kconnecta.admin.backend.feature.stats.dto.response.HourCountResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.InteractionDetailResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.NewUsersAnalyticsResponse;
+import project.kconnecta.admin.backend.feature.stats.dto.response.OnlineUsersDetailResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.OnlineUsersResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.OverviewStatsResponse;
 import project.kconnecta.admin.backend.feature.stats.dto.response.PeriodCountResponse;
@@ -45,6 +46,11 @@ public class StatsAdminController {
     @GetMapping("/online")
     public ResponseEntity<OnlineUsersResponse> getOnlineUsers() {
         return ResponseEntity.ok(statsAdminService.getOnlineUsers());
+    }
+
+    @GetMapping("/online-users")
+    public ResponseEntity<OnlineUsersDetailResponse> getOnlineUsersDetail() {
+        return ResponseEntity.ok(statsAdminService.getOnlineUsersDetail());
     }
 
     @GetMapping("/new-users")
@@ -107,5 +113,12 @@ public class StatsAdminController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) String actionType) {
         return ResponseEntity.ok(statsAdminService.getInteractionDetail(from, to, date, actionType));
+    }
+
+    @GetMapping("/activity-hour-detail")
+    public ResponseEntity<InteractionDetailResponse> getActivityHourDetail(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam int hour) {
+        return ResponseEntity.ok(statsAdminService.getActivityHourDetail(date, hour));
     }
 }

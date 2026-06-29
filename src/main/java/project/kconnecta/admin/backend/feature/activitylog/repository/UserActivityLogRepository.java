@@ -183,6 +183,18 @@ public interface UserActivityLogRepository
             @org.springframework.data.repository.query.Param("day") java.time.LocalDate day);
 
     @org.springframework.data.jpa.repository.Query(
+            value = "SELECT action_type, COUNT(*)::bigint AS cnt " +
+                    "FROM user_activity_logs " +
+                    "WHERE created_at::date = CAST(:day AS date) " +
+                    "  AND EXTRACT(HOUR FROM created_at)::int = :hour " +
+                    "  AND action_type IN ('REACTION_ADDED','COMMENT_ADDED','POST_SHARED','POST_CREATED','FRIEND_REQUEST_SENT') " +
+                    "GROUP BY action_type",
+            nativeQuery = true)
+    java.util.List<Object[]> getInteractionBreakdownInHour(
+            @org.springframework.data.repository.query.Param("day") java.time.LocalDate day,
+            @org.springframework.data.repository.query.Param("hour") int hour);
+
+    @org.springframework.data.jpa.repository.Query(
             value = "SELECT created_at::date AS period, COUNT(*)::bigint AS cnt " +
                     "FROM user_activity_logs " +
                     "WHERE created_at BETWEEN :from AND :to " +
