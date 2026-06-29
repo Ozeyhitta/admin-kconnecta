@@ -14,8 +14,11 @@ import project.kconnecta.admin.backend.entity.User;
 import project.kconnecta.admin.backend.feature.post.dto.response.PostAdminResponse;
 import project.kconnecta.admin.backend.feature.post.dto.response.PostShareDetailResponse;
 import project.kconnecta.admin.backend.feature.post.repository.PostAdminRepository;
+import project.kconnecta.admin.backend.feature.post.repository.PostMediaAdminRepository;
+import project.kconnecta.admin.backend.common.util.CloudinaryPostMediaService;
 import project.kconnecta.admin.backend.feature.post.repository.PostShareAdminRepository;
 import project.kconnecta.admin.backend.feature.report.repository.PostReportAdminRepository;
+import project.kconnecta.admin.backend.feature.live.repository.LiveSessionAdminRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,8 +35,11 @@ import static org.mockito.Mockito.when;
 class PostAdminServiceImplTest {
 
     private PostAdminRepository postAdminRepository;
+    private PostMediaAdminRepository postMediaAdminRepository;
+    private CloudinaryPostMediaService cloudinaryPostMediaService;
     private PostShareAdminRepository postShareAdminRepository;
     private PostReportAdminRepository postReportAdminRepository;
+    private LiveSessionAdminRepository liveSessionAdminRepository;
     private PostAdminServiceImpl service;
 
     private final UUID postId = UUID.randomUUID();
@@ -43,10 +49,19 @@ class PostAdminServiceImplTest {
     @BeforeEach
     void setUp() {
         postAdminRepository = mock(PostAdminRepository.class);
+        postMediaAdminRepository = mock(PostMediaAdminRepository.class);
+        cloudinaryPostMediaService = mock(CloudinaryPostMediaService.class);
         postShareAdminRepository = mock(PostShareAdminRepository.class);
         postReportAdminRepository = mock(PostReportAdminRepository.class);
+        liveSessionAdminRepository = mock(LiveSessionAdminRepository.class);
         service = new PostAdminServiceImpl(
-                postAdminRepository, postShareAdminRepository, postReportAdminRepository);
+                postAdminRepository,
+                postMediaAdminRepository,
+                cloudinaryPostMediaService,
+                postShareAdminRepository,
+                postReportAdminRepository,
+                liveSessionAdminRepository
+        );
 
         when(postReportAdminRepository.countByPostIds(any())).thenReturn(List.of());
         when(postReportAdminRepository.findLatestByPostIds(any())).thenReturn(List.of());
