@@ -75,15 +75,53 @@ const LastMessageCell = () => {
   );
 };
 
+import { useDelete, useNotify, useRefresh } from "ra-core";
+import { Trash2 } from "lucide-react";
+
 const ConversationActions = () => {
   const record = useRecordContext();
+  const notify = useNotify();
+  const refresh = useRefresh();
+  const [deleteOne, { isPending }] = useDelete();
+
   if (!record) return null;
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm("Bạn có chắc chắn muốn xóa toàn bộ cuộc hội thoại này?")) {
+      deleteOne(
+        "conversations",
+        { id: record.id },
+        {
+          onSuccess: () => {
+            notify("Đã xóa cuộc hội thoại thành công", { type: "info" });
+            refresh();
+          },
+          onError: () => {
+            notify("Lỗi khi xóa cuộc hội thoại", { type: "error" });
+          },
+        }
+      );
+    }
+  };
+
   return (
-    <Button asChild variant="ghost" size="sm">
-      <Link to={`/conversations/${record.id}/show`}>
-        <Eye className="h-4 w-4" />
-      </Link>
-    </Button>
+    <div className="flex items-center gap-1 justify-end">
+      <Button asChild variant="ghost" size="sm">
+        <Link to={`/conversations/${record.id}/show`}>
+          <Eye className="h-4 w-4" />
+        </Link>
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={handleDelete}
+        disabled={isPending}
+        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
   );
 };
 

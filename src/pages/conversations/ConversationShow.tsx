@@ -1,12 +1,14 @@
-import { useShowController } from "ra-core";
-import { Link } from "react-router";
-import { ArrowLeft, CheckCheck } from "lucide-react";
+import { useShowController, useDelete, useNotify, useRefresh } from "ra-core";
+import { Link, useNavigate } from "react-router";
+import { ArrowLeft, CheckCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatChatMessagePreview } from "@/lib/chatMessagePreview";
+import { apiClient } from "@/services/axiosInstance";
+import { useState } from "react";
 
 const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "medium",
@@ -77,6 +79,11 @@ const ParticipantCard = ({ user }: { user: ChatUser }) => {
 
 export const ConversationShow = () => {
   const { record, isPending } = useShowController<ConversationDetail>();
+  const navigate = useNavigate();
+  const notify = useNotify();
+  const refresh = useRefresh();
+  const [deleteOne, { isPending: isDeleting }] = useDelete();
+  const [deletingMsgId, setDeletingMsgId] = useState<string | null>(null);
 
   if (isPending) {
     return (
@@ -124,6 +131,39 @@ export const ConversationShow = () => {
     avatarUrl: summary.user2AvatarUrl,
   };
 
+  const handleDeleteConversation = () => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa toàn bộ cuộc hội thoại này?")) {
+      deleteOne(
+        "conversations",
+        { id: record.id },
+        {
+          onSuccess: () => {
+            notify("Đã xóa cuộc hội thoại thành công", { type: "info" });
+            navigate("/conversations");
+          },
+          onError: () => {
+            notify("Lỗi khi xóa cuộc hội thoại", { type: "error" });
+          },
+        }
+      );
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa tin nhắn này?")) {
+      setDeletingMsgId(messageId);
+      try {
+        await apiClient.delete(`/api/v1/admin/conversations/messages/${messageId}`);
+        notify("Đã xóa tin nhắn thành công", { type: "info" });
+        refresh();
+      } catch (error) {
+        notify("Lỗi khi xóa tin nhắn", { type: "error" });
+      } finally {
+        setDeletingMsgId(null);
+      }
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -133,9 +173,21 @@ export const ConversationShow = () => {
             Quay lại
           </Link>
         </Button>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Badge variant="outline">{summary.messageCount ?? messages.length} tin nhắn</Badge>
-          <Badge variant="secondary">{summary.unreadCount ?? 0} chưa đọc</Badge>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mr-2">
+            <Badge variant="outline">{summary.messageCount ?? messages.length} tin nhắn</Badge>
+            <Badge variant="secondary">{summary.unreadCount ?? 0} chưa đọc</Badge>
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleDeleteConversation}
+            disabled={isDeleting}
+            className="flex items-center gap-1.5"
+          >
+            <Trash2 className="h-4 w-4" />
+            Xóa hội thoại
+          </Button>
         </div>
       </div>
 
@@ -158,7 +210,7 @@ export const ConversationShow = () => {
               messages.map((message) => {
                 const senderName = message.senderFullName ?? message.senderUsername ?? "Người dùng";
                 return (
-                  <div key={message.id} className="flex gap-3 p-4">
+                  <div key={message.id} className="flex gap-3 p-4 group relative hover:bg-muted/30">
                     <Avatar className="h-8 w-8 shrink-0">
                       <AvatarImage src={message.senderAvatarUrl ?? undefined} />
                       <AvatarFallback className="text-xs">
@@ -171,11 +223,11 @@ export const ConversationShow = () => {
                         {message.senderUsername ? (
                           <span className="text-xs text-muted-foreground">@{message.senderUsername}</span>
                         ) : null}
-                        <span className="ml-auto text-xs text-muted-foreground">
+                        <span className="ml-auto text-xs text-muted-foreground pr-12">
                           {message.createdAt ? dateFormatter.format(new Date(message.createdAt)) : "-"}
                         </span>
                       </div>
-                      <p className="mt-1 whitespace-pre-wrap break-words text-sm">
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm pr-12">
                         {message.deleted ? (
                           <span className="italic text-muted-foreground">Tin nhắn đã bị xóa</span>
                         ) : (
@@ -192,6 +244,19 @@ export const ConversationShow = () => {
                         {message.seen ? <span>Đã xem</span> : <span>Chưa xem</span>}
                       </div>
                     </div>
+
+                    {!message.deleted && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteMessage(message.id)}
+                        disabled={deletingMsgId === message.id}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
+                        title="Xóa tin nhắn này"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 );
               })

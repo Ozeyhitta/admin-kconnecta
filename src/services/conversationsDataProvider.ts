@@ -2,7 +2,7 @@ import type { DataProvider } from "ra-core";
 import { apiClient } from "./axiosInstance";
 import { getPageContent, getPageTotal } from "./pagination";
 
-type ConversationMethods = Pick<DataProvider, "getList" | "getOne">;
+type ConversationMethods = Pick<DataProvider, "getList" | "getOne" | "delete">;
 
 export const conversationsDataProvider: ConversationMethods = {
   getList: async (_resource, params) => {
@@ -27,5 +27,10 @@ export const conversationsDataProvider: ConversationMethods = {
   getOne: async (_resource, params) => {
     const { data } = await apiClient.get(`/api/v1/admin/conversations/${params.id}`);
     return { data: { ...data, id: params.id } };
+  },
+
+  delete: async (_resource, params) => {
+    await apiClient.delete(`/api/v1/admin/conversations/${params.id}`);
+    return { data: { id: params.id } } as any;
   },
 };

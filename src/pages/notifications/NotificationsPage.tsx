@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { AlertTriangle, Clock, RefreshCw, Send, Users, User, X, Search, Flag, Video, Bell } from "lucide-react";
 import { useNotify } from "ra-core";
@@ -20,6 +20,7 @@ import {
 import { apiClient } from "@/services/axiosInstance";
 import { getPageContent, getPageTotal } from "@/services/pagination";
 import { markAdminInboxSeen } from "@/lib/adminInboxSeen";
+import { useIntervalPoll, ADMIN_INBOX_POLL_MS } from "@/lib/adminStatsPoll";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -272,8 +273,8 @@ export default function NotificationsPage() {
   const [postReportsLoading, setPostReportsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"review" | "reports">("review");
 
-  const loadReviewRequests = async () => {
-    setReviewLoading(true);
+  const loadReviewRequests = async (silent = false) => {
+    if (!silent) setReviewLoading(true);
     try {
       const { data } = await apiClient.get<AccountReviewRequest[]>(
         "/api/v1/admin/notifications/account-review-requests",
@@ -283,12 +284,12 @@ export default function NotificationsPage() {
     } catch {
       setReviewRequests([]);
     } finally {
-      setReviewLoading(false);
+      if (!silent) setReviewLoading(false);
     }
   };
 
-  const loadPostReports = async () => {
-    setPostReportsLoading(true);
+  const loadPostReports = async (silent = false) => {
+    if (!silent) setPostReportsLoading(true);
     try {
       const { data } = await apiClient.get<PostReportNotification[]>(
         "/api/v1/admin/notifications/post-report-requests",
@@ -298,17 +299,29 @@ export default function NotificationsPage() {
     } catch {
       setPostReports([]);
     } finally {
-      setPostReportsLoading(false);
+      if (!silent) setPostReportsLoading(false);
     }
   };
 
-  const loadInbox = async () => {
-    await Promise.all([loadReviewRequests(), loadPostReports()]);
+  const loadInbox = async (silent = false) => {
+    await Promise.all([loadReviewRequests(silent), loadPostReports(silent)]);
   };
+
+  const isFirstLoad = useRef(true);
+
+  const fetchInbox = useCallback(async () => {
+    const silent = !isFirstLoad.current;
+    if (silent) {
+      markAdminInboxSeen();
+    }
+    await loadInbox(silent);
+    isFirstLoad.current = false;
+  }, []);
+
+  useIntervalPoll(fetchInbox, ADMIN_INBOX_POLL_MS, [fetchInbox]);
 
   useEffect(() => {
     markAdminInboxSeen();
-    void loadInbox();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSend = async () => {
