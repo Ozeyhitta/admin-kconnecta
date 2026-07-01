@@ -68,6 +68,29 @@ public class ConversationAdminServiceImpl implements ConversationAdminService {
                 .build();
     }
 
+    @Override
+    public void deleteConversation(String id) {
+        UUID[] pair = parsePairId(id);
+        int updated = conversationAdminRepository.deleteConversation(pair[0], pair[1]);
+        if (updated == 0) {
+            throw new ResourceNotFoundException("Conversation not found or already deleted");
+        }
+    }
+
+    @Override
+    public void deleteMessage(String messageId) {
+        UUID msgId;
+        try {
+            msgId = UUID.fromString(messageId);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid message ID format");
+        }
+        int updated = conversationAdminRepository.deleteMessage(msgId);
+        if (updated == 0) {
+            throw new ResourceNotFoundException("Message not found or already deleted");
+        }
+    }
+
     private String sortColumn(String sortBy) {
         return switch (sortBy) {
             case "messageCount" -> "message_count";

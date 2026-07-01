@@ -2,6 +2,7 @@ package project.kconnecta.admin.backend.feature.conversation.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,10 +29,22 @@ public class ConversationAdminController {
     ) {
         return ResponseEntity.ok(
                 conversationAdminService.getPrivateConversations(page, size, sortBy, sortDir, q));
+     }
+
+     @GetMapping("/{id}")
+     public ResponseEntity<AdminConversationDetailResponse> getPrivateConversation(@PathVariable String id) {
+         return ResponseEntity.ok(conversationAdminService.getPrivateConversation(id));
+     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteConversation(@PathVariable String id) {
+        conversationAdminService.deleteConversation(id);
+        return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<AdminConversationDetailResponse> getPrivateConversation(@PathVariable String id) {
-        return ResponseEntity.ok(conversationAdminService.getPrivateConversation(id));
+    @DeleteMapping("/messages/{messageId}")
+    public ResponseEntity<Void> deleteMessage(@PathVariable String messageId) {
+        conversationAdminService.deleteMessage(messageId);
+        return ResponseEntity.noContent().build();
     }
 }

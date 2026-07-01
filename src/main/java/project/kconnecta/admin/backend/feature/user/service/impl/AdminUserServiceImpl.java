@@ -240,4 +240,14 @@ public class AdminUserServiceImpl implements AdminUserService {
         return accountRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
     }
+
+    @Override
+    public void sendResetPasswordEmail(UUID id) {
+        Account account = findAccount(id);
+        UUID userId = resolveUserId(account);
+        if (userId == null) {
+            throw new ResourceNotFoundException("User profile not found for account: " + id);
+        }
+        userBackendSessionClient.sendResetPasswordEmail(userId);
+    }
 }

@@ -35,7 +35,20 @@ public class UserBackendSessionClient {
                     new HttpEntity<>(headers),
                     Void.class);
         } catch (Exception e) {
-            log.warn("Could not revoke sessions on user backend for userId={}: {}", userId, e.getMessage());
+        }
+    }
+    public void sendResetPasswordEmail(UUID userId) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Internal-Key", internalKey);
+            restTemplate.exchange(
+                    userServiceUrl + "/api/internal/users/" + userId + "/send-reset-password-email",
+                    HttpMethod.POST,
+                    new HttpEntity<>(headers),
+                    Void.class);
+        } catch (Exception e) {
+            log.warn("Could not send reset password email on user backend for userId={}: {}", userId, e.getMessage());
+            throw new RuntimeException("Không thể gửi email đặt lại mật khẩu: " + e.getMessage());
         }
     }
 }

@@ -83,6 +83,12 @@ public class UserAdminController {
         return ResponseEntity.ok(adminUserService.resetPassword(id, request.getNewPassword()));
     }
 
+    @PostMapping("/{id}/send-reset-password-email")
+    public ResponseEntity<Void> sendResetPasswordEmail(@PathVariable UUID id) {
+        adminUserService.sendResetPasswordEmail(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/{id}/email")
     public ResponseEntity<AdminUserResponseDTO> resetEmail(
             @PathVariable UUID id,

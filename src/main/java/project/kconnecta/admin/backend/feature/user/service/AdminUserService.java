@@ -36,4 +36,6 @@ public interface AdminUserService {
     UserStatsResponse getUserStats(UUID id);
 
     List<UserActivityLogResponse> getUserActivity(UUID id);
+
+    void sendResetPasswordEmail(UUID id);
 }

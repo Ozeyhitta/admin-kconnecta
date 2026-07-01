@@ -14,5 +14,9 @@ public interface ConversationAdminService {
     );
 
     AdminConversationDetailResponse getPrivateConversation(String id);
+
+    void deleteConversation(String id);
+
+    void deleteMessage(String messageId);
 }
 

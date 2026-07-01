@@ -202,5 +202,32 @@ public class ConversationAdminRepository {
                 .deleted(rs.getBoolean("deleted"))
                 .build();
     }
+    public int deleteConversation(UUID user1Id, UUID user2Id) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("user1Id", user1Id)
+                .addValue("user2Id", user2Id);
+
+        return jdbc.update("""
+                UPDATE chat_messages
+                SET deleted = true
+                WHERE conversation_id IS NULL
+                  AND (
+                    (sender_id = :user1Id AND receiver_id = :user2Id)
+                    OR
+                    (sender_id = :user2Id AND receiver_id = :user1Id)
+                  )
+                """, params);
+    }
+
+    public int deleteMessage(UUID messageId) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("messageId", messageId);
+
+        return jdbc.update("""
+                UPDATE chat_messages
+                SET deleted = true
+                WHERE id = :messageId
+                """, params);
+    }
 }
 
