@@ -57,7 +57,12 @@ export const authProvider: AuthProvider = {
     }
   },
 
-  logout: () => {
+  logout: async () => {
+    try {
+      await apiClient.post("/api/v1/admin/auth/logout");
+    } catch {
+      // Ignored - still proceed to logout locally
+    }
     redirectToLogin();
     return Promise.resolve(false);
   },

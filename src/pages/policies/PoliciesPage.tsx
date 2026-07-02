@@ -22,6 +22,7 @@ import {
   AuditSection,
   KeywordsSection,
   PostPolicySection,
+  AdminSetupSection,
   SECTION_META,
 } from "./policy-sections";
 import type { PolicySectionKey } from "./types";
@@ -237,6 +238,8 @@ const PoliciesPage = () => {
         return <PostPolicySection config={config} update={update} />;
       case "audit":
         return <AuditSection config={config} />;
+      case "admin_setup":
+        return <AdminSetupSection />;
       default:
         return null;
     }

@@ -78,12 +78,103 @@ export function InteractionDetailDialog({
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [data, setData] = React.useState<InteractionDetailResponse | null>(null);
-  const chartRef = React.useRef<HTMLDivElement>(null);
+
+  const typeVisual = selection?.kind === "type"
+    ? INTERACTION_TYPE_DETAIL_STYLE[selection.type]
+    : null;
+  const typeChartColor = typeVisual?.chartColor ?? "#f59e0b";
+
   const chartInst = React.useRef<echarts.ECharts | null>(null);
+  const chartCleanupRef = React.useRef<(() => void) | null>(null);
+  const chartDomNodeRef = React.useRef<HTMLDivElement | null>(null);
   const chartDataRef = React.useRef<AnalyticsChartPoint[]>([]);
   const onDayClickRef = React.useRef<((point: AnalyticsChartPoint) => void) | undefined>(undefined);
   const [drillOpen, setDrillOpen] = React.useState(false);
   const [drillSelection, setDrillSelection] = React.useState<InteractionChartSelection | null>(null);
+
+  const chartRef = React.useCallback((node: HTMLDivElement | null) => {
+    // 1. Clean up old node/instance/listeners if they exist
+    if (chartCleanupRef.current) {
+      chartCleanupRef.current();
+      chartCleanupRef.current = null;
+    }
+    if (chartInst.current) {
+      chartInst.current.dispose();
+      chartInst.current = null;
+    }
+
+    chartDomNodeRef.current = node;
+    if (node === null) return;
+
+    if (!data || data.mode !== "type" || data.chartData.length === 0) {
+      return;
+    }
+
+    // Always dispose previous instance on this DOM node if it exists to avoid conflicts
+    const existingInst = echarts.getInstanceByDom(node);
+    if (existingInst) {
+      existingInst.dispose();
+    }
+
+    const instance = echarts.init(node);
+    chartInst.current = instance;
+    chartDataRef.current = data.chartData;
+
+    instance.setOption({
+      tooltip: { trigger: "axis" },
+      grid: { left: "2%", right: "2%", bottom: "4%", top: "8%", containLabel: true },
+      xAxis: {
+        type: "category",
+        data: data.chartData.map((d) => d.label),
+        axisLabel: { rotate: data.chartData.length > 12 ? 35 : 0, fontSize: 10 },
+      },
+      yAxis: { type: "value", minInterval: 1 },
+      series: [{
+        type: "bar",
+        data: data.chartData.map((d) => d.count),
+        itemStyle: { borderRadius: [4, 4, 0, 0], color: typeChartColor },
+        barMaxWidth: 28,
+      }],
+    }, true);
+
+    const resizeTimers = [
+      setTimeout(() => instance.resize(), 50),
+      setTimeout(() => instance.resize(), 150),
+      setTimeout(() => instance.resize(), 300),
+      setTimeout(() => instance.resize(), 500),
+    ];
+
+    const detach = attachChartDayInteraction(
+      instance,
+      () => data.chartData,
+      () => onDayClickRef.current,
+    );
+
+    const onResize = () => instance.resize();
+    window.addEventListener("resize", onResize);
+    const ro = new ResizeObserver(() => { instance.resize(); });
+    ro.observe(node);
+
+    chartCleanupRef.current = () => {
+      resizeTimers.forEach(clearTimeout);
+      detach();
+      window.removeEventListener("resize", onResize);
+      ro.disconnect();
+    };
+  }, [data, typeChartColor]);
+
+  React.useEffect(() => {
+    return () => {
+      if (chartCleanupRef.current) {
+        chartCleanupRef.current();
+        chartCleanupRef.current = null;
+      }
+      if (chartInst.current) {
+        chartInst.current.dispose();
+        chartInst.current = null;
+      }
+    };
+  }, []);
 
   const openDrillDown = React.useCallback((next: InteractionChartSelection) => {
     setDrillSelection(next);
@@ -168,60 +259,7 @@ export function InteractionDetailDialog({
     };
   }, [open, dateRange, activeFilters, selection]);
 
-  const typeVisual = selection?.kind === "type"
-    ? INTERACTION_TYPE_DETAIL_STYLE[selection.type]
-    : null;
-  const typeChartColor = typeVisual?.chartColor ?? "#f59e0b";
 
-  React.useEffect(() => {
-    if (!open || !data || data.mode !== "type" || !chartRef.current || data.chartData.length === 0) {
-      chartInst.current?.dispose();
-      chartInst.current = null;
-      return;
-    }
-
-    chartInst.current ??= echarts.init(chartRef.current);
-    chartDataRef.current = data.chartData;
-    chartInst.current.setOption({
-      tooltip: { trigger: "axis" },
-      grid: { left: "2%", right: "2%", bottom: "4%", top: "8%", containLabel: true },
-      xAxis: {
-        type: "category",
-        data: data.chartData.map((d) => d.label),
-        axisLabel: { rotate: data.chartData.length > 12 ? 35 : 0, fontSize: 10 },
-      },
-      yAxis: { type: "value", minInterval: 1 },
-      series: [{
-        type: "bar",
-        data: data.chartData.map((d) => d.count),
-        itemStyle: { borderRadius: [4, 4, 0, 0], color: typeChartColor },
-        barMaxWidth: 28,
-      }],
-    }, true);
-
-    // Force resize after dialog open animation so the chart fills the container
-    // (cached data can make the init run before the dialog is fully visible)
-    const resizeTimer = setTimeout(() => chartInst.current?.resize(), 0);
-
-    const detach = attachChartDayInteraction(
-      chartInst.current,
-      () => chartDataRef.current,
-      () => onDayClickRef.current,
-    );
-
-    const onResize = () => chartInst.current?.resize();
-    window.addEventListener("resize", onResize);
-    const ro = new ResizeObserver(() => { chartInst.current?.resize(); });
-    ro.observe(chartRef.current);
-    return () => {
-      clearTimeout(resizeTimer);
-      detach();
-      window.removeEventListener("resize", onResize);
-      ro.disconnect();
-      chartInst.current?.dispose();
-      chartInst.current = null;
-    };
-  }, [open, data, typeChartColor]);
 
   const title = selection
     ? selection.kind === "day"

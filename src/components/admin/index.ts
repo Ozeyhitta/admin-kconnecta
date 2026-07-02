@@ -76,3 +76,4 @@ export * from "./theme-provider";
 export * from "./use-theme";
 export * from "./url-field";
 export * from "./user-menu";
+export * from "./HighlightText";

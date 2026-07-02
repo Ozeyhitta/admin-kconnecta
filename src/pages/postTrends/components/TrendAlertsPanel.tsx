@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { useState, useEffect } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -7,7 +8,10 @@ import {
   Flame,
   MessageSquareWarning,
   Rocket,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { TrendAlert } from "../types";
 import { adminPostShowPath } from "../utils";
@@ -48,6 +52,15 @@ type TrendAlertsPanelProps = {
 };
 
 export function TrendAlertsPanel({ alerts, loading }: TrendAlertsPanelProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+  const totalItems = alerts.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [totalItems]);
+
   if (loading) {
     return (
       <div className="space-y-2">
@@ -58,7 +71,7 @@ export function TrendAlertsPanel({ alerts, loading }: TrendAlertsPanelProps) {
     );
   }
 
-  if (alerts.length === 0) {
+  if (totalItems === 0) {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-success-border bg-success-bg p-4 text-sm text-success-on-bg">
         <Activity className="h-4 w-4 shrink-0" />
@@ -67,54 +80,94 @@ export function TrendAlertsPanel({ alerts, loading }: TrendAlertsPanelProps) {
     );
   }
 
+  const paginatedAlerts = alerts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
-    <div className="space-y-2 max-h-[440px] overflow-y-auto pr-1">
-      {alerts.map((a) => {
-        const s = severityStyle(a.severity);
-        const Icon = ALERT_ICON[a.type] ?? AlertTriangle;
-        const isPost = a.scope === "post" && a.targetId;
-        const postPath = isPost ? adminPostShowPath(a.targetId) : null;
+    <div className="space-y-4">
+      <div className="space-y-2">
+        {paginatedAlerts.map((a) => {
+          const s = severityStyle(a.severity);
+          const Icon = ALERT_ICON[a.type] ?? AlertTriangle;
+          const isPost = a.scope === "post" && a.targetId;
+          const postPath = isPost ? adminPostShowPath(a.targetId) : null;
 
-        const inner = (
-          <>
-            <Icon className={`h-5 w-5 shrink-0 mt-0.5 ${s.icon}`} />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-sm">{a.title}</span>
-                <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${s.badge}`}>
-                  {a.severity}
-                </span>
+          const inner = (
+            <>
+              <Icon className={`h-5 w-5 shrink-0 mt-0.5 ${s.icon}`} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-sm">{a.title}</span>
+                  <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${s.badge}`}>
+                    {a.severity}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">{a.message}</p>
+                <p className="text-[11px] text-muted-foreground/70 mt-1 truncate">↳ {a.targetLabel}</p>
+                {postPath && (
+                  <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                    <ExternalLink className="h-3 w-3" />
+                    Xem bài viết
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">{a.message}</p>
-              <p className="text-[11px] text-muted-foreground/70 mt-1 truncate">↳ {a.targetLabel}</p>
-              {postPath && (
-                <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary">
-                  <ExternalLink className="h-3 w-3" />
-                  Xem bài viết
-                </span>
-              )}
-            </div>
-          </>
-        );
-
-        if (postPath) {
-          return (
-            <Link
-              key={a.id}
-              to={postPath}
-              className={`flex gap-3 rounded-lg border p-3 transition-colors hover:opacity-90 ${s.box}`}
-            >
-              {inner}
-            </Link>
+            </>
           );
-        }
 
-        return (
-          <div key={a.id} className={`flex gap-3 rounded-lg border p-3 ${s.box}`}>
-            {inner}
+          if (postPath) {
+            return (
+              <Link
+                key={a.id}
+                to={postPath}
+                className={`flex gap-3 rounded-lg border p-3 transition-colors hover:opacity-90 ${s.box}`}
+              >
+                {inner}
+              </Link>
+            );
+          }
+
+          return (
+            <div key={a.id} className={`flex gap-3 rounded-lg border p-3 ${s.box}`}>
+              {inner}
+            </div>
+          );
+        })}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 border-t">
+          <p className="text-xs text-muted-foreground">
+            Hiển thị {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalItems)} trong số {totalItems}
+          </p>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1 cursor-pointer"
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Trước
+            </Button>
+            <span className="text-xs font-medium px-3">
+              Trang {currentPage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1 cursor-pointer"
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Sau
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
-        );
-      })}
+        </div>
+      )}
     </div>
   );
 }

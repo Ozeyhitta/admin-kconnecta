@@ -196,7 +196,7 @@ const PostTrendsPage = () => {
               />
             </section>
 
-            <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <section className="space-y-6">
               <div className="space-y-3">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Cảnh báo hệ thống

@@ -87,10 +87,13 @@ interface Comment {
   authorUsername: string;
   authorFullName: string;
   authorAvatarUrl: string;
+  authorAccountId?: string;
   content: string;
   createdAt: string;
   deleted: boolean;
   parentCommentId: string | null;
+  status?: string;
+  moderationFailReason?: string | null;
 }
 
 const fmt = new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium", timeStyle: "short" });
@@ -299,6 +302,15 @@ const CommentsSection = ({
     }
   };
 
+  const visibleComments = React.useMemo(() => {
+    if (!comments) return [];
+    const hasVisibleDescendants = (commentId: string, list: Comment[]): boolean => {
+      const children = list.filter(item => item.parentCommentId === commentId);
+      return children.some(child => !child.deleted || hasVisibleDescendants(child.id, list));
+    };
+    return comments.filter(c => !c.deleted || hasVisibleDescendants(c.id, comments));
+  }, [comments]);
+
   if (comments === null) {
     return (
       <div className="space-y-2">
@@ -309,32 +321,58 @@ const CommentsSection = ({
     );
   }
 
-  if (comments.length === 0) {
+  if (visibleComments.length === 0) {
     return <p className="py-6 text-center text-sm text-muted-foreground">Chưa có bình luận nào</p>;
   }
 
   return (
     <div className="divide-y">
-      {comments.map((c) => (
+      {visibleComments.map((c) => (
         <div
           key={c.id}
           id={`comment-${c.id}`}
           className={[
             "flex gap-2.5 py-3 scroll-mt-24 transition-colors",
             c.deleted ? "opacity-50" : "",
+            c.status === "REJECTED" ? "bg-red-50/50 dark:bg-red-950/20 border border-red-100/50 dark:border-red-900/30 px-2.5 -mx-2.5 rounded-lg" : "",
             flashCommentId === c.id ? "rounded-lg bg-pink-50 ring-2 ring-pink-400 -mx-1 px-1" : "",
           ].join(" ").trim()}
         >
-          <Avatar className="mt-0.5 h-7 w-7 shrink-0">
-            <AvatarImage src={c.authorAvatarUrl} />
-            <AvatarFallback className="text-xs">
-              {(c.authorFullName ?? c.authorUsername ?? "?").charAt(0)}
-            </AvatarFallback>
-          </Avatar>
+          {c.authorAccountId ? (
+            <Link to={`/customers/${c.authorAccountId}`} className="shrink-0">
+              <Avatar className="mt-0.5 h-7 w-7 transition-opacity hover:opacity-80">
+                <AvatarImage src={c.authorAvatarUrl} />
+                <AvatarFallback className="text-xs">
+                  {(c.authorFullName ?? c.authorUsername ?? "?").charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+          ) : (
+            <Avatar className="mt-0.5 h-7 w-7 shrink-0">
+              <AvatarImage src={c.authorAvatarUrl} />
+              <AvatarFallback className="text-xs">
+                {(c.authorFullName ?? c.authorUsername ?? "?").charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
-              <span className="text-sm font-medium">{c.authorFullName ?? c.authorUsername}</span>
+              {c.authorAccountId ? (
+                <Link
+                  to={`/customers/${c.authorAccountId}`}
+                  className="text-sm font-medium hover:underline text-foreground"
+                >
+                  {c.authorFullName ?? c.authorUsername}
+                </Link>
+              ) : (
+                <span className="text-sm font-medium">{c.authorFullName ?? c.authorUsername}</span>
+              )}
               {c.parentCommentId ? <span className="text-xs text-muted-foreground">trả lời</span> : null}
+              {c.status === "REJECTED" && (
+                <span className="inline-flex items-center rounded bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:text-red-300 ring-1 ring-inset ring-red-600/10">
+                  Bị từ chối
+                </span>
+              )}
               <span className="ml-auto shrink-0 text-xs text-muted-foreground">
                 {c.createdAt ? fmt.format(new Date(c.createdAt)) : "-"}
               </span>
@@ -342,6 +380,11 @@ const CommentsSection = ({
             <p className="mt-0.5 break-words text-sm text-foreground/90">
               {c.deleted ? <em className="text-muted-foreground">Đã xóa</em> : c.content}
             </p>
+            {c.status === "REJECTED" && c.moderationFailReason && (
+              <p className="mt-1 text-xs text-red-500 dark:text-red-400 italic">
+                Lý do: {c.moderationFailReason}
+              </p>
+            )}
           </div>
           {!c.deleted ? (
             <button

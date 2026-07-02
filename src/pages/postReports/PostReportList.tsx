@@ -1,5 +1,5 @@
 import type { RaRecord } from "ra-core";
-import { FilterLiveForm, useRecordContext } from "ra-core";
+import { FilterLiveForm, useRecordContext, useListContext } from "ra-core";
 import { Link } from "react-router";
 import {
   DataTable,
@@ -7,6 +7,7 @@ import {
   List,
   ListPagination,
   TextInput,
+  HighlightText,
 } from "@/components/admin";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,9 @@ const shortDateFormatter = new Intl.DateTimeFormat("vi-VN", {
 
 const PersonCell = ({ type }: { type: "reporter" | "author" }) => {
   const record = useRecordContext();
+  const { filterValues } = useListContext();
+  const search = typeof filterValues?.q === "string" ? filterValues.q : undefined;
+
   if (!record) return null;
 
   const prefix = type === "reporter" ? "reporter" : "postAuthor";
@@ -36,11 +40,11 @@ const PersonCell = ({ type }: { type: "reporter" | "author" }) => {
       </Avatar>
       <div className="flex min-w-0 flex-col leading-tight">
         <span className="block truncate text-sm font-medium" title={name}>
-          {name}
+          <HighlightText text={name} search={search} />
         </span>
         {username ? (
           <span className="truncate text-xs text-muted-foreground" title={`@${username}`}>
-            @{username}
+            @<HighlightText text={username} search={search} />
           </span>
         ) : null}
       </div>
@@ -50,6 +54,9 @@ const PersonCell = ({ type }: { type: "reporter" | "author" }) => {
 
 const ReportContentCell = () => {
   const record = useRecordContext();
+  const { filterValues } = useListContext();
+  const search = typeof filterValues?.q === "string" ? filterValues.q : undefined;
+
   if (!record) return null;
   const reason = formatPostReportReason(record.reason, record.category);
   const postContent = (record.postContent ?? "").trim();
@@ -57,10 +64,10 @@ const ReportContentCell = () => {
   return (
     <div className="min-w-0 space-y-1">
       <p className="line-clamp-2 break-words text-sm leading-snug" title={reason}>
-        {reason}
+        <HighlightText text={reason} search={search} />
       </p>
       <p className="line-clamp-1 break-words text-xs text-muted-foreground" title={postContent}>
-        {postContent || "Bài viết không có nội dung chữ"}
+        {postContent ? <HighlightText text={postContent} search={search} /> : "Bài viết không có nội dung chữ"}
       </p>
     </div>
   );

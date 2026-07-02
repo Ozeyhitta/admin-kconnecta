@@ -77,6 +77,8 @@ export const InteractionAnalyticsSection = ({
   const handleTypeFilter = React.useCallback((item: InteractionBreakdownItem) => {
     const actionType = INTERACTION_TYPE_TO_ACTION[item.type] ?? item.type;
     onInteractionTypeSelect?.(actionType);
+    setSelection({ kind: "type", type: item.type, actionType });
+    setDetailOpen(true);
   }, [onInteractionTypeSelect]);
 
   const interactionAlerts = React.useMemo(() => {
@@ -210,6 +212,7 @@ export const InteractionAnalyticsSection = ({
             emptyMessage={breakdownEmptyMessage}
             activeInteractionType={activeFilters.interactionType}
             onTypeClick={onInteractionTypeSelect ? handleTypeFilter : undefined}
+            typeClickHint="Nhấn loại để xem chi tiết"
           />
         </CardContent>
       </Card>

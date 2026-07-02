@@ -2,7 +2,7 @@ import * as React from "react";
 import { AlertTriangle } from "lucide-react";
 import { Breadcrumb, BreadcrumbPage } from "@/components/admin";
 import { StatsDateFilter } from "@/components/admin/stats-date-filter";
-import { apiClient } from "@/services/axiosInstance";
+import { cachedApiGet, DASHBOARD_CACHE_TTL } from "@/services/apiGetCache";
 import { ADMIN_CHARTS_POLL_MS, useIntervalPoll } from "@/lib/adminStatsPoll";
 import {
   createDefaultStatsDateRange,
@@ -79,9 +79,10 @@ const StatsPage = () => {
 
   const fetchAnalytics = React.useCallback(async () => {
     try {
-      const r = await apiClient.get<EngagementAnalyticsResponse>(
+      const r = await cachedApiGet<EngagementAnalyticsResponse>(
         "/api/v1/admin/stats/engagement-analytics",
         { params: apiParams },
+        DASHBOARD_CACHE_TTL
       );
       setData(r.data);
       setFetchError(null);

@@ -8,7 +8,7 @@ export const conversationsDataProvider: ConversationMethods = {
   getList: async (_resource, params) => {
     const { page = 1, perPage = 20 } = params.pagination ?? {};
     const { field = "lastMessageAt", order = "DESC" } = params.sort ?? {};
-    const { q } = params.filter ?? {};
+    const { q, participantId, status, hasReports, createdFrom, createdTo } = params.filter ?? {};
 
     const { data } = await apiClient.get("/api/v1/admin/conversations", {
       params: {
@@ -17,6 +17,11 @@ export const conversationsDataProvider: ConversationMethods = {
         sortBy: field,
         sortDir: order.toLowerCase(),
         ...(q ? { q } : {}),
+        ...(participantId ? { participantId } : {}),
+        ...(status ? { status } : {}),
+        ...(hasReports !== undefined && hasReports !== "" ? { hasReports: hasReports === "true" || hasReports === true } : {}),
+        ...(createdFrom ? { createdFrom } : {}),
+        ...(createdTo ? { createdTo } : {}),
       },
     });
 

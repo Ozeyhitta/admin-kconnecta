@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { RaRecord } from "ra-core";
-import { useRecordContext, FilterLiveForm, useRefresh, useNotify } from "ra-core";
+import { useRecordContext, FilterLiveForm, useRefresh, useNotify, useListContext } from "ra-core";
 import { Link } from "react-router";
 import {
   DataTable,
@@ -10,11 +10,12 @@ import {
   AutocompleteInput,
   ListPagination,
   DeleteButton,
+  HighlightText,
 } from "@/components/admin";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Check, X } from "lucide-react";
+import { ExternalLink, Check, X, Loader2 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -47,6 +48,9 @@ const shortDateFormatter = new Intl.DateTimeFormat("vi-VN", {
 
 const ContentCell = () => {
   const record = useRecordContext();
+  const { filterValues } = useListContext();
+  const search = typeof filterValues?.q === "string" ? filterValues.q : undefined;
+
   if (!record) return null;
   const text = (record.content ?? "").trim();
   if (!text) {
@@ -54,13 +58,16 @@ const ContentCell = () => {
   }
   return (
     <span className="line-clamp-2 block min-w-0 break-words text-sm leading-snug" title={text}>
-      {text}
+      <HighlightText text={text} search={search} />
     </span>
   );
 };
 
 const AuthorCell = () => {
   const record = useRecordContext();
+  const { filterValues } = useListContext();
+  const search = typeof filterValues?.q === "string" ? filterValues.q : undefined;
+
   if (!record) return null;
   const name = record.authorFullName ?? record.authorName ?? record.authorUsername ?? "?";
   const username = record.authorUsername;
@@ -72,10 +79,12 @@ const AuthorCell = () => {
         <AvatarFallback className="text-xs">{initial}</AvatarFallback>
       </Avatar>
       <div className="flex min-w-0 flex-col leading-tight">
-        <span className="block truncate font-medium" title={name}>{name}</span>
+        <span className="block truncate font-medium" title={name}>
+          <HighlightText text={name} search={search} />
+        </span>
         {username ? (
           <span className="truncate text-xs text-muted-foreground" title={`@${username}`}>
-            @{username}
+            @<HighlightText text={username} search={search} />
           </span>
         ) : null}
       </div>
@@ -94,7 +103,10 @@ const StatusCell = () => {
   if (!record?.status) return <span className="text-muted-foreground">—</span>;
   const meta = STATUS_META[record.status] ?? { label: String(record.status), className: "" };
   return (
-    <Badge variant="outline" className={`${meta.className} whitespace-nowrap`}>
+    <Badge variant="outline" className={`${meta.className} whitespace-nowrap gap-1`}>
+      {record.status === "PENDING" && (
+        <Loader2 className="h-3 w-3 animate-spin" />
+      )}
       {meta.label}
     </Badge>
   );
@@ -189,7 +201,10 @@ const ModerationActions = () => {
 
   if (!lockHeld) {
     return (
-      <span className="text-xs text-muted-foreground">Đang giữ khóa…</span>
+      <span className="text-xs text-muted-foreground flex items-center gap-1">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        Đang giữ khóa…
+      </span>
     );
   }
 
@@ -228,10 +243,10 @@ const ModerationActions = () => {
   return (
     <div className="flex items-center gap-1">
       <Button size="sm" variant="ghost" className="h-8 px-2 text-green-600" onClick={approve} disabled={busy} title="Duyệt">
-        <Check className="h-4 w-4" />
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
       </Button>
       <Button size="sm" variant="ghost" className="h-8 px-2 text-red-600" onClick={reject} disabled={busy} title="Từ chối">
-        <X className="h-4 w-4" />
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
       </Button>
     </div>
   );

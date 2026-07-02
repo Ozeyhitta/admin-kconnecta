@@ -5,7 +5,7 @@ import {
   ShieldCheck, User, FileText, MessageSquare, Heart,
   Share2, UserPlus2, LogIn, Activity, ArrowLeft,
   CheckCircle, Lock, KeyRound, Mail, TrendingUp, Trash2,
-  Eye, EyeOff,
+  Eye, EyeOff, AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +18,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiClient } from "@/services/axiosInstance";
-import { isCurrentAdminUser } from "@/lib/currentAdminUser";
+import { isCurrentAdminUser, getLoggedInAdmin } from "@/lib/currentAdminUser";
 import { LockUserButton } from "./LockUserButton";
+import { ChangeRoleButton } from "./ChangeRoleButton";
 
 interface UserStats {
   totalPosts: number;
@@ -29,6 +30,8 @@ interface UserStats {
   totalFriendRequests: number;
   totalLogins: number;
   totalActivity: number;
+  totalCommentViolations: number;
+  totalPostViolations: number;
 }
 
 interface ActivityLog {
@@ -311,10 +314,14 @@ export const CustomerShow = () => {
                   <status.icon className="h-3 w-3 mr-1" />
                   {status.label}
                 </Badge>
-                <Badge variant={record.role === "ADMIN" ? "default" : "outline"}>
-                  {record.role === "ADMIN"
-                    ? <ShieldCheck className="h-3 w-3 mr-1" />
-                    : <User className="h-3 w-3 mr-1" />}
+                <Badge variant={record.role === "SUPER_ADMIN" ? "destructive" : record.role === "ADMIN" ? "default" : "outline"}>
+                  {record.role === "SUPER_ADMIN" ? (
+                    <ShieldCheck className="h-3 w-3 mr-1 text-red-500" />
+                  ) : record.role === "ADMIN" ? (
+                    <ShieldCheck className="h-3 w-3 mr-1" />
+                  ) : (
+                    <User className="h-3 w-3 mr-1" />
+                  )}
                   {record.role}
                 </Badge>
               </div>
@@ -341,10 +348,14 @@ export const CustomerShow = () => {
               <DetailRow
                 label="Vai trò"
                 value={
-                  <Badge variant={record.role === "ADMIN" ? "default" : "outline"}>
-                    {record.role === "ADMIN"
-                      ? <ShieldCheck className="h-3 w-3 mr-1" />
-                      : <User className="h-3 w-3 mr-1" />}
+                  <Badge variant={record.role === "SUPER_ADMIN" ? "destructive" : record.role === "ADMIN" ? "default" : "outline"}>
+                    {record.role === "SUPER_ADMIN" ? (
+                      <ShieldCheck className="h-3 w-3 mr-1 text-red-500" />
+                    ) : record.role === "ADMIN" ? (
+                      <ShieldCheck className="h-3 w-3 mr-1" />
+                    ) : (
+                      <User className="h-3 w-3 mr-1" />
+                    )}
                     {record.role ?? "—"}
                   </Badge>
                 }
@@ -368,7 +379,9 @@ export const CustomerShow = () => {
                   <Mail className="h-4 w-4 mr-2" />
                   {sendingEmail ? "Đang gửi email..." : "Gửi mail đặt lại mật khẩu"}
                 </Button>
-
+                {getLoggedInAdmin()?.role === "SUPER_ADMIN" && (
+                  <ChangeRoleButton record={record} className="w-full" />
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -456,6 +469,27 @@ export const CustomerShow = () => {
                   }
                   loading={statsLoading}
                   onClick={openUserActivity()}
+                />
+              </div>
+
+              {/* Vi phạm */}
+              <p className="text-xs font-semibold text-red-500 uppercase tracking-wider mt-4 mb-2">
+                Vi phạm
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <StatItem
+                  icon={AlertTriangle}
+                  iconColor="text-red-500"
+                  label="VP bình luận"
+                  value={stats?.totalCommentViolations}
+                  loading={statsLoading}
+                />
+                <StatItem
+                  icon={AlertTriangle}
+                  iconColor="text-orange-500"
+                  label="VP bài đăng"
+                  value={stats?.totalPostViolations}
+                  loading={statsLoading}
                 />
               </div>
             </CardContent>

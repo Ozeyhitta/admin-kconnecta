@@ -47,7 +47,7 @@ export const customersDataProvider: CustomerMethods = {
       );
     }
 
-    const { status, newPassword, newEmail, lockDays } = params.data;
+    const { status, newPassword, newEmail, lockDays, role } = params.data;
 
     if (newPassword) {
       await apiClient.put(`/api/v1/admin/users/${params.id}/password`, { newPassword });
@@ -59,6 +59,9 @@ export const customersDataProvider: CustomerMethods = {
     }
     if (newEmail) {
       await apiClient.put(`/api/v1/admin/users/${params.id}/email`, { newEmail });
+    }
+    if (role && role !== params.previousData?.role) {
+      await apiClient.patch(`/api/v1/admin/users/${params.id}/role`, { role });
     }
 
     const { data } = await apiClient.get(`/api/v1/admin/users/${params.id}`);

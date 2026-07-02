@@ -8,6 +8,7 @@ import {
   ListPagination,
   ShowButton,
   DeleteButton,
+  HighlightText,
 } from "@/components/admin";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -54,6 +55,8 @@ const StatusBadge = () => {
 
 const AuthorCell = () => {
   const record = useRecordContext();
+  const { filterValues } = useListContext();
+  const search = typeof filterValues?.q === "string" ? filterValues.q : undefined;
   if (!record) return null;
   const name = record.authorFullName ?? record.authorUsername ?? "—";
   const initial = name.charAt(0).toUpperCase();
@@ -65,14 +68,14 @@ const AuthorCell = () => {
       </Avatar>
       <div className="flex min-w-0 flex-col leading-tight">
         <span className="block truncate text-sm font-medium" title={name !== "—" ? name : undefined}>
-          {name}
+          <HighlightText text={name} search={search} />
         </span>
         {record.authorUsername ? (
           <span
             className="block truncate text-xs text-muted-foreground"
             title={`@${record.authorUsername}`}
           >
-            @{record.authorUsername}
+            @<HighlightText text={record.authorUsername} search={search} />
           </span>
         ) : null}
       </div>
@@ -82,6 +85,8 @@ const AuthorCell = () => {
 
 const ContentCell = () => {
   const record = useRecordContext();
+  const { filterValues } = useListContext();
+  const search = typeof filterValues?.q === "string" ? filterValues.q : undefined;
   if (!record) return null;
   const isShare = record.kind === "SHARE";
   const text = (record.content ?? "").trim();
@@ -102,7 +107,7 @@ const ContentCell = () => {
       ) : null}
       {text ? (
         <p className="line-clamp-2 min-w-0 break-words text-sm leading-snug" title={text}>
-          {text}
+          <HighlightText text={text} search={search} />
         </p>
       ) : (
         <span className="text-xs italic text-muted-foreground">
@@ -112,13 +117,13 @@ const ContentCell = () => {
       {isShare ? (
         <div className="min-w-0 rounded-md border bg-muted/40 px-2 py-1">
           <p className="truncate text-xs font-medium" title={originalAuthor}>
-            Bài gốc · {originalAuthor}
+            Bài gốc · <HighlightText text={originalAuthor} search={search} />
           </p>
           <p
             className="line-clamp-2 break-words text-xs text-muted-foreground"
             title={originalText || undefined}
           >
-            {originalText || "—"}
+            {originalText ? <HighlightText text={originalText} search={search} /> : "—"}
           </p>
         </div>
       ) : null}
@@ -127,7 +132,7 @@ const ContentCell = () => {
           <span className="inline-flex max-w-full min-w-0 items-center gap-1">
             <MapPin className="h-3 w-3 shrink-0" />
             <span className="truncate" title={record.locationText}>
-              {record.locationText}
+              <HighlightText text={record.locationText} search={search} />
             </span>
           </span>
         ) : null}

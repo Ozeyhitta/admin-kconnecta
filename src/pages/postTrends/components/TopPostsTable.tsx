@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link, useNavigate } from "react-router";
-import { Copy, Download, ExternalLink } from "lucide-react";
+import { Copy, Download, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,16 +38,32 @@ type TopPostsTableProps = {
 export function TopPostsTable({ posts, loading }: TopPostsTableProps) {
   const navigate = useNavigate();
   const [filter, setFilter] = React.useState<"all" | "viral" | "risky">("all");
-
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 5;
   const filtered = React.useMemo(() => {
     if (filter === "viral") {
-      return posts.filter((p) => p.trendLabel === "Tăng mạnh" || p.trendLabel === "Tăng");
+      const viralPosts = posts.filter((p) => p.trendLabel === "Tăng mạnh");
+      if (viralPosts.length === posts.length && posts.length > 0) {
+        const avgScore = posts.reduce((sum, p) => sum + p.trendScore, 0) / posts.length;
+        return posts.filter((p) => p.trendScore >= avgScore);
+      }
+      return viralPosts;
     }
     if (filter === "risky") {
       return posts.filter((p) => p.reportCount > 0);
     }
     return posts;
   }, [posts, filter]);
+  const totalItems = filtered.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [totalItems]);
+
+  const paginatedPosts = React.useMemo(() => {
+    return filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [filtered, currentPage]);
 
   const copyId = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -126,7 +142,7 @@ export function TopPostsTable({ posts, loading }: TopPostsTableProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((p) => {
+              {paginatedPosts.map((p) => {
                 const st = statusLabel(p.status);
                 const showPath = adminPostShowPath(p.postId);
                 return (
@@ -172,7 +188,7 @@ export function TopPostsTable({ posts, loading }: TopPostsTableProps) {
                             <button
                               type="button"
                               onClick={(e) => copyId(e, p.postId)}
-                              className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:cursor-pointer"
                               title="Copy Post ID"
                             >
                               <Copy className="h-3 w-3" />
@@ -229,6 +245,39 @@ export function TopPostsTable({ posts, loading }: TopPostsTableProps) {
               })}
             </TableBody>
           </Table>
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 border-t">
+          <p className="text-xs text-muted-foreground">
+            Hiển thị {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, totalItems)} trong số {totalItems}
+          </p>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1 cursor-pointer"
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Trước
+            </Button>
+            <span className="text-xs font-medium px-3">
+              Trang {currentPage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1 cursor-pointer"
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Sau
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
     </div>
