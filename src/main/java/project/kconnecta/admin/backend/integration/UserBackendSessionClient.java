@@ -37,6 +37,21 @@ public class UserBackendSessionClient {
         } catch (Exception e) {
         }
     }
+    /** Đẩy realtime cập nhật trạng thái tin nhắn (ẩn/xóa) tới người dùng sau khi admin kiểm duyệt. */
+    public void notifyMessageStatusChanged(UUID messageId) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Internal-Key", internalKey);
+            restTemplate.exchange(
+                    userServiceUrl + "/api/internal/chat/messages/" + messageId + "/sync",
+                    HttpMethod.POST,
+                    new HttpEntity<>(headers),
+                    Void.class);
+        } catch (Exception e) {
+            log.warn("Could not sync message status on user backend for messageId={}: {}", messageId, e.getMessage());
+        }
+    }
+
     public void sendResetPasswordEmail(UUID userId) {
         try {
             HttpHeaders headers = new HttpHeaders();

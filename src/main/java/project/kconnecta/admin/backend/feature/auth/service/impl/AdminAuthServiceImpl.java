@@ -35,7 +35,7 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         Account account = accountRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
 
-        if (account.getRole() != AccountRole.ADMIN) {
+        if (account.getRole() != AccountRole.ADMIN && account.getRole() != AccountRole.SUPER_ADMIN) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: insufficient privileges");
         }
 

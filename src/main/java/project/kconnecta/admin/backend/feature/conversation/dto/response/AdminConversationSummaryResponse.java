@@ -23,5 +23,6 @@ public class AdminConversationSummaryResponse {
     String lastMessageContent;
     UUID lastMessageSenderId;
     LocalDateTime lastMessageAt;
+    String status;
 }
 

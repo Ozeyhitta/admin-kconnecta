@@ -5,6 +5,7 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import project.kconnecta.admin.backend.feature.conversation.dto.response.AdminChatAuditLogResponse;
 import project.kconnecta.admin.backend.feature.conversation.dto.response.AdminChatMessageResponse;
 import project.kconnecta.admin.backend.feature.conversation.dto.response.AdminConversationSummaryResponse;
 
@@ -84,7 +85,8 @@ public class ConversationAdminRepository {
                     m.created_at,
                     COALESCE(m.delivered, false) AS delivered,
                     COALESCE(m.seen, false) AS seen,
-                    COALESCE(m.deleted, false) AS deleted
+                    COALESCE(m.deleted, false) AS deleted,
+                    m.status
                 FROM chat_messages m
                 JOIN users s ON s.id = m.sender_id
                 JOIN users r ON r.id = m.receiver_id
@@ -153,12 +155,14 @@ public class ConversationAdminRepository {
                     pairs.unread_count,
                     last_messages.last_message_content,
                     last_messages.last_message_sender_id,
-                    pairs.last_message_at
+                    pairs.last_message_at,
+                    COALESCE(acs.status, 'ACTIVE') AS status
                 FROM pairs
                 JOIN users u1 ON u1.id = pairs.user1_id
                 JOIN users u2 ON u2.id = pairs.user2_id
                 JOIN last_messages ON last_messages.user1_id = pairs.user1_id
                                   AND last_messages.user2_id = pairs.user2_id
+                LEFT JOIN admin_conversation_statuses acs ON acs.id = (pairs.user1_id::text || '_' || pairs.user2_id::text)
                 WHERE (CAST(:q AS text) IS NULL
                     OR LOWER(COALESCE(u1.username, '') || ' ' || COALESCE(u1.full_name, '') || ' ' ||
                              COALESCE(u2.username, '') || ' ' || COALESCE(u2.full_name, '')) LIKE CAST(:q AS text))
@@ -181,6 +185,7 @@ public class ConversationAdminRepository {
                 .lastMessageContent(rs.getString("last_message_content"))
                 .lastMessageSenderId(rs.getObject("last_message_sender_id", UUID.class))
                 .lastMessageAt(rs.getObject("last_message_at", LocalDateTime.class))
+                .status(rs.getString("status"))
                 .build();
     }
 
@@ -200,6 +205,7 @@ public class ConversationAdminRepository {
                 .delivered(rs.getBoolean("delivered"))
                 .seen(rs.getBoolean("seen"))
                 .deleted(rs.getBoolean("deleted"))
+                .status(rs.getString("status"))
                 .build();
     }
     public int deleteConversation(UUID user1Id, UUID user2Id) {
@@ -228,6 +234,98 @@ public class ConversationAdminRepository {
                 SET deleted = true
                 WHERE id = :messageId
                 """, params);
+    }
+
+    public void updateConversationStatus(String conversationId, String status, String adminId) {
+        jdbc.update("""
+                INSERT INTO admin_conversation_statuses (id, status, updated_by, updated_at)
+                VALUES (:id, :status, :adminId, :now)
+                ON CONFLICT (id) DO UPDATE
+                SET status = :status, updated_by = :adminId, updated_at = :now
+                """, new MapSqlParameterSource()
+                .addValue("id", conversationId)
+                .addValue("status", status)
+                .addValue("adminId", adminId)
+                .addValue("now", java.sql.Timestamp.valueOf(LocalDateTime.now()))
+        );
+    }
+
+    public void insertChatAuditLog(String adminId, String action, String conversationId, String messageId, String reason) {
+        jdbc.update("""
+                INSERT INTO admin_chat_audit_logs (id, created_at, admin_id, conversation_id, message_id, action, reason)
+                VALUES (:id, :now, :adminId, :conversationId, :messageId, :action, :reason)
+                """, new MapSqlParameterSource()
+                .addValue("id", UUID.randomUUID())
+                .addValue("now", java.sql.Timestamp.valueOf(LocalDateTime.now()))
+                .addValue("adminId", adminId)
+                .addValue("conversationId", conversationId)
+                .addValue("messageId", messageId)
+                .addValue("action", action)
+                .addValue("reason", reason)
+        );
+    }
+
+    public void deleteMessagesByConversation(UUID user1Id, UUID user2Id) {
+        jdbc.update("""
+                DELETE FROM chat_messages
+                WHERE conversation_id IS NULL
+                  AND (
+                    (sender_id = :user1Id AND receiver_id = :user2Id)
+                    OR
+                    (sender_id = :user2Id AND receiver_id = :user1Id)
+                  )
+                """, new MapSqlParameterSource()
+                .addValue("user1Id", user1Id)
+                .addValue("user2Id", user2Id)
+        );
+    }
+
+    public int updateMessageStatus(UUID messageId, String status) {
+        boolean deleted = "DELETED".equals(status) || "DELETED_PERMANENTLY".equals(status);
+        return jdbc.update("""
+                UPDATE chat_messages
+                SET status = :status, deleted = :deleted
+                WHERE id = :messageId
+                """, new MapSqlParameterSource()
+                .addValue("status", status)
+                .addValue("deleted", deleted)
+                .addValue("messageId", messageId)
+        );
+    }
+
+    public int deleteMessagePermanently(UUID messageId) {
+        return jdbc.update("""
+                DELETE FROM chat_messages
+                WHERE id = :messageId
+                """, new MapSqlParameterSource()
+                .addValue("messageId", messageId)
+        );
+    }
+
+    public List<AdminChatAuditLogResponse> findAuditLogsByConversationId(String conversationId, int limit) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("conversationId", conversationId)
+                .addValue("limit", limit);
+
+        return jdbc.query("""
+                SELECT id, admin_id, action, conversation_id, message_id, reason, created_at
+                FROM admin_chat_audit_logs
+                WHERE conversation_id = :conversationId
+                ORDER BY created_at DESC
+                LIMIT :limit
+                """, params, (rs, rowNum) -> mapAuditLog(rs));
+    }
+
+    private AdminChatAuditLogResponse mapAuditLog(ResultSet rs) throws SQLException {
+        return AdminChatAuditLogResponse.builder()
+                .id(rs.getObject("id", UUID.class))
+                .adminId(rs.getString("admin_id"))
+                .action(rs.getString("action"))
+                .conversationId(rs.getString("conversation_id"))
+                .messageId(rs.getString("message_id"))
+                .reason(rs.getString("reason"))
+                .createdAt(rs.getObject("created_at", LocalDateTime.class))
+                .build();
     }
 }
 

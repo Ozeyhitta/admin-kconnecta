@@ -23,5 +23,6 @@ public class AdminChatMessageResponse {
     boolean delivered;
     boolean seen;
     boolean deleted;
+    String status;
 }
 

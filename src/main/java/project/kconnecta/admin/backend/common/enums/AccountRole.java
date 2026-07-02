@@ -2,5 +2,6 @@ package project.kconnecta.admin.backend.common.enums;
 
 public enum AccountRole {
     USER,
-    ADMIN
+    ADMIN,
+    SUPER_ADMIN
 }

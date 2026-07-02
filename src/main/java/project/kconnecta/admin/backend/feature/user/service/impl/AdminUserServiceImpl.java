@@ -192,6 +192,26 @@ public class AdminUserServiceImpl implements AdminUserService {
     }
 
     @Override
+    @Transactional
+    public AdminUserResponseDTO createAdmin(String email, String password) {
+        String normalized = email.trim().toLowerCase();
+        accountRepository.findByEmail(normalized).ifPresent(existing -> {
+            throw new IllegalArgumentException("Email đã được sử dụng");
+        });
+
+        Account account = Account.builder()
+                .id(UUID.randomUUID())
+                .email(normalized)
+                .passwordHash(passwordEncoder.encode(password))
+                .status(AccountStatus.ACTIVE)
+                .role(AccountRole.ADMIN)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        return AdminUserResponseDTO.from(accountRepository.save(account));
+    }
+
+    @Override
     public long countUsersRegisteredBetween(LocalDateTime from, LocalDateTime to) {
         return accountRepository.countByCreatedAtBetween(from, to);
     }

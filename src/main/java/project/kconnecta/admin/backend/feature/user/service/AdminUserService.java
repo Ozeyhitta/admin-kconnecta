@@ -31,6 +31,8 @@ public interface AdminUserService {
 
     AdminUserResponseDTO updateRole(UUID id, AccountRole role);
 
+    AdminUserResponseDTO createAdmin(String email, String password);
+
     long countUsersRegisteredBetween(LocalDateTime from, LocalDateTime to);
 
     UserStatsResponse getUserStats(UUID id);

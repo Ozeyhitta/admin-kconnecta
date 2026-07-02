@@ -4,6 +4,7 @@ import project.kconnecta.admin.backend.feature.conversation.service.Conversation
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import project.kconnecta.admin.backend.exception.ResourceNotFoundException;
+import project.kconnecta.admin.backend.feature.conversation.dto.response.AdminChatAuditLogResponse;
 import project.kconnecta.admin.backend.feature.conversation.dto.response.AdminConversationDetailResponse;
 import project.kconnecta.admin.backend.feature.conversation.dto.response.AdminConversationPageResponse;
 import project.kconnecta.admin.backend.feature.conversation.dto.response.AdminConversationSummaryResponse;
@@ -13,14 +14,20 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import project.kconnecta.admin.backend.feature.search.ElasticsearchSyncService;
+import project.kconnecta.admin.backend.integration.UserBackendSessionClient;
+
 @Service
 @RequiredArgsConstructor
 public class ConversationAdminServiceImpl implements ConversationAdminService {
 
     private static final Set<String> VALID_SORT_FIELDS = Set.of("lastMessageAt", "messageCount", "unreadCount");
     private static final int DEFAULT_MESSAGE_LIMIT = 100;
+    private static final int DEFAULT_AUDIT_LOG_LIMIT = 200;
 
     private final ConversationAdminRepository conversationAdminRepository;
+    private final ElasticsearchSyncService elasticsearchSyncService;
+    private final UserBackendSessionClient userBackendSessionClient;
 
     @Override
     public AdminConversationPageResponse getPrivateConversations(
@@ -105,6 +112,40 @@ public class ConversationAdminServiceImpl implements ConversationAdminService {
             throw new ResourceNotFoundException("Conversation not found");
         }
         return new UUID[]{UUID.fromString(parts[0]), UUID.fromString(parts[1])};
+    }
+
+    @Override
+    public void updateConversationStatus(String id, String status, String reason, String adminUsername) {
+        parsePairId(id);
+        conversationAdminRepository.updateConversationStatus(id, status, adminUsername);
+        conversationAdminRepository.insertChatAuditLog(adminUsername, status, id, null, reason);
+
+        if ("DELETED_PERMANENTLY".equals(status)) {
+            UUID[] pair = parsePairId(id);
+            conversationAdminRepository.deleteMessagesByConversation(pair[0], pair[1]);
+            elasticsearchSyncService.deleteConversation(id);
+        } else {
+            elasticsearchSyncService.syncConversation(id);
+        }
+    }
+
+    @Override
+    public void updateMessageStatus(String conversationId, String messageId, String status, String reason, String adminUsername) {
+        UUID msgId = UUID.fromString(messageId);
+        if ("DELETED_PERMANENTLY".equals(status)) {
+            conversationAdminRepository.deleteMessagePermanently(msgId);
+        } else {
+            conversationAdminRepository.updateMessageStatus(msgId, status);
+            userBackendSessionClient.notifyMessageStatusChanged(msgId);
+        }
+        conversationAdminRepository.insertChatAuditLog(adminUsername, status, conversationId, messageId, reason);
+        elasticsearchSyncService.syncConversation(conversationId);
+    }
+
+    @Override
+    public List<AdminChatAuditLogResponse> getAuditLogs(String conversationId) {
+        parsePairId(conversationId);
+        return conversationAdminRepository.findAuditLogsByConversationId(conversationId, DEFAULT_AUDIT_LOG_LIMIT);
     }
 }
 

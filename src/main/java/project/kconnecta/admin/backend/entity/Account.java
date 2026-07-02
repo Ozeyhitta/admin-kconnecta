@@ -33,7 +33,7 @@ public class Account {
 
     // New column — defaults to USER so existing rows are unaffected
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10, columnDefinition = "VARCHAR(10) DEFAULT 'USER'")
+    @Column(nullable = false, length = 20, columnDefinition = "VARCHAR(20) DEFAULT 'USER'")
     @Builder.Default
     private AccountRole role = AccountRole.USER;
 
