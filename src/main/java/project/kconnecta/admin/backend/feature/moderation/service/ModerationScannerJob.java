@@ -58,11 +58,20 @@ public class ModerationScannerJob {
             UUID userId = entry.getKey();
             List<ChatSpamDetector.MessageData> msgs = entry.getValue();
 
+            // A permanent ban is terminal. Do not keep logging the user's remaining
+            // queued messages and repeatedly update the lock reason/offense count.
+            if (violationPenaltyService.isPermanentlyBlocked(userId)) {
+                continue;
+            }
+
             List<ViolationResult> violations = chatSpamDetector.detect(userId, msgs);
+            List<ViolationResult> newViolations = new ArrayList<>();
 
             for (ViolationResult violation : violations) {
                 try {
-                    chatModerationLogService.log(violation);
+                    if (chatModerationLogService.logIfNew(violation)) {
+                        newViolations.add(violation);
+                    }
                 } catch (Exception e) {
                     log.warn("Failed to log violation for user {}: {}", userId, e.getMessage());
                 }
@@ -77,9 +86,9 @@ public class ModerationScannerJob {
                 }
             }
 
-            if (!violations.isEmpty()) {
+            if (!newViolations.isEmpty()) {
                 try {
-                    violationPenaltyService.applyForNewViolations(userId, violations);
+                    violationPenaltyService.applyForNewViolations(userId, newViolations);
                 } catch (Exception e) {
                     log.warn("Failed to apply violation policy for user {}: {}", userId, e.getMessage());
                 }

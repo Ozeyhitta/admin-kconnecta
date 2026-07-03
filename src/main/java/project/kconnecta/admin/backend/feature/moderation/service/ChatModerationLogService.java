@@ -17,7 +17,13 @@ public class ChatModerationLogService {
     private final ChatModerationLogRepository chatModerationLogRepository;
 
     @Transactional
-    public void log(ViolationResult violation) {
+    public boolean logIfNew(ViolationResult violation) {
+        if (violation.getMessageId() != null
+                && chatModerationLogRepository.existsByMessageIdAndViolationType(
+                        violation.getMessageId(), violation.getAlertType())) {
+            return false;
+        }
+
         ChatModerationLog entry = ChatModerationLog.builder()
                 .userId(violation.getUserId())
                 .conversationId(violation.getConversationId())
@@ -30,6 +36,7 @@ public class ChatModerationLogService {
                 .retryAfterSeconds(violation.getRetryAfterSeconds())
                 .build();
         chatModerationLogRepository.save(entry);
+        return true;
     }
 
     @Transactional(readOnly = true)

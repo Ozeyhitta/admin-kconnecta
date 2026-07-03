@@ -17,4 +17,6 @@ public interface ChatModerationLogRepository extends JpaRepository<ChatModeratio
     long countByUserId(UUID userId);
 
     long countByUserIdAndViolationTypeIn(UUID userId, Collection<AlertType> violationTypes);
+
+    boolean existsByMessageIdAndViolationType(UUID messageId, AlertType violationType);
 }

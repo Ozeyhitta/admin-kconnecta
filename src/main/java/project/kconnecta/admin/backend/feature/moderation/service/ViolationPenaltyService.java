@@ -53,6 +53,9 @@ public class ViolationPenaltyService {
         if (userId == null || violations == null || violations.isEmpty()) {
             return;
         }
+        if (isPermanentlyBlocked(userId)) {
+            return;
+        }
 
         ViolationResult primaryViolation = violations.stream()
                 .max(Comparator.comparingInt(v -> severityRank(v.getSeverity())))
@@ -74,6 +77,18 @@ public class ViolationPenaltyService {
             case "ban_permanent" -> applyPermanentBan(userId, violationLabel, offenseCount);
             default -> log.warn("Unknown violation penalty action '{}' for policy {}", step.action(), policyId);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isPermanentlyBlocked(UUID userId) {
+        if (userId == null) {
+            return false;
+        }
+        return userRepository.findById(userId)
+                .map(User::getAccount)
+                .map(account -> account.getStatus() == AccountStatus.BLOCKED
+                        && account.getLockedUntil() == null)
+                .orElse(false);
     }
 
     /**
