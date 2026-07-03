@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye, Trash2 } from "lucide-react";
 import { formatChatMessagePreview } from "@/lib/chatMessagePreview";
-import { useDelete, useNotify, useRefresh, usePermissions } from "ra-core";
+import { useDelete, useNotify, useRefresh } from "ra-core";
 
 const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "medium",
@@ -91,16 +91,13 @@ const ConversationActions = () => {
   const record = useRecordContext();
   const notify = useNotify();
   const refresh = useRefresh();
-  const { permissions: role } = usePermissions();
   const [deleteOne, { isPending }] = useDelete();
 
   if (!record) return null;
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const promptMessage = role === "SUPER_ADMIN"
-      ? "Bạn có chắc chắn muốn xóa mềm cuộc hội thoại này? (Nhấn xóa vĩnh viễn ở chi tiết cuộc hội thoại nếu cần)"
-      : "Bạn có chắc chắn muốn xóa mềm cuộc hội thoại này?";
+    const promptMessage = "Bạn có chắc chắn muốn xóa mềm cuộc hội thoại này?";
       
     if (window.confirm(promptMessage)) {
       deleteOne(

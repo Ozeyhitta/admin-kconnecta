@@ -1,5 +1,5 @@
-import { useShowController, useNotify, useRefresh, usePermissions } from "ra-core";
-import { Link, useNavigate } from "react-router";
+import { useShowController, useNotify, useRefresh } from "ra-core";
+import { Link } from "react-router";
 import { ArrowLeft, CheckCheck, Trash2, EyeOff, Unlock, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,8 +17,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 
 const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
   dateStyle: "medium",
@@ -104,12 +102,10 @@ const ParticipantCard = ({ user }: { user: ChatUser }) => {
 
 export const ConversationShow = () => {
   const { record, isPending } = useShowController<ConversationDetail>();
-  const { permissions: role } = usePermissions();
-  const navigate = useNavigate();
   const notify = useNotify();
   const refresh = useRefresh();
 
-  const isSuperAdmin = role === "SUPER_ADMIN";
+  const isAdmin = true;
 
   // Messages Pagination State
   const [msgPage, setMsgPage] = useState(0);
@@ -122,20 +118,18 @@ export const ConversationShow = () => {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [isLoadingAudit, setIsLoadingAudit] = useState(false);
 
-  // Action Reason Modal State
+  // Action Confirm Modal State
   const [reasonModal, setReasonModal] = useState<{
     isOpen: boolean;
     title: string;
     description: string;
-    placeholder?: string;
-    onConfirm: (reason: string) => Promise<void>;
+    onConfirm: () => Promise<void>;
   }>({
     isOpen: false,
     title: "",
     description: "",
     onConfirm: async () => {},
   });
-  const [modalReasonInput, setModalReasonInput] = useState("");
 
   // Load paginated messages
   const fetchMessages = (opts: { silent?: boolean } = {}) => {
@@ -169,9 +163,9 @@ export const ConversationShow = () => {
     return () => clearInterval(interval);
   }, [record?.id, msgPage, activeTab]);
 
-  // Load audit logs if Super Admin and tab active
+  // Load audit logs if Admin and tab active
   useEffect(() => {
-    if (record?.id && activeTab === "audit" && isSuperAdmin) {
+    if (record?.id && activeTab === "audit" && isAdmin) {
       setIsLoadingAudit(true);
       apiClient
         .get("/api/v1/admin/conversations/audit-logs", {
@@ -187,7 +181,7 @@ export const ConversationShow = () => {
           setIsLoadingAudit(false);
         });
     }
-  }, [record?.id, activeTab, isSuperAdmin, refresh]);
+  }, [record?.id, activeTab, isAdmin, refresh]);
 
   if (isPending) {
     return (
@@ -237,16 +231,14 @@ export const ConversationShow = () => {
 
   // Unlock a legacy LOCKED conversation (locking is no longer supported, only cleanup of old data)
   const handleUnlockConversation = () => {
-    setModalReasonInput("");
     setReasonModal({
       isOpen: true,
       title: "Xác nhận mở khóa cuộc hội thoại",
-      description: "Vui lòng nhập lý do để mở khóa cuộc hội thoại này:",
-      placeholder: "Nhập lý do mở khóa hội thoại...",
-      onConfirm: async (reason) => {
+      description: "Bạn có chắc chắn muốn mở khóa cuộc hội thoại này không?",
+      onConfirm: async () => {
         await apiClient.patch(`/api/v1/admin/conversations/${record.id}/status`, {
           status: "ACTIVE",
-          reason,
+          reason: "",
         });
         notify("Đã mở khóa cuộc hội thoại thành công", { type: "info" });
         refresh();
@@ -254,29 +246,6 @@ export const ConversationShow = () => {
     });
   };
 
-  // Permanent Hard Delete (Super Admin only)
-  const handleHardDeleteConversation = () => {
-    if (!isSuperAdmin) {
-      notify("Chỉ Super Admin được phép thực hiện hành động này", { type: "error" });
-      return;
-    }
-
-    setModalReasonInput("");
-    setReasonModal({
-      isOpen: true,
-      title: "Xác nhận xóa vĩnh viễn cuộc hội thoại",
-      description: "CẢNH BÁO: Hành động này sẽ xóa vĩnh viễn toàn bộ tin nhắn của cuộc trò chuyện này khỏi cơ sở dữ liệu! Vui lòng nhập lý do xóa vĩnh viễn:",
-      placeholder: "Nhập lý do xóa vĩnh viễn cuộc hội thoại...",
-      onConfirm: async (reason) => {
-        await apiClient.patch(`/api/v1/admin/conversations/${record.id}/status`, {
-          status: "DELETED_PERMANENTLY",
-          reason,
-        });
-        notify("Đã xóa vĩnh viễn cuộc hội thoại thành công", { type: "info" });
-        navigate("/conversations");
-      },
-    });
-  };
 
   // Moderate Message (Hide, Soft Delete, Hard Delete)
   const handleModerateMessage = (messageId: string, status: "HIDDEN" | "DELETED" | "DELETED_PERMANENTLY") => {
@@ -285,16 +254,14 @@ export const ConversationShow = () => {
     else if (status === "DELETED") actionLabel = "xóa mềm";
     else actionLabel = "xóa vĩnh viễn";
 
-    setModalReasonInput("");
     setReasonModal({
       isOpen: true,
       title: `Xác nhận ${actionLabel} tin nhắn`,
-      description: `Vui lòng nhập lý do để ${actionLabel} tin nhắn này:`,
-      placeholder: `Nhập lý do ${actionLabel} tin nhắn...`,
-      onConfirm: async (reason) => {
+      description: `Bạn có chắc chắn muốn ${actionLabel} tin nhắn này không?`,
+      onConfirm: async () => {
         await apiClient.patch(`/api/v1/admin/conversations/${record.id}/messages/${messageId}/status`, {
           status,
-          reason,
+          reason: "",
         });
         notify(`Đã ${actionLabel} tin nhắn thành công`, { type: "info" });
         refresh();
@@ -333,17 +300,6 @@ export const ConversationShow = () => {
             </Button>
           )}
 
-          {isSuperAdmin && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleHardDeleteConversation}
-              className="flex items-center gap-1.5"
-            >
-              <Trash2 className="h-4 w-4" />
-              Xóa vĩnh viễn
-            </Button>
-          )}
         </div>
       </div>
 
@@ -365,7 +321,7 @@ export const ConversationShow = () => {
             >
               Lịch sử trò chuyện ({totalMessages})
             </button>
-            {isSuperAdmin && (
+            {isAdmin && (
               <button
                 onClick={() => setActiveTab("audit")}
                 className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
@@ -418,15 +374,24 @@ export const ConversationShow = () => {
                           </div>
                           <p className="mt-1 whitespace-pre-wrap break-words text-sm pr-24">
                             {isAdminDeleted ? (
-                              <span className="italic text-destructive/80 font-medium">[Tin nhắn đã bị xóa bởi Admin]</span>
+                              isAdmin ? (
+                                <span className="space-y-1 block">
+                                  <span className="italic text-destructive/80 font-medium block">[Tin nhắn đã bị xóa bởi Admin]</span>
+                                  <span className="text-muted-foreground text-xs block bg-muted p-1.5 rounded border">
+                                    Nội dung gốc (Chỉ Admin thấy): {formatChatMessagePreview(message.content)}
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className="italic text-destructive/80 font-medium">[Tin nhắn đã bị xóa bởi Admin]</span>
+                              )
                             ) : isUserRecalled ? (
                               <span className="italic text-muted-foreground">{formatChatMessagePreview(message.content) || "Tin nhắn đã được thu hồi"}</span>
                             ) : isMsgHidden ? (
-                              isSuperAdmin ? (
+                              isAdmin ? (
                                 <span className="space-y-1 block">
                                   <span className="italic text-amber-500 font-medium block">[Tin nhắn đã bị ẩn bởi Admin]</span>
                                   <span className="text-muted-foreground text-xs block bg-muted p-1.5 rounded border">
-                                    Nội dung gốc (Chỉ Super Admin thấy): {formatChatMessagePreview(message.content)}
+                                    Nội dung gốc (Chỉ Admin thấy): {formatChatMessagePreview(message.content)}
                                   </span>
                                 </span>
                               ) : (
@@ -475,7 +440,7 @@ export const ConversationShow = () => {
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
-                            {isSuperAdmin && (
+                            {isAdmin && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -519,7 +484,7 @@ export const ConversationShow = () => {
             </>
           )}
 
-          {activeTab === "audit" && isSuperAdmin && (
+          {activeTab === "audit" && isAdmin && (
             <div className="p-4">
               {isLoadingAudit ? (
                 <div className="text-center p-6 text-sm text-muted-foreground">
@@ -581,17 +546,7 @@ export const ConversationShow = () => {
               {reasonModal.description}
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4 space-y-2">
-            <Label htmlFor="action-reason" className="text-sm font-medium">Lý do thực hiện <span className="text-destructive">*</span></Label>
-            <Textarea
-              id="action-reason"
-              placeholder={reasonModal.placeholder || "Vui lòng nhập lý do cụ thể..."}
-              value={modalReasonInput}
-              onChange={(e) => setModalReasonInput(e.target.value)}
-              className="min-h-[100px] resize-none border-input focus-visible:ring-primary focus-visible:border-primary bg-background/50"
-            />
-          </div>
-          <DialogFooter className="flex sm:justify-end gap-2">
+          <DialogFooter className="flex sm:justify-end gap-2 pt-4">
             <Button
               variant="outline"
               onClick={() => setReasonModal(prev => ({ ...prev, isOpen: false }))}
@@ -602,12 +557,8 @@ export const ConversationShow = () => {
             <Button
               variant="destructive"
               onClick={async () => {
-                if (!modalReasonInput.trim()) {
-                  notify("Vui lòng nhập lý do hợp lệ", { type: "warning" });
-                  return;
-                }
                 try {
-                  await reasonModal.onConfirm(modalReasonInput.trim());
+                  await reasonModal.onConfirm();
                   setReasonModal(prev => ({ ...prev, isOpen: false }));
                 } catch (err: any) {
                   notify(err.response?.data?.message || "Đã xảy ra lỗi khi thực hiện hành động", { type: "error" });

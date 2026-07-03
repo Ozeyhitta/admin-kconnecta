@@ -332,46 +332,7 @@ export function InteractionDetailDialog({
     );
   }, [commentary, data, normalizedDayBreakdown, selection]);
 
-  const exportCsv = React.useCallback(() => {
-    if (!data || selection?.kind !== "day") return;
-    const rows: string[] = [];
-    const esc = (value: string | number | null | undefined) => `"${String(value ?? "").replaceAll("\"", "\"\"")}"`;
-    rows.push(["date", "totalInteractions", "previousDay", "average30Day", "previousPeriodSameDay"].map(esc).join(","));
-    rows.push([
-      data.selectedDate ?? selection.date,
-      data.totalCount,
-      previousDayCount,
-      average30DayCount,
-      previousPeriodSameDayCount,
-    ].map(esc).join(","));
-    rows.push("");
-    rows.push(["breakdownType", "count", "percentage"].map(esc).join(","));
-    for (const item of normalizedDayBreakdown) {
-      rows.push([item.type, item.count, item.percentage].map(esc).join(","));
-    }
-    rows.push("");
-    rows.push(["topContent", "type", "interactionCount"].map(esc).join(","));
-    for (const item of data.topContents ?? []) {
-      rows.push([item.title ?? item.contentId ?? "Nội dung không tên", item.type ?? "—", item.interactionCount].map(esc).join(","));
-    }
-    rows.push("");
-    rows.push(["topUser", "interactionCount"].map(esc).join(","));
-    for (const item of data.topUsers ?? []) {
-      rows.push([item.fullName ?? item.username ?? item.userId, item.interactionCount].map(esc).join(","));
-    }
-    downloadFile(
-      `interaction-detail-${(data.selectedDate ?? selection.date ?? "day").slice(0, 10)}.csv`,
-      rows.join("\n"),
-      "text/csv;charset=utf-8;",
-    );
-  }, [
-    average30DayCount,
-    data,
-    normalizedDayBreakdown,
-    previousDayCount,
-    previousPeriodSameDayCount,
-    selection,
-  ]);
+
 
   const recentLogsPanel = data ? (
     <AdminDetailSidebar
@@ -443,10 +404,7 @@ export function InteractionDetailDialog({
                     )}
                     {selection?.kind === "day" && (
                       <>
-                        <Button variant="outline" size="sm" className="h-8 text-xs bg-background/80" onClick={exportCsv}>
-                          <Download className="size-3.5" />
-                          CSV
-                        </Button>
+
                         <Button variant="outline" size="sm" className="h-8 text-xs bg-background/80" onClick={exportJson}>
                           <Download className="size-3.5" />
                           JSON

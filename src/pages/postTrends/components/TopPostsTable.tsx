@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link, useNavigate } from "react-router";
-import { Copy, Download, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
+import { Copy, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { trendLabelClass, TOPIC_SOURCE_META, formatTopicLabel } from "../constants";
 import type { TopPost } from "../types";
-import { adminPostShowPath, exportPostsCsv, fmt, formatDay } from "../utils";
+import { adminPostShowPath, fmt, formatDay } from "../utils";
 
 const statusLabel = (status: string | null) => {
   switch (status?.toUpperCase()) {
@@ -108,17 +108,7 @@ export function TopPostsTable({ posts, loading }: TopPostsTableProps) {
             </button>
           ))}
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="gap-1.5 ml-auto"
-          disabled={filtered.length === 0}
-          onClick={() => exportPostsCsv(filtered)}
-        >
-          <Download className="h-3.5 w-3.5" />
-          Xuất CSV
-        </Button>
+
       </div>
 
       {filtered.length === 0 ? (

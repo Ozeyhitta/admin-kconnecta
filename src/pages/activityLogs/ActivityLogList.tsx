@@ -6,9 +6,7 @@ import { ActivityLogSummaryCards } from "@/pages/dashboard/components/activityLo
 import { ActivityLogFilterBar } from "@/pages/dashboard/components/activityLogs/ActivityLogFilters";
 import { ActivityLogList } from "@/pages/dashboard/components/activityLogs/ActivityLogList";
 import { ActivityLogDetailDrawer } from "@/pages/dashboard/components/activityLogs/ActivityLogDetailDrawer";
-import { resolveApiBaseUrl } from "@/services/axiosInstance";
 import { cachedApiGet, DETAIL_CACHE_TTL } from "@/services/apiGetCache";
-import { getAdminToken } from "@/lib/currentAdminUser";
 import { getPageContent, getPageTotalPages } from "@/services/pagination";
 import type { ActivityLogFilters as Filters, ActivityLogItem, ActivityLogPageResponse } from "@/pages/dashboard/components/activityLogs/types";
 
@@ -88,24 +86,7 @@ export const ActivityLogListPage = () => {
   const items = data ? getPageContent<ActivityLogItem>(data) : [];
   const totalPages = data ? getPageTotalPages(data, PAGE_SIZE) : 1;
 
-  const handleExport = async () => {
-    const token = getAdminToken();
-    const base = resolveApiBaseUrl().replace(/\/$/, "");
-    const params = new URLSearchParams();
-    Object.entries(filters).forEach(([k, v]) => {
-      if (v !== undefined && v !== "") params.set(k, String(v));
-    });
-    const res = await fetch(`${base}/api/v1/admin/activity-logs/export?${params}`, {
-      headers: token ? { Authorization: `Bearer ${token}`, "X-Admin-Token": token } : {},
-    });
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "activity-logs.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+
 
   return (
     <List
@@ -127,11 +108,7 @@ export const ActivityLogListPage = () => {
         )}
         <ActivityLogSummaryCards summary={data?.summary} loading={loading} />
         <ActivityLogFilterBar filters={filters} onChange={setFilters} />
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={() => void handleExport()} className="text-sm underline text-muted-foreground hover:text-foreground">
-            Xuất CSV
-          </button>
-        </div>
+
         <ActivityLogList
           items={items}
           loading={loading}

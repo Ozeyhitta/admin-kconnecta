@@ -18,9 +18,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiClient } from "@/services/axiosInstance";
-import { isCurrentAdminUser, getLoggedInAdmin } from "@/lib/currentAdminUser";
+import { isCurrentAdminUser } from "@/lib/currentAdminUser";
 import { LockUserButton } from "./LockUserButton";
-import { ChangeRoleButton } from "./ChangeRoleButton";
 
 interface UserStats {
   totalPosts: number;
@@ -314,10 +313,8 @@ export const CustomerShow = () => {
                   <status.icon className="h-3 w-3 mr-1" />
                   {status.label}
                 </Badge>
-                <Badge variant={record.role === "SUPER_ADMIN" ? "destructive" : record.role === "ADMIN" ? "default" : "outline"}>
-                  {record.role === "SUPER_ADMIN" ? (
-                    <ShieldCheck className="h-3 w-3 mr-1 text-red-500" />
-                  ) : record.role === "ADMIN" ? (
+                <Badge variant={record.role === "ADMIN" ? "default" : "outline"}>
+                  {record.role === "ADMIN" ? (
                     <ShieldCheck className="h-3 w-3 mr-1" />
                   ) : (
                     <User className="h-3 w-3 mr-1" />
@@ -348,10 +345,8 @@ export const CustomerShow = () => {
               <DetailRow
                 label="Vai trò"
                 value={
-                  <Badge variant={record.role === "SUPER_ADMIN" ? "destructive" : record.role === "ADMIN" ? "default" : "outline"}>
-                    {record.role === "SUPER_ADMIN" ? (
-                      <ShieldCheck className="h-3 w-3 mr-1 text-red-500" />
-                    ) : record.role === "ADMIN" ? (
+                  <Badge variant={record.role === "ADMIN" ? "default" : "outline"}>
+                    {record.role === "ADMIN" ? (
                       <ShieldCheck className="h-3 w-3 mr-1" />
                     ) : (
                       <User className="h-3 w-3 mr-1" />
@@ -379,9 +374,7 @@ export const CustomerShow = () => {
                   <Mail className="h-4 w-4 mr-2" />
                   {sendingEmail ? "Đang gửi email..." : "Gửi mail đặt lại mật khẩu"}
                 </Button>
-                {getLoggedInAdmin()?.role === "SUPER_ADMIN" && (
-                  <ChangeRoleButton record={record} className="w-full" />
-                )}
+
               </CardContent>
             </Card>
           ) : (
@@ -396,104 +389,106 @@ export const CustomerShow = () => {
         </div>
 
         <div className="lg:col-span-2 space-y-4">
-          <Card>
-            <CardContent className="pt-4">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                Thống kê hoạt động
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <StatItem
-                  icon={FileText}
-                  iconColor="text-sky-500"
-                  label="Bài đăng"
-                  value={stats?.totalPosts}
-                  loading={statsLoading}
-                  onClick={openUserActivity("POST_CREATED")}
-                />
-                <StatItem
-                  icon={MessageSquare}
-                  iconColor="text-pink-500"
-                  label="Bình luận"
-                  value={stats?.totalComments}
-                  loading={statsLoading}
-                  onClick={openUserActivity("COMMENT_ADDED")}
-                />
-                <StatItem
-                  icon={Heart}
-                  iconColor="text-red-400"
-                  label="Cảm xúc"
-                  value={stats?.totalReactions}
-                  loading={statsLoading}
-                  onClick={openUserActivity("REACTION_ADDED")}
-                />
-                <StatItem
-                  icon={Share2}
-                  iconColor="text-yellow-500"
-                  label="Chia sẻ"
-                  value={stats?.totalShares}
-                  loading={statsLoading}
-                  onClick={openUserActivity("POST_SHARED")}
-                />
-                <StatItem
-                  icon={UserPlus2}
-                  iconColor="text-primary"
-                  label="Kết bạn"
-                  value={stats?.totalFriendRequests}
-                  loading={statsLoading}
-                  onClick={openUserActivity("FRIEND_REQUEST_SENT")}
-                />
-                <StatItem
-                  icon={LogIn}
-                  iconColor="text-indigo-500"
-                  label="Đăng nhập"
-                  value={stats?.totalLogins}
-                  loading={statsLoading}
-                  onClick={openUserActivity("LOGIN")}
-                />
-                <StatItem
-                  icon={Activity}
-                  iconColor="text-orange-500"
-                  label="Tổng HĐ"
-                  value={stats?.totalActivity}
-                  loading={statsLoading}
-                  onClick={openUserActivity()}
-                />
-                <StatItem
-                  icon={TrendingUp}
-                  iconColor="text-violet-500"
-                  label="Engagement"
-                  value={
-                    stats && stats.totalActivity > 0
-                      ? Math.round(((stats.totalReactions + stats.totalComments + stats.totalShares) / Math.max(stats.totalPosts, 1)) * 10) / 10
-                      : 0
-                  }
-                  loading={statsLoading}
-                  onClick={openUserActivity()}
-                />
-              </div>
+          {record.role !== "ADMIN" && (
+            <Card>
+              <CardContent className="pt-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                  Thống kê hoạt động
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <StatItem
+                    icon={FileText}
+                    iconColor="text-sky-500"
+                    label="Bài đăng"
+                    value={stats?.totalPosts}
+                    loading={statsLoading}
+                    onClick={openUserActivity("POST_CREATED")}
+                  />
+                  <StatItem
+                    icon={MessageSquare}
+                    iconColor="text-pink-500"
+                    label="Bình luận"
+                    value={stats?.totalComments}
+                    loading={statsLoading}
+                    onClick={openUserActivity("COMMENT_ADDED")}
+                  />
+                  <StatItem
+                    icon={Heart}
+                    iconColor="text-red-400"
+                    label="Cảm xúc"
+                    value={stats?.totalReactions}
+                    loading={statsLoading}
+                    onClick={openUserActivity("REACTION_ADDED")}
+                  />
+                  <StatItem
+                    icon={Share2}
+                    iconColor="text-yellow-500"
+                    label="Chia sẻ"
+                    value={stats?.totalShares}
+                    loading={statsLoading}
+                    onClick={openUserActivity("POST_SHARED")}
+                  />
+                  <StatItem
+                    icon={UserPlus2}
+                    iconColor="text-primary"
+                    label="Kết bạn"
+                    value={stats?.totalFriendRequests}
+                    loading={statsLoading}
+                    onClick={openUserActivity("FRIEND_REQUEST_SENT")}
+                  />
+                  <StatItem
+                    icon={LogIn}
+                    iconColor="text-indigo-500"
+                    label="Đăng nhập"
+                    value={stats?.totalLogins}
+                    loading={statsLoading}
+                    onClick={openUserActivity("LOGIN")}
+                  />
+                  <StatItem
+                    icon={Activity}
+                    iconColor="text-orange-500"
+                    label="Tổng HĐ"
+                    value={stats?.totalActivity}
+                    loading={statsLoading}
+                    onClick={openUserActivity()}
+                  />
+                  <StatItem
+                    icon={TrendingUp}
+                    iconColor="text-violet-500"
+                    label="Engagement"
+                    value={
+                      stats && stats.totalActivity > 0
+                        ? Math.round(((stats.totalReactions + stats.totalComments + stats.totalShares) / Math.max(stats.totalPosts, 1)) * 10) / 10
+                        : 0
+                    }
+                    loading={statsLoading}
+                    onClick={openUserActivity()}
+                  />
+                </div>
 
-              {/* Vi phạm */}
-              <p className="text-xs font-semibold text-red-500 uppercase tracking-wider mt-4 mb-2">
-                Vi phạm
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <StatItem
-                  icon={AlertTriangle}
-                  iconColor="text-red-500"
-                  label="VP bình luận"
-                  value={stats?.totalCommentViolations}
-                  loading={statsLoading}
-                />
-                <StatItem
-                  icon={AlertTriangle}
-                  iconColor="text-orange-500"
-                  label="VP bài đăng"
-                  value={stats?.totalPostViolations}
-                  loading={statsLoading}
-                />
-              </div>
-            </CardContent>
-          </Card>
+                {/* Vi phạm */}
+                <p className="text-xs font-semibold text-red-500 uppercase tracking-wider mt-4 mb-2">
+                  Vi phạm
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <StatItem
+                    icon={AlertTriangle}
+                    iconColor="text-red-500"
+                    label="VP bình luận"
+                    value={stats?.totalCommentViolations}
+                    loading={statsLoading}
+                  />
+                  <StatItem
+                    icon={AlertTriangle}
+                    iconColor="text-orange-500"
+                    label="VP bài đăng"
+                    value={stats?.totalPostViolations}
+                    loading={statsLoading}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardContent className="pt-4">

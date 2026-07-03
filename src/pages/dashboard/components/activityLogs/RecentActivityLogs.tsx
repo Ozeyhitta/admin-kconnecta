@@ -1,14 +1,14 @@
 import * as React from "react";
 import { Link } from "react-router";
-import { Download, ExternalLink, RefreshCw } from "lucide-react";
+import { ExternalLink, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { resolveApiBaseUrl } from "@/services/axiosInstance";
+
 import {
   cachedApiGet,
   DASHBOARD_CACHE_TTL,
   invalidateApiGetCache,
 } from "@/services/apiGetCache";
-import { getAdminToken } from "@/lib/currentAdminUser";
+
 import { ADMIN_ACTIVITY_POLL_MS, useIntervalPoll } from "@/lib/adminStatsPoll";
 import { type StatsDateRange } from "@/lib/statsDateRange";
 import { ActivityLogFilterBar } from "./ActivityLogFilters";
@@ -138,29 +138,7 @@ export const RecentActivityLogs = ({ compact = true, pageSize = 10 }: Props) => 
     void fetchLogs();
   };
 
-  const handleExport = async () => {
-    const token = getAdminToken();
-    const base = resolveApiBaseUrl().replace(/\/$/, "");
-    const params = new URLSearchParams();
-    if (filters.username)    params.set("username",    filters.username);
-    if (filters.actionType)  params.set("actionType",  filters.actionType);
-    if (filters.status)      params.set("status",      filters.status);
-    if (filters.severity)    params.set("severity",    filters.severity);
-    if (filters.from)        params.set("from",        filters.from);
-    if (filters.to)          params.set("to",          filters.to);
-    if (filters.abnormalOnly) params.set("abnormalOnly", "true");
 
-    const res = await fetch(`${base}/api/v1/admin/activity-logs/export?${params}`, {
-      headers: token ? { Authorization: `Bearer ${token}`, "X-Admin-Token": token } : {},
-    });
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href     = url;
-    a.download = "activity-logs.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div>
@@ -180,14 +158,7 @@ export const RecentActivityLogs = ({ compact = true, pageSize = 10 }: Props) => 
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             Làm mới
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1.5"
-            onClick={() => void handleExport()}
-          >
-            <Download className="h-3.5 w-3.5" /> Xuất CSV
-          </Button>
+
           <Button variant="outline" size="sm" className="h-8 gap-1.5" asChild>
             <Link to="/activity-logs">
               <ExternalLink className="h-3.5 w-3.5" /> Xem tất cả log

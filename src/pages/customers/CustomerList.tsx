@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ShieldCheck, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router";
 import { FullNameField } from "./FullNameField";
-import { isCurrentAdminUser, getLoggedInAdmin } from "@/lib/currentAdminUser";
+import { isCurrentAdminUser } from "@/lib/currentAdminUser";
 import { LockUserButton } from "./LockUserButton";
 
 const shortDateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -60,10 +60,8 @@ const RoleBadge = () => {
   const record = useRecordContext();
   if (!record) return null;
   return (
-    <Badge variant={record.role === "SUPER_ADMIN" ? "destructive" : record.role === "ADMIN" ? "default" : "outline"}>
-      {record.role === "SUPER_ADMIN" ? (
-        <ShieldCheck className="w-3 h-3 mr-1 text-red-500" />
-      ) : record.role === "ADMIN" ? (
+    <Badge variant={record.role === "ADMIN" ? "default" : "outline"}>
+      {record.role === "ADMIN" ? (
         <ShieldCheck className="w-3 h-3 mr-1" />
       ) : (
         <User className="w-3 h-3 mr-1" />
@@ -207,12 +205,7 @@ const TopFilters = () => {
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold text-muted-foreground mr-1">Role:</span>
           <ToggleFilterButton label="User" value={{ role: "USER" }} className="w-auto" />
-          {getLoggedInAdmin()?.role === "SUPER_ADMIN" && (
-            <>
-              <ToggleFilterButton label="Admin" value={{ role: "ADMIN" }} className="w-auto" />
-              <ToggleFilterButton label="Super Admin" value={{ role: "SUPER_ADMIN" }} className="w-auto" />
-            </>
-          )}
+          <ToggleFilterButton label="Admin" value={{ role: "ADMIN" }} className="w-auto" />
         </div>
       </div>
     </div>

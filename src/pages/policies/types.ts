@@ -180,5 +180,4 @@ export type PolicySectionKey =
   | "keywords"
   | "ai"
   | "posts"
-  | "audit"
-  | "admin_setup";
+  | "audit";

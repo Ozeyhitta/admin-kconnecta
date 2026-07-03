@@ -1,7 +1,7 @@
 import * as React from "react";
-import { Download, Search, TrendingDown, TrendingUp } from "lucide-react";
+import { Search, TrendingDown, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { TOPIC_SOURCE_META, formatTopicLabel, trendLabelClass } from "../constants";
 import type { TopicSource, TopicTrend } from "../types";
-import { exportTopicsCsv, fmt } from "../utils";
+import { fmt } from "../utils";
 
 type SortKey = "score" | "growth" | "posts" | "reports";
 type SourceFilter = "all" | TopicSource;
@@ -114,17 +114,7 @@ export function TopicTrendTable({ topics, loading, onTopicSelect }: TopicTrendTa
           />
           Ẩn #khác
         </label>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          disabled={filtered.length === 0}
-          onClick={() => exportTopicsCsv(filtered)}
-        >
-          <Download className="h-3.5 w-3.5" />
-          CSV
-        </Button>
+
       </div>
 
       {filtered.length === 0 ? (

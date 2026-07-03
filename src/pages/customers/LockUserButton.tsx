@@ -55,7 +55,7 @@ export const LockUserButton = ({
   const [mode, setMode] = useState<"temp" | "indefinite">("temp");
   const [days, setDays] = useState(FALLBACK_LOCK_DAYS);
 
-  if (!record || isCurrentAdminUser({ id: String(record.id) })) {
+  if (!record || isCurrentAdminUser({ id: String(record.id) }) || record.role === "ADMIN") {
     return null;
   }
 

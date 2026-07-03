@@ -1,7 +1,7 @@
 import * as React from "react";
-import { Download, Search, TrendingDown, TrendingUp } from "lucide-react";
+import { Search, TrendingDown, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -15,7 +15,7 @@ import {
 import { formatTopicLabel, trendLabelClass } from "../constants";
 import { FALLBACK_TOPIC, sortHashtagRankings } from "../lib/postTrendsAnalytics";
 import type { TopicTrend } from "../types";
-import { exportTopicsCsv, fmt } from "../utils";
+import { fmt } from "../utils";
 
 type SortKey = "score" | "growth" | "posts" | "reports" | "interactions";
 
@@ -77,17 +77,7 @@ export function HashtagRankingTable({ topics, loading, onTopicSelect }: HashtagR
           <option value="reports">Báo cáo</option>
           <option value="growth">Thay đổi kỳ trước</option>
         </select>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          disabled={filtered.length === 0}
-          onClick={() => exportTopicsCsv(filtered)}
-        >
-          <Download className="h-3.5 w-3.5" />
-          CSV
-        </Button>
+
       </div>
 
       {filtered.length === 0 ? (
