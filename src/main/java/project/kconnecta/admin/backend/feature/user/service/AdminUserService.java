@@ -29,10 +29,6 @@ public interface AdminUserService {
 
     AdminUserResponseDTO resetEmail(UUID id, String newEmail);
 
-    AdminUserResponseDTO updateRole(UUID id, AccountRole role);
-
-    AdminUserResponseDTO createAdmin(String email, String password);
-
     long countUsersRegisteredBetween(LocalDateTime from, LocalDateTime to);
 
     UserStatsResponse getUserStats(UUID id);

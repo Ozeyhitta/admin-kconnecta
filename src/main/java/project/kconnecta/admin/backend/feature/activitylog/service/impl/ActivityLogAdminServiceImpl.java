@@ -132,46 +132,7 @@ public class ActivityLogAdminServiceImpl implements ActivityLogAdminService {
                 .toList();
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public String exportCsv(
-            UUID userId,
-            String username,
-            String actionType,
-            String status,
-            String severity,
-            LocalDateTime from,
-            LocalDateTime to,
-            boolean abnormalOnly
-    ) {
-        Specification<UserActivityLog> spec = buildSpec(userId, username, actionType, status, severity, from, to);
-        Page<UserActivityLog> page = repository.findAll(spec,
-                PageRequest.of(0, EXPORT_LIMIT, Sort.by(Sort.Direction.DESC, "createdAt")));
-        Map<UUID, User> usersById = loadUsers(page.getContent());
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("id,created_at,username,full_name,action_type,action_label,status,severity,description,ip,browser,os,device,abnormal,abnormal_reason\n");
-        for (UserActivityLog log : page.getContent()) {
-            ActivityLogItemResponse item = toItem(log, usersById);
-            if (abnormalOnly && !item.isAbnormal()) continue;
-            sb.append(csv(item.getId())).append(',')
-                    .append(csv(item.getCreatedAt())).append(',')
-                    .append(csv(item.getUsername())).append(',')
-                    .append(csv(item.getFullName())).append(',')
-                    .append(csv(item.getActionType())).append(',')
-                    .append(csv(item.getActionLabel())).append(',')
-                    .append(csv(item.getStatus())).append(',')
-                    .append(csv(item.getSeverity())).append(',')
-                    .append(csv(item.getDescription())).append(',')
-                    .append(csv(item.getIpAddress())).append(',')
-                    .append(csv(item.getBrowser())).append(',')
-                    .append(csv(item.getOs())).append(',')
-                    .append(csv(item.getDeviceType())).append(',')
-                    .append(item.isAbnormal()).append(',')
-                    .append(csv(item.getAbnormalReason())).append('\n');
-        }
-        return sb.toString();
-    }
 
     private ActivityLogItemResponse toItem(UserActivityLog log, Map<UUID, User> usersById) {
         User user = log.getUserId() != null ? usersById.get(log.getUserId()) : null;
@@ -356,12 +317,5 @@ public class ActivityLogAdminServiceImpl implements ActivityLogAdminService {
         };
     }
 
-    private static String csv(Object value) {
-        if (value == null) return "";
-        String s = value.toString();
-        if (s.contains(",") || s.contains("\"") || s.contains("\n")) {
-            return "\"" + s.replace("\"", "\"\"") + "\"";
-        }
-        return s;
-    }
+
 }

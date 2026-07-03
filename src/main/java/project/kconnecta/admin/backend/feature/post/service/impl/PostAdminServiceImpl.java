@@ -125,17 +125,14 @@ public class PostAdminServiceImpl implements PostAdminService {
 
     private List<PostAdminResponse> mapShares(List<PostShare> shares) {
         List<UUID> originalIds = shares.stream().map(s -> s.getPost().getId()).toList();
-        Map<UUID, Long> counts = loadReportCounts(originalIds);
-        Map<UUID, PostReportAdminRepository.LatestPostReportView> latest = loadLatestReports(originalIds);
         Map<UUID, List<PostMediaAdminResponse>> media = loadMedia(originalIds);
         return shares.stream().map(s -> {
             UUID originalId = s.getPost().getId();
-            PostReportAdminRepository.LatestPostReportView lv = latest.get(originalId);
             return PostAdminResponse.fromShare(
                     s,
-                    counts.getOrDefault(originalId, 0L),
-                    parseCategory(lv != null ? lv.getCategory() : null),
-                    lv != null ? lv.getReason() : null,
+                    0L,
+                    null,
+                    null,
                     media.getOrDefault(originalId, List.of()));
         }).collect(Collectors.toList());
     }

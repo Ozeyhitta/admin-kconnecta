@@ -48,18 +48,7 @@ public class ConversationAdminController {
 
     @GetMapping("/audit-logs")
     public ResponseEntity<List<AdminChatAuditLogResponse>> getAuditLogs(@RequestParam String conversationId) {
-        if (!isCurrentSuperAdmin()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Chỉ Super Admin mới có quyền xem nhật ký kiểm duyệt.");
-        }
         return ResponseEntity.ok(conversationAdminService.getAuditLogs(conversationId));
-    }
-
-    private boolean isCurrentSuperAdmin() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null) return false;
-        return auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
     }
 
     @DeleteMapping("/{id}")

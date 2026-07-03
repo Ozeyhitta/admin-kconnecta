@@ -52,25 +52,5 @@ public class ActivityLogAdminController {
                 fromDt, toDt, abnormalOnly));
     }
 
-    @GetMapping("/export")
-    public ResponseEntity<String> exportCsv(
-            @RequestParam(required = false) UUID userId,
-            @RequestParam(required = false) String username,
-            @RequestParam(required = false) String actionType,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String severity,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(defaultValue = "false") boolean abnormalOnly
-    ) {
-        LocalDateTime fromDt = from != null ? from.atStartOfDay() : null;
-        LocalDateTime toDt = to != null ? to.atTime(LocalTime.MAX) : null;
-        String csv = activityLogAdminService.exportCsv(
-                userId, username, actionType, status, severity, fromDt, toDt, abnormalOnly);
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=activity-logs.csv")
-                .contentType(new MediaType("text", "csv"))
-                .body(csv);
-    }
 }

@@ -104,14 +104,6 @@ public class AdminUserServiceImpl implements AdminUserService {
         }
     }
 
-    private void assertNotLastAdmin(Account target, AccountRole newRole) {
-        if (target.getRole() == AccountRole.ADMIN && newRole != AccountRole.ADMIN) {
-            if (accountRepository.countByRole(AccountRole.ADMIN) <= 1) {
-                throw new IllegalArgumentException("Không thể gỡ quyền Admin cuối cùng trong hệ thống");
-            }
-        }
-    }
-
     @Override
     @Transactional
     public AdminUserResponseDTO updateStatus(UUID id, AccountStatus status, Integer lockDays) {
@@ -181,35 +173,6 @@ public class AdminUserServiceImpl implements AdminUserService {
         return AdminUserResponseDTO.from(accountRepository.save(account));
     }
 
-    @Override
-    @Transactional
-    public AdminUserResponseDTO updateRole(UUID id, AccountRole role) {
-        Account account = findAccount(id);
-        assertCanModifyUser(account);
-        assertNotLastAdmin(account, role);
-        account.setRole(role);
-        return AdminUserResponseDTO.from(accountRepository.save(account));
-    }
-
-    @Override
-    @Transactional
-    public AdminUserResponseDTO createAdmin(String email, String password) {
-        String normalized = email.trim().toLowerCase();
-        accountRepository.findByEmail(normalized).ifPresent(existing -> {
-            throw new IllegalArgumentException("Email đã được sử dụng");
-        });
-
-        Account account = Account.builder()
-                .id(UUID.randomUUID())
-                .email(normalized)
-                .passwordHash(passwordEncoder.encode(password))
-                .status(AccountStatus.ACTIVE)
-                .role(AccountRole.ADMIN)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        return AdminUserResponseDTO.from(accountRepository.save(account));
-    }
 
     @Override
     public long countUsersRegisteredBetween(LocalDateTime from, LocalDateTime to) {

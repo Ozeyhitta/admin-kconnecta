@@ -4,19 +4,13 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 import project.kconnecta.admin.backend.common.enums.AccountRole;
 import project.kconnecta.admin.backend.common.enums.AccountStatus;
 import project.kconnecta.admin.backend.feature.activitylog.dto.response.UserActivityLogResponse;
-import project.kconnecta.admin.backend.feature.user.dto.request.CreateAdminRequest;
 import project.kconnecta.admin.backend.feature.user.dto.request.ResetEmailRequest;
 import project.kconnecta.admin.backend.feature.user.dto.request.ResetPasswordRequest;
-import project.kconnecta.admin.backend.feature.user.dto.request.UpdateRoleRequest;
 import project.kconnecta.admin.backend.feature.user.dto.request.UpdateStatusRequest;
 import project.kconnecta.admin.backend.feature.user.dto.response.AdminUserResponseDTO;
 import project.kconnecta.admin.backend.feature.user.dto.response.UserStatsResponse;
@@ -102,14 +96,6 @@ public class UserAdminController {
         return ResponseEntity.ok(adminUserService.resetEmail(id, request.getNewEmail()));
     }
 
-    @PatchMapping("/{id}/role")
-    public ResponseEntity<AdminUserResponseDTO> updateRole(
-            @PathVariable UUID id,
-            @Valid @RequestBody UpdateRoleRequest request) {
-
-        return ResponseEntity.ok(adminUserService.updateRole(id, request.getRole()));
-    }
-
     @GetMapping("/{id}/stats")
     public ResponseEntity<UserStatsResponse> getUserStats(@PathVariable UUID id) {
         return ResponseEntity.ok(adminUserService.getUserStats(id));
@@ -118,21 +104,5 @@ public class UserAdminController {
     @GetMapping("/{id}/activity")
     public ResponseEntity<List<UserActivityLogResponse>> getUserActivity(@PathVariable UUID id) {
         return ResponseEntity.ok(adminUserService.getUserActivity(id));
-    }
-
-    @PostMapping("/admins")
-    public ResponseEntity<AdminUserResponseDTO> createAdmin(@Valid @RequestBody CreateAdminRequest request) {
-        if (!isCurrentSuperAdmin()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Chỉ Super Admin mới có quyền tạo tài khoản Admin mới.");
-        }
-        return ResponseEntity.ok(adminUserService.createAdmin(request.getEmail(), request.getPassword()));
-    }
-
-    private boolean isCurrentSuperAdmin() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null) return false;
-        return auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
     }
 }

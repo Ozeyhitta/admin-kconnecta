@@ -31,14 +31,5 @@ public interface ActivityLogAdminService {
             int limit
     );
 
-    String exportCsv(
-            UUID userId,
-            String username,
-            String actionType,
-            String status,
-            String severity,
-            LocalDateTime from,
-            LocalDateTime to,
-            boolean abnormalOnly
-    );
+
 }

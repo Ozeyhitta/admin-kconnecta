@@ -23,11 +23,6 @@ public class ElasticsearchAdminController {
 
     @PostMapping("/reindex")
     public ResponseEntity<Map<String, String>> triggerReindex() {
-        if (!isCurrentSuperAdmin()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Chỉ Super Admin mới có quyền chạy lại index tìm kiếm.");
-        }
-
         if (!syncService.isElasticsearchAlive()) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(Map.of("message", "Elasticsearch is offline or disabled."));
@@ -36,12 +31,5 @@ public class ElasticsearchAdminController {
         CompletableFuture.runAsync(syncService::reindexAll);
 
         return ResponseEntity.ok(Map.of("message", "Reindexing triggered in background."));
-    }
-
-    private boolean isCurrentSuperAdmin() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null) return false;
-        return auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
     }
 }
