@@ -70,7 +70,11 @@ public class ElasticsearchSyncService {
             return false;
         }
         try {
-            return elasticsearchOperations.indexOps(UserDocument.class).exists();
+            // A fresh Elasticsearch project has no indices yet. Reaching the
+            // server successfully is enough here; reindexAll() creates the
+            // required indices immediately afterwards.
+            elasticsearchOperations.indexOps(UserDocument.class).exists();
+            return true;
         } catch (Exception e) {
             log.debug("[ElasticSearch] Health check failed: {}", e.getMessage());
             return false;
