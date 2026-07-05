@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import project.kconnecta.admin.backend.entity.PostComment;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -37,6 +38,9 @@ public interface CommentAdminRepository extends JpaRepository<PostComment, UUID>
 
     @Query("SELECT c FROM PostComment c LEFT JOIN FETCH c.user LEFT JOIN FETCH c.post WHERE c.id = :id")
     Optional<PostComment> findByIdWithDetails(@Param("id") UUID id);
+
+    @Query("SELECT c FROM PostComment c LEFT JOIN FETCH c.user LEFT JOIN FETCH c.post")
+    List<PostComment> findAllWithDetails();
 
     long countByUserId(UUID userId);
 

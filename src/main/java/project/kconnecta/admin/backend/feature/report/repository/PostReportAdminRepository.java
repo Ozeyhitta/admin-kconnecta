@@ -45,6 +45,9 @@ public interface PostReportAdminRepository extends JpaRepository<PostReport, UUI
     @Query("SELECT r FROM PostReport r LEFT JOIN FETCH r.post p LEFT JOIN FETCH p.author LEFT JOIN FETCH r.reporter WHERE r.id = :id")
     Optional<PostReport> findByIdWithDetails(@Param("id") UUID id);
 
+    @Query("SELECT r FROM PostReport r LEFT JOIN FETCH r.post LEFT JOIN FETCH r.reporter")
+    List<PostReport> findAllWithDetails();
+
     long countByPost_Id(UUID postId);
 
     long countByCreatedAtAfter(LocalDateTime createdAt);

@@ -149,13 +149,13 @@ public class ElasticsearchSyncService {
     }
 
     private void reindexPostsAndShares() {
-        List<Post> posts = postAdminRepository.findAll();
+        List<Post> posts = postAdminRepository.findAllWithAuthor();
         List<PostDocument> docs = new ArrayList<>();
         for (Post post : posts) {
             docs.add(mapPost(post));
         }
 
-        List<PostShare> shares = postShareAdminRepository.findAll();
+        List<PostShare> shares = postShareAdminRepository.findAllWithDetails();
         for (PostShare share : shares) {
             docs.add(mapShare(share));
         }
@@ -167,7 +167,7 @@ public class ElasticsearchSyncService {
     }
 
     private void reindexComments() {
-        List<PostComment> comments = commentAdminRepository.findAll();
+        List<PostComment> comments = commentAdminRepository.findAllWithDetails();
         List<CommentDocument> docs = comments.stream().map(this::mapComment).toList();
         if (!docs.isEmpty()) {
             commentElasticsearchRepository.saveAll(docs);
@@ -176,7 +176,7 @@ public class ElasticsearchSyncService {
     }
 
     private void reindexReports() {
-        List<PostReport> reports = postReportAdminRepository.findAll();
+        List<PostReport> reports = postReportAdminRepository.findAllWithDetails();
         List<ReportDocument> docs = reports.stream().map(this::mapReport).toList();
         if (!docs.isEmpty()) {
             reportElasticsearchRepository.saveAll(docs);
@@ -215,7 +215,7 @@ public class ElasticsearchSyncService {
         if (!isElasticsearchAlive()) return;
         CompletableFuture.runAsync(() -> {
             try {
-                postAdminRepository.findById(postId).ifPresent(post -> 
+                postAdminRepository.findByIdWithAuthor(postId).ifPresent(post ->
                     postElasticsearchRepository.save(mapPost(post))
                 );
             } catch (Exception e) {
@@ -228,7 +228,7 @@ public class ElasticsearchSyncService {
         if (!isElasticsearchAlive()) return;
         CompletableFuture.runAsync(() -> {
             try {
-                postShareAdminRepository.findById(shareId).ifPresent(share -> 
+                postShareAdminRepository.findByIdWithDetails(shareId).ifPresent(share ->
                     postElasticsearchRepository.save(mapShare(share))
                 );
             } catch (Exception e) {
@@ -241,7 +241,7 @@ public class ElasticsearchSyncService {
         if (!isElasticsearchAlive()) return;
         CompletableFuture.runAsync(() -> {
             try {
-                commentAdminRepository.findById(commentId).ifPresent(comment -> 
+                commentAdminRepository.findByIdWithDetails(commentId).ifPresent(comment ->
                     commentElasticsearchRepository.save(mapComment(comment))
                 );
             } catch (Exception e) {
@@ -254,7 +254,7 @@ public class ElasticsearchSyncService {
         if (!isElasticsearchAlive()) return;
         CompletableFuture.runAsync(() -> {
             try {
-                postReportAdminRepository.findById(reportId).ifPresent(report -> 
+                postReportAdminRepository.findByIdWithDetails(reportId).ifPresent(report ->
                     reportElasticsearchRepository.save(mapReport(report))
                 );
             } catch (Exception e) {

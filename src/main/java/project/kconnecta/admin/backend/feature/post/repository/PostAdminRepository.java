@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import project.kconnecta.admin.backend.common.enums.PostStatus;
 import project.kconnecta.admin.backend.entity.Post;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,6 +41,9 @@ public interface PostAdminRepository extends JpaRepository<Post, UUID> {
 
     @Query("SELECT p FROM Post p LEFT JOIN FETCH p.author WHERE p.id = :id")
     Optional<Post> findByIdWithAuthor(@Param("id") UUID id);
+
+    @Query("SELECT p FROM Post p LEFT JOIN FETCH p.author")
+    List<Post> findAllWithAuthor();
 
     long countByAuthorId(UUID authorId);
 

@@ -11,6 +11,7 @@ import project.kconnecta.admin.backend.common.enums.PostStatus;
 import project.kconnecta.admin.backend.entity.PostShare;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -48,6 +49,9 @@ public interface PostShareAdminRepository extends JpaRepository<PostShare, UUID>
 
     @Query("SELECT s FROM PostShare s JOIN FETCH s.sharer JOIN FETCH s.post op JOIN FETCH op.author WHERE s.id = :id")
     Optional<PostShare> findByIdWithDetails(@Param("id") UUID id);
+
+    @Query("SELECT s FROM PostShare s LEFT JOIN FETCH s.sharer LEFT JOIN FETCH s.post")
+    List<PostShare> findAllWithDetails();
 
     /** Re-shares pointing at this share must be detached before it can be removed. */
     @Modifying
