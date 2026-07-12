@@ -2,7 +2,6 @@ import { useRecordContext, useTranslate, FilterLiveForm, useListContext } from "
 import {
   ColumnsButton,
   DataTable,
-  ExportButton,
   List,
   ToggleFilterButton,
   TextInput,
@@ -103,7 +102,6 @@ export const CustomerList = () => {
       actions={
         <div className="flex items-center gap-2">
           <ColumnsButton />
-          <ExportButton />
         </div>
       }
     >

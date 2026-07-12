@@ -1,7 +1,6 @@
 import { useRecordContext, FilterLiveForm, useListContext } from "ra-core";
 import {
   DataTable,
-  ExportButton,
   List,
   ToggleFilterButton,
   TextInput,
@@ -200,11 +199,7 @@ export const PostList = () => {
       sort={{ field: "updatedAt", order: "DESC" }}
       pagination={false}
       className="flex-1 min-h-0 overflow-hidden"
-      actions={
-        <div className="flex items-center gap-2">
-          <ExportButton />
-        </div>
-      }
+      actions={false}
     >
       <div className="flex h-full flex-col gap-4">
         <PostDayFilterBanner />

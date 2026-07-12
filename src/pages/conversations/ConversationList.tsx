@@ -2,7 +2,6 @@ import { FilterLiveForm, useRecordContext, useListContext } from "ra-core";
 import { Link } from "react-router";
 import {
   DataTable,
-  ExportButton,
   List,
   ListPagination,
   TextInput,
@@ -201,11 +200,7 @@ export const ConversationList = () => {
       perPage={20}
       sort={{ field: "lastMessageAt", order: "DESC" }}
       pagination={false}
-      actions={
-        <div className="flex items-center gap-2">
-          <ExportButton />
-        </div>
-      }
+      actions={false}
     >
       <div className="flex flex-col gap-4">
         <TopFilters />
