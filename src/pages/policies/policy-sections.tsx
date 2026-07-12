@@ -696,7 +696,6 @@ export const ModerationPlaygroundSection = ({
   policyDirty?: boolean;
 }) => {
   const [playText, setPlayText] = useState("");
-  const [playImageUrl, setPlayImageUrl] = useState("");
   const [playLoading, setPlayLoading] = useState(false);
   const [playResult, setPlayResult] = useState<PlaygroundResult | null>(null);
   const [playError, setPlayError] = useState<string | null>(null);
@@ -720,7 +719,7 @@ export const ModerationPlaygroundSection = ({
     try {
       const { data } = await apiClient.post<PlaygroundResult>("/api/v1/admin/moderation/test", {
         text: playText.trim() || null,
-        imageUrl: playImageUrl.trim() || null,
+        imageUrl: null,
       });
       setPlayResult(data);
     } catch (e: unknown) {
@@ -790,18 +789,9 @@ export const ModerationPlaygroundSection = ({
             onChange={(e) => setPlayText(e.target.value)}
           />
         </div>
-        <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">URL hình ảnh (tùy chọn)</label>
-          <Input
-            type="url"
-            placeholder="https://example.com/image.jpg"
-            value={playImageUrl}
-            onChange={(e) => setPlayImageUrl(e.target.value)}
-          />
-        </div>
         <button
           onClick={runTest}
-          disabled={playLoading || (!playText.trim() && !playImageUrl.trim())}
+          disabled={playLoading || !playText.trim()}
           className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {playLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
