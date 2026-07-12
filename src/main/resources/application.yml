@@ -65,8 +65,10 @@ management:
     health:
       probes:
         enabled: true
-      show-details: when_authorized
+      show-details: always
   health:
+    elasticsearch:
+      enabled: false
     livenessstate:
       enabled: true
     readinessstate:

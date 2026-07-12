@@ -39,6 +39,10 @@ public class AdminAuthServiceImpl implements AdminAuthService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: insufficient privileges");
         }
 
+        if (account.getStatus() == AccountStatus.BLOCKED || account.getStatus() == AccountStatus.DELETED) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tài khoản đã bị khóa hoặc không có quyền truy cập");
+        }
+
         if (!passwordEncoder.matches(request.getPassword(), account.getPasswordHash())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
